@@ -1,4 +1,4 @@
-MODULE load_mesh_1d
+MODULE mesh_1d
   USE def_type_mesh
   USE input_data
   PUBLIC :: load_mesh_1d

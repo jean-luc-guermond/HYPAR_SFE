@@ -6,7 +6,7 @@ MODULE construct_mesh
    PRIVATE
 CONTAINS
    SUBROUTINE construct_mesh(communicator, mesh, LA, js_d_loc, fe_type, opt_edge_stab)
-      USE load_mesh_1d
+      USE mesh_1d
       USE mesh_distribution_1d
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab
