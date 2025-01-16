@@ -17,7 +17,7 @@ PROGRAM test_matrix
    !===User reads his/her own data=================================================
    CALL read_user_data('data')
 
-   CALL construct_mesh(communicator, mesh, LA, js_d_loc, 1)
+   CALL get_mesh(communicator, mesh, LA, js_d_loc, 1)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 

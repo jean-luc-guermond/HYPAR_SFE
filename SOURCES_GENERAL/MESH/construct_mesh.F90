@@ -2,10 +2,10 @@ MODULE construct_mesh
    USE def_type_mesh
    USE space_dim
    USE st_matrix
-   PUBLIC :: construct_mesh
+   PUBLIC :: get_mesh
    PRIVATE
 CONTAINS
-   SUBROUTINE construct_mesh(communicator, mesh, LA, js_d_loc, fe_type, opt_edge_stab)
+   SUBROUTINE get_mesh(communicator, mesh, LA, js_d_loc, fe_type, opt_edge_stab)
       USE mesh_1d
       USE mesh_distribution_1d
       IMPLICIT NONE
@@ -39,5 +39,5 @@ CONTAINS
       CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
       CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
-   END SUBROUTINE construct_mesh
+   END SUBROUTINE get_mesh
 END MODULE  construct_mesh
