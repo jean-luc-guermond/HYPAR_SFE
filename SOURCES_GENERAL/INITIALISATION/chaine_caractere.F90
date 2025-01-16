@@ -1,7 +1,7 @@
 !
 !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
 !
-MODULE chaine_caractere
+MODULE character_strings
 
   PUBLIC :: last_c_leng, last_of_string, start_of_string
 
@@ -139,4 +139,4 @@ CONTAINS
   END SUBROUTINE find_string
   !========================================================================
 
-END MODULE chaine_caractere
+END MODULE character_strings

@@ -19,7 +19,7 @@ CONTAINS
   SUBROUTINE prep_periodic_scal(my_periodic, mesh, periodic)
     !=========================================
     USE def_type_mesh
-    USE chaine_caractere
+    USE character_strings
     IMPLICIT NONE
     TYPE(periodic_data), INTENT(IN)     :: my_periodic
     TYPE(mesh_type)                     :: mesh
@@ -83,7 +83,7 @@ CONTAINS
 
   SUBROUTINE prep_periodic_bloc(my_periodic, mesh, periodic, nb_bloc)
     !=========================================
-    USE chaine_caractere
+    USE character_strings
     USE def_type_mesh
     IMPLICIT NONE
     TYPE(periodic_data), INTENT(IN)     :: my_periodic
@@ -156,7 +156,7 @@ CONTAINS
 
   !JLG+FL/Feb 2 2010
   SUBROUTINE prep_periodic_H_p_phi_bc(my_periodic, H_mesh, pmag_mesh, phi_mesh, H_p_phi_per)
-    USE chaine_caractere
+    USE character_strings
     USE def_type_mesh
     IMPLICIT NONE
     TYPE(periodic_data), INTENT(IN)     :: my_periodic

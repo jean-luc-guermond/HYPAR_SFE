@@ -10,7 +10,7 @@ MODULE solver_petsc
 
 CONTAINS
   SUBROUTINE init_solver(my_par,my_ksp,matrix,communicator,solver,precond, opt_re_init)
-    USE chaine_caractere
+    USE character_strings
 #include "petsc/finclude/petsc.h"
     USE petsc
     IMPLICIT NONE
