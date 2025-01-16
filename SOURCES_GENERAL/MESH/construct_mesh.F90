@@ -1,7 +1,9 @@
 MODULE construct_mesh
+#include "petsc/finclude/petsc.h"
    USE def_type_mesh
    USE space_dim
    USE st_matrix
+   USE petsc
    PUBLIC :: get_mesh
    PRIVATE
 CONTAINS

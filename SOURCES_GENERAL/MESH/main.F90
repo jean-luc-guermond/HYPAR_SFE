@@ -1,8 +1,10 @@
 PROGRAM test_matrix
+#include "petsc/finclude/petsc.h"
    USE construct_mesh
    USE input_data
    USE timing_tools
    USE def_type_mesh
+   USE petsc
 
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
