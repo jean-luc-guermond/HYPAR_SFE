@@ -1,7 +1,7 @@
 MODULE euler_bc_arrays
-  USE mesh_handling
   USE dir_nodes
   USE space_dim
+  USE def_type_mesh
   USE input_data
   INTEGER, POINTER, DIMENSION(:), PUBLIC :: rho_js_D, ux_js_D, uy_js_D, DIR_js_D, whole_bdy_js_D
   INTEGER, POINTER, DIMENSION(:), PUBLIC :: udotn_js_D, surf_udotn_js_D
@@ -10,9 +10,10 @@ MODULE euler_bc_arrays
   PUBLIC :: construct_euler_bc
   PRIVATE
 CONTAINS 
-  SUBROUTINE construct_euler_bc
+  SUBROUTINE construct_euler_bc(mesh)
     USE sub_plot
     IMPLICIT NONE
+    TYPE(mesh_type) :: mesh
     LOGICAL, POINTER, DIMENSION(:) :: dir
     LOGICAL, DIMENSION(mesh%nps) :: virgin
     REAL(KIND=8), DIMENSION(k_dim,mesh%nps) :: normal_vtx
