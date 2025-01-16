@@ -1,6 +1,7 @@
 MODULE mesh_1d
    USE def_type_mesh
    USE input_data
+   USE space_dim
    PUBLIC :: load_mesh_1d
    PRIVATE
 CONTAINS
