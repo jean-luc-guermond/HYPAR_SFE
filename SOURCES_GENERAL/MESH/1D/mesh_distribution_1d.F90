@@ -64,17 +64,17 @@ CONTAINS
       mesh_loc%dom_me = mesh_loc%me
       mesh_loc%dom_mes = mesh_loc%mes
 
-      ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh%mes), mesh_loc%iis(0, 0))
+      ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh_loc%mes), mesh_loc%iis(0, 0))
       ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
            mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
       ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(0, 0))
-      ALLOCATE(mesh_loc%jees(0, 0), mesh_loc%jecs(0, 0))
+      ALLOCATE(mesh_loc%jees(0), mesh_loc%jecs(0))
       ALLOCATE(mesh_loc%jji(0, 0, 0), mesh_loc%jjsi(0, 0), mesh_loc%j_s(0))
       ALLOCATE(mesh_loc%rr(2, mesh_loc%np), mesh_loc%rrs_extra(2, 2, 0))
       ALLOCATE(mesh_loc%neigh(2, mesh_loc%me), mesh_loc%neighi(0, 0))
       ALLOCATE(mesh_loc%sides(mesh_loc%mes), mesh_loc%neighs(mesh_loc%mes))
       ALLOCATE(mesh_loc%sides_extra(mesh_loc%mes_extra), mesh_loc%neighs_extra(mesh_loc%mes_extra))
-      ALLOCATE(mesh_loc%sides_int(mesh_loc%mes_int), mesh_loc%neighs_int(mesh_loc%mes_int))
+      ALLOCATE(mesh_loc%sides_int(mesh_loc%mes_int), mesh_loc%neighs_int(2, mesh_loc%mes_int))
       ALLOCATE(mesh_loc%i_d(mesh_loc%me), mesh_loc%loc_to_glob(mesh_loc%np))
       ALLOCATE(mesh_loc%disp(nb_procs + 1), mesh_loc%disedge(nb_procs + 1), mesh_loc%discell(nb_procs + 1))
       ALLOCATE(mesh_loc%domnp(nb_procs), mesh_loc%domedge(nb_procs), mesh_loc%domcell(nb_procs))
@@ -105,12 +105,12 @@ CONTAINS
       IF (rank == 1) THEN
          mesh_loc%isolated_jjs(1) = 1
          mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(1)
-         mesh_loc%jj_extra = mesh_glob%jj(:, me_end + 1)
+         mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
          mesh_loc%jcc_extra = me_end + 1
       ELSE IF (rank == nb_procs) THEN
          mesh_loc%isolated_jjs(1) = mesh_glob%np
          mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(2)
-         mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(np_start - 1)
+         mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < np_start) THEN
                mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(1, m)
@@ -122,8 +122,8 @@ CONTAINS
             END IF
          END DO
       ELSE
-         mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(np_start - 1)
-         mesh_loc%jj_extra = mesh_glob%jj(:, me_end + 1)
+         mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
+         mesh_loc%jj_extra(:, 1)  = mesh_glob%jj(:, me_end + 1)
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < np_start) THEN
