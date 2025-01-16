@@ -4,6 +4,7 @@ MODULE construct_mesh
    USE space_dim
    USE st_matrix
    USE petsc
+   USE input_data
    PUBLIC :: get_mesh
    PRIVATE
 CONTAINS
