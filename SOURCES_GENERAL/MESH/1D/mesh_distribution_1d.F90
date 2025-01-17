@@ -33,8 +33,11 @@ CONTAINS
          np_start = (rank - 1) * mesh_glob%np / nb_procs + 1
          np_end = rank * mesh_glob%np / nb_procs
          mesh_loc%dom_np = np_end - np_start + 1
-
-         me_start = np_start
+         IF (rank == 1) THEN
+            me_start = 1
+         ELSE
+            me_start = np_start - 1
+         END IF
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start - 1
 
@@ -44,7 +47,7 @@ CONTAINS
          np_end = mesh_glob%np
          mesh_loc%dom_np = np_end - np_start + 1
 
-         me_start = np_start
+         me_start = np_start - 1
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start - 1
 
