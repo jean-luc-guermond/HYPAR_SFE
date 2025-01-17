@@ -23,7 +23,7 @@ PROGRAM test_matrix
    write(*,*) 'ok1'
    CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
       write(*,*) 'ok2'
-
+write(*,*) mesh%disp, mesh%discell
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
       write(*,*) 'ok3'
 
