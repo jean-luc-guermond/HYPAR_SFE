@@ -18,7 +18,7 @@ PROGRAM test_matrix
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
    INTEGER, POINTER, DIMENSION(:) :: ifrom
    REAL(KIND = 8) :: error
-   TYPE(solver_param), PRIVATE :: my_par
+   TYPE(solver_param) :: my_par
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
