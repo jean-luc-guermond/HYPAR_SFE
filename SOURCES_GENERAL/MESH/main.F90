@@ -32,5 +32,5 @@ write(*,*) mesh%disp, mesh%discell
       write(*,*) 'ok3'
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
-
+write(*,*) 'ok4'
 END PROGRAM test_matrix
