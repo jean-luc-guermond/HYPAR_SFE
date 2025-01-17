@@ -13,12 +13,12 @@ PROGRAM test_matrix
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-   CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
+   !CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
 
    !===User reads his/her own data=================================================
    CALL read_user_data('data')
 
-   CALL get_mesh(communicator, mesh, LA, js_d_loc, 1)
+   CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 
