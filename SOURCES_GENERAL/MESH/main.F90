@@ -62,7 +62,7 @@ PROGRAM test_matrix
 
    CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
 
-   CALL solver(my_ksp, test_vec2, test_vec3, reinit = .FALSE., verbose = .FALSE., type = 'AAAA')
+   CALL solver(my_ksp, test_vec2, test_vec3, reinit = .FALSE., verbose = .FALSE.)
 
    write(*, *) 'ok5'
 
