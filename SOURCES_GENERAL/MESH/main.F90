@@ -14,7 +14,7 @@ PROGRAM test_matrix
    Mat :: mass
    Vec :: test_vec, test_vec2
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
-   INTEGER, POINTER, DIMENSION(:) :: ifrom_u
+   INTEGER, POINTER, DIMENSION(:) :: ifrom
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
