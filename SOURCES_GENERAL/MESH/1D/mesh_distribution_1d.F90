@@ -1,6 +1,7 @@
 MODULE mesh_distribution_1d
 #include "petsc/finclude/petsc.h"
    USE petsc
+   USE mesh_tools
    PUBLIC :: extract_mesh_1d
    PRIVATE
 CONTAINS

@@ -5,6 +5,7 @@ PROGRAM test_matrix
    USE def_type_mesh
    USE petsc
    USE solver_petsc
+   USE fem_M
    IMPLICIT NONE
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
