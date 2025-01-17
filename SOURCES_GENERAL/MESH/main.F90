@@ -14,6 +14,7 @@ PROGRAM test_matrix
    Mat :: mass
    Vec :: test_vec, test_vec2
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
+   INTEGER, POINTER, DIMENSION(:) :: ifrom_u
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
@@ -37,9 +38,15 @@ PROGRAM test_matrix
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 
+      CALL create_my_ghost(mesh, LA, ifrom)
+   CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)
+   CALL VecDuplicate(test_vec, test_vec2, ierr)
+
+
    CALL dirichlet_rhs(LA%loc_to_glob(1, :) - 1, source(mesh%rr), test_vec)
 
    CALL MatMult(mass, test_vec, test_vec2, ierr)
+
 
    write(*, *) 'ok4'
 
