@@ -99,7 +99,7 @@ CONTAINS
       END DO
 
       DO n = 1, mesh_loc%dom_np
-         mesh_loc%loc_to_glob(n) = n
+         mesh_loc%loc_to_glob(n) = np_start - 1 + n
       END DO
       write(*, *) rank, me_start, me_end, np_start, np_end
 
@@ -118,11 +118,11 @@ CONTAINS
          mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(1, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(1, m)
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
             IF (mesh_loc%jj(2, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(2, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(2, m)
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
@@ -132,11 +132,11 @@ CONTAINS
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(1, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(1, m)
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
             IF (mesh_loc%jj(2, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(2, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(2, m)
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
