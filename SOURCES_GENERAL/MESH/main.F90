@@ -20,9 +20,13 @@ PROGRAM test_matrix
 
    !===User reads his/her own data=================================================
    CALL read_my_data('data')
-
+   write(*,*) 'ok1'
    CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
+      write(*,*) 'ok2'
+
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
+      write(*,*) 'ok3'
+
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 
 END PROGRAM test_matrix

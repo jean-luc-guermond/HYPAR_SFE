@@ -33,7 +33,11 @@ CONTAINS
          STOP
       CASE(1)
          CALL load_mesh_1d(mesh_glob)
+            write(*,*) 'ok11'
+
          CALL extract_mesh_1d(communicator, mesh_glob, mesh)
+            write(*,*) 'ok12'
+
       CASE DEFAULT
          write(*, *) ' BUG in construct_mesh, k_dim not correct'
          STOP

@@ -34,12 +34,14 @@ CONTAINS
       mesh%neigh(1, mesh%me) = 0
       ALLOCATE(mesh%i_d(mesh%me))
       mesh%i_d = 1
+   write(*,*) 'ok111'
 
       ALLOCATE(mesh%rr(1, mesh%np))
       dx = (x1 - x0) / (mesh%np - 1)
       DO i = 1, mesh%np
          mesh%rr(1, i) = x0 + (i - 1) * dx
       END DO
+   write(*,*) 'ok112'
 
       mesh%nps = 2
       mesh%mes = 2
@@ -48,6 +50,7 @@ CONTAINS
       mesh%jjs(1, mesh%mes) = mesh%np
       ALLOCATE(mesh%sides(mesh%mes))
       READ(in_unit, *) mesh%sides
+   write(*,*) 'ok113'
 
       IF (inputs%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
@@ -55,6 +58,7 @@ CONTAINS
          WRITE(*, *) ' BUG load_mesh_1d: FE not programmed yet'
          STOP
       END IF
+   write(*,*) 'ok114'
 
    END SUBROUTINE load_mesh_1d
 
