@@ -96,11 +96,11 @@ CONTAINS
       END DO
 
       DO n = 1, mesh_loc%dom_np
-         mesh_loc%loc_to_glob(n) = n + np_start + 1
+         mesh_loc%loc_to_glob(n) = n
       END DO
 
       mesh_loc%i_d = mesh_glob%i_d(me_start:me_end)
-      mesh_loc%jj = mesh_glob%jj(:, me_start:me_end)
+      mesh_loc%jj = mesh_glob%jj(:, me_start:me_end) - np_start + 1
       mesh_loc%rr(:, 1:mesh_loc%dom_np) = mesh_glob%rr(:, np_start:np_end)
 
       IF (rank == 1) THEN
