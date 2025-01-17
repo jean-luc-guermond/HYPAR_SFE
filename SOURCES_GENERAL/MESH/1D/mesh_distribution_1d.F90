@@ -118,11 +118,11 @@ CONTAINS
          mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(1, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
             IF (mesh_loc%jj(2, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(2, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
@@ -132,11 +132,11 @@ CONTAINS
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(1, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
             IF (mesh_loc%jj(2, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = mesh_glob%jj(2, m)
+               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
