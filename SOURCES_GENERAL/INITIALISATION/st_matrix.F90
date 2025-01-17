@@ -448,7 +448,7 @@ write(*,*) 'ok1133'
          WRITE(*, *) 'ST_SPARSEKIT: dimension de ja doit etre >= ', nparm
          STOP
       END IF
-
+write(*,*) 'ok1135'
       nmax = 0
       DO i = 1, knp
          nmax = nmax + nja(i)
