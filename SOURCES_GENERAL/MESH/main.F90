@@ -4,12 +4,14 @@ PROGRAM test_matrix
    USE input_data
    USE def_type_mesh
    USE petsc
+   USE solver_petsc
    IMPLICIT NONE
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
    MPI_Comm       :: communicator
+   PetscErrorCode :: ierr
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
