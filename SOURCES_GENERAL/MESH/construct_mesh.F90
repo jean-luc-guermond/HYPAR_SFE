@@ -38,6 +38,8 @@ CONTAINS
          CALL extract_mesh_1d(communicator, mesh_glob, mesh)
             write(*,*) 'ok12'
 
+         CALL GAUSS_POINT_1d(mesh)
+
       CASE DEFAULT
          write(*, *) ' BUG in construct_mesh, k_dim not correct'
          STOP

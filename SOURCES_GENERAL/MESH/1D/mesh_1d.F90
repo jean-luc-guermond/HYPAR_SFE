@@ -3,7 +3,7 @@ MODULE mesh_1d
    USE input_data
    USE space_dim
    uSE mesh_tools
-   PUBLIC :: load_mesh_1d
+   PUBLIC :: load_mesh_1d, GAUSS_POINT_1d
    PRIVATE
 CONTAINS
 
