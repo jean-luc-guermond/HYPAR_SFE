@@ -11,7 +11,6 @@ PROGRAM test_matrix
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
-   INTEGER :: rank
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
