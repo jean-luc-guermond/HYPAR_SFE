@@ -44,7 +44,7 @@ CONTAINS
       END SELECT
 
       !CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
-      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
+      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
       !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
       write(*,*) 'ok13'
    END SUBROUTINE get_mesh
