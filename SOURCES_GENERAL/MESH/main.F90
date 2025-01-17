@@ -7,6 +7,7 @@ PROGRAM test_matrix
    USE solver_petsc
    USE fem_M
    USE dir_nodes
+   USE dir_nodes_petsc
    IMPLICIT NONE
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
