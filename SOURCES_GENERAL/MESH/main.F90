@@ -10,6 +10,7 @@ PROGRAM test_matrix
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
+   Vec :: test_vec, test_vec2
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
@@ -21,17 +22,32 @@ PROGRAM test_matrix
 
    !===User reads his/her own data=================================================
    CALL read_my_data('data')
-   write(*,*) 'ok1'
+   write(*, *) 'ok1'
    CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
-      write(*,*) 'ok2'
-write(*,*) rank, mesh%disp, mesh%discell
-   write(*,*) rank, mesh%jj
-   write(*,*) rank, mesh%jj_extra
-   write(*,*) rank, mesh%loc_to_glob
+   write(*, *) 'ok2'
+   write(*, *) rank, mesh%disp, mesh%discell
+   write(*, *) rank, mesh%jj
+   write(*, *) rank, mesh%jj_extra
+   write(*, *) rank, mesh%loc_to_glob
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
-      write(*,*) 'ok3'
+   write(*, *) 'ok3'
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
-write(*,*) 'ok4'
+
+   CALL dirichlet_rhs(LA%loc_to_glob(1, :) - 1, source(mesh%rr), test_vec)
+
+   CALL MatMult(mass, test_vec, test_vec2, ierr)
+
+
+   write(*, *) 'ok4'
 END PROGRAM test_matrix
+
+FUNCTION source(rr) RESULT(uu)
+   IMPLICIT NONE
+   REAL(KIND = 8), DIMENSION(:, :) :: rr
+   REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
+   REAL(KIND = 8) :: pi
+   pi = ACOS(-1.d0)
+   uu = uexact(rr) + ((mu1 * 2 * pi)**2 + (mu2 * 2 * pi)**2) * uexact(rr)
+END FUNCTION source
