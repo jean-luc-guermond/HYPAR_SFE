@@ -49,5 +49,5 @@ FUNCTION source(rr) RESULT(uu)
    REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
    REAL(KIND = 8) :: pi
    pi = ACOS(-1.d0)
-   uu = uexact(rr) + ((mu1 * 2 * pi)**2 + (mu2 * 2 * pi)**2) * uexact(rr)
+   uu = COS(16 * rr(1, :)) * COS(16 * rr(2, :))
 END FUNCTION source
