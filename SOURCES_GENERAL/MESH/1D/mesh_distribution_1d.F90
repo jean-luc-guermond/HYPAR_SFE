@@ -39,7 +39,7 @@ CONTAINS
             me_start = np_start - 1
          END IF
          me_end = np_end - 1
-         mesh_loc%me = me_end - me_start - 1
+         mesh_loc%me = me_end - me_start + 1
 
          mesh_loc%mextra = 1
       ELSE
@@ -49,7 +49,7 @@ CONTAINS
 
          me_start = np_start - 1
          me_end = np_end - 1
-         mesh_loc%me = me_end - me_start - 1
+         mesh_loc%me = me_end - me_start + 1
 
          mesh_loc%mextra = 0
       END IF
