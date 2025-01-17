@@ -30,23 +30,23 @@ CONTAINS
       mesh_loc%edge_stab = mesh_glob%edge_stab
 
       IF (rank < nb_procs) THEN
-         mesh_loc%dom_np = mesh_glob%np / nb_procs
-         np_start = (rank - 1) * mesh_loc%dom_np + 1
-         np_end = rank * mesh_loc%dom_np
+         np_start = (rank - 1) * mesh_glob%np / nb_procs + 1
+         np_end = rank * mesh_glob%np / nb_procs
+         mesh_loc%dom_np = np_end - np_start + 1
 
-         mesh_loc%me = mesh_loc%dom_np - 1
-         me_start = (rank - 1) * mesh_loc%me + 1
-         me_end = rank * (mesh_loc%me - 1) + 1
+         me_start = (rank - 1) * (mesh_loc%dom_np - 1) + 1
+         me_end = rank * (mesh_loc%dom_np - 1) + 1
+         mesh_loc%me = me_end - me_start - 1
 
          mesh_loc%mextra = 1
       ELSE
-         mesh_loc%dom_np = mesh_glob%np - (rank - 1) * (mesh_glob%np / nb_procs)
          np_start = (rank - 1) * (mesh_glob%np / nb_procs) + 1
          np_end = mesh_glob%np
+         mesh_loc%dom_np = np_end - np_start + 1
 
-         mesh_loc%me = mesh_loc%dom_np - 1
          me_start = (rank - 1) * (mesh_glob%np / nb_procs - 1) + 1
          me_end = mesh_glob%me
+         mesh_loc%me = me_end - me_start - 1
 
          mesh_loc%mextra = 0
       END IF
@@ -64,7 +64,7 @@ CONTAINS
 
       mesh_loc%dom_me = mesh_loc%me
       mesh_loc%dom_mes = mesh_loc%mes
-      write(*,*) rank, mesh_loc%dom_np
+      write(*, *) rank, mesh_loc%dom_np
       ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh_loc%mes), mesh_loc%iis(0, 0))
       ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
            mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
@@ -98,7 +98,7 @@ CONTAINS
       DO n = 1, mesh_loc%dom_np
          mesh_loc%loc_to_glob(n) = n
       END DO
-      write(*,*) rank, me_start, me_end, np_start, np_end
+      write(*, *) rank, me_start, me_end, np_start, np_end
 
       mesh_loc%i_d = mesh_glob%i_d(me_start:me_end)
       mesh_loc%jj = mesh_glob%jj(:, me_start:me_end) - np_start + 1
@@ -125,7 +125,7 @@ CONTAINS
          END DO
       ELSE
          mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
-         mesh_loc%jj_extra(:, 1)  = mesh_glob%jj(:, me_end + 1)
+         mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
