@@ -1208,7 +1208,7 @@ CONTAINS
 
   SUBROUTINE trace_profile(mesh, v, it, freq_plot, list_mode, nom_champ, num_dom)
 
-    USE chaine_caractere
+    USE character_strings
     USE def_type_mesh
 
     IMPLICIT NONE
