@@ -180,7 +180,7 @@ CONTAINS
 !!$       PETSC_DECIDE, ia, ja, aa, matrix, ierr)
 !!$DEALLOCATE(ia,ja)
     write(*,*) dom_np
-   write(*,*) LA%ia, LA%aa
+   write(*,*) LA%ia, LA%ja
 
     CALL MatCreateMPIAIJWithArrays(communicator,dom_np,dom_np,PETSC_DECIDE, &
          PETSC_DECIDE, LA%ia, LA%ja, aa, matrix, ierr)
