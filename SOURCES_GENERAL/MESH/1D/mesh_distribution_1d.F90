@@ -64,7 +64,7 @@ CONTAINS
 
       mesh_loc%dom_me = mesh_loc%me
       mesh_loc%dom_mes = mesh_loc%mes
-
+      write(*,*) rank, mesh_loc%dom_np
       ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh_loc%mes), mesh_loc%iis(0, 0))
       ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
            mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
