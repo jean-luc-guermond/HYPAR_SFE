@@ -36,7 +36,7 @@ CONTAINS
 
          mesh_loc%me = mesh_loc%dom_np - 1
          me_start = (rank - 1) * mesh_loc%me + 1
-         me_end = rank * mesh_loc%dom_np
+         me_end = rank * (mesh_loc%me - 1) + 1
 
          mesh_loc%mextra = 1
       ELSE
