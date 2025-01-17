@@ -11,11 +11,13 @@ PROGRAM test_matrix
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
+   INTEGER :: rank
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
+   CALL MPI_Comm_rank(communicator, rank, ierr)
    !CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
 
    !===User reads his/her own data=================================================
@@ -23,10 +25,10 @@ PROGRAM test_matrix
    write(*,*) 'ok1'
    CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
       write(*,*) 'ok2'
-write(*,*) mesh%disp, mesh%discell
-   write(*,*) mesh%jj
-   write(*,*) mesh%jj_extra
-   write(*,*) mesh%loc_to_glob
+write(*,*) rank, mesh%disp, mesh%discell
+   write(*,*) rank, mesh%jj
+   write(*,*) rank, mesh%jj_extra
+   write(*,*) rank, mesh%loc_to_glob
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
       write(*,*) 'ok3'
