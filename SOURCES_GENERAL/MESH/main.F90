@@ -4,16 +4,16 @@ PROGRAM test_matrix
    USE input_data
    USE def_type_mesh
    USE petsc
-
+   IMPLICIT NONE
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
-
+   MPI_Comm       :: communicator
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-   CALL create_cart_comm(inputs%ndim, comm_cart, comm_one_d, coord_cart)
+   CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
 
    !===User reads his/her own data=================================================
    CALL read_user_data('data')
