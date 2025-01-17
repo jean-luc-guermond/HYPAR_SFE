@@ -26,7 +26,7 @@ PROGRAM test_matrix
 write(*,*) mesh%disp, mesh%discell
    write(*,*) mesh%jj
    write(*,*) mesh%jj_extra
-   write(*,*) LA%loc_to_glob
+   write(*,*) mesh%loc_to_glob
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
       write(*,*) 'ok3'
