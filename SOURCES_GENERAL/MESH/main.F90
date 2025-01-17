@@ -13,9 +13,12 @@ PROGRAM test_matrix
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
    Mat :: mass
-   Vec :: test_vec, test_vec2
+   Vec :: test_vec, test_vec2, test_vec3
+   KSP   :: my_ksp
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
    INTEGER, POINTER, DIMENSION(:) :: ifrom
+   REAL(KIND = 8) :: error
+   TYPE(solver_param), PRIVATE :: my_par
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
@@ -23,6 +26,13 @@ PROGRAM test_matrix
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
    CALL MPI_Comm_rank(communicator, rank, ierr)
    !CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
+
+   my_par%it_max = 5000
+   my_par%rel_tol = 1.d-10
+   my_par%abs_tol = 1.d-18
+   my_par%verbose = .FALSE.
+   my_par%solver = 'MUMPS'
+   my_par%precond = 'MUMPS'
 
    !===User reads his/her own data=================================================
    CALL read_my_data('data')
@@ -39,17 +49,27 @@ PROGRAM test_matrix
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 
-      CALL create_my_ghost(mesh, LA, ifrom)
+   CALL create_my_ghost(mesh, LA, ifrom)
    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)
    CALL VecDuplicate(test_vec, test_vec2, ierr)
-
+   CALL VecDuplicate(test_vec, test_vec3, ierr)
 
    CALL dirichlet_rhs(LA%loc_to_glob(1, :) - 1, source(mesh%rr), test_vec)
 
    CALL MatMult(mass, test_vec, test_vec2, ierr)
 
-
    write(*, *) 'ok4'
+
+   CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, olver = 'MUMPS', precond = 'MUMPS')
+
+   CALL solver(my_ksp, test_vec2, test_vec3, reinit = .FALSE., verbose = .FALSE., type = 'AAAA')
+
+   write(*, *) 'ok5'
+
+   CALL VecAXPY(test_vec, -1.d0, test_vec3, ierr)
+   CALL VecNorm(test_vec, NORM_1, error, ierr)
+
+   write(*,*) 'error', error
 
 CONTAINS
 
