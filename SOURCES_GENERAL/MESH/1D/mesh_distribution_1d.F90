@@ -113,11 +113,11 @@ CONTAINS
          mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(2)
          mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
          DO m = 1, mesh_loc%me
-            IF (mesh_loc%jj(1, m) < np_start) THEN
+            IF (mesh_loc%jj(1, m) < 1) THEN
                mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(1, m)
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
-            IF (mesh_loc%jj(2, m) < np_start) THEN
+            IF (mesh_loc%jj(2, m) < 1) THEN
                mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(2, m)
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
@@ -127,11 +127,11 @@ CONTAINS
          mesh_loc%jj_extra(:, 1)  = mesh_glob%jj(:, me_end + 1)
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
-            IF (mesh_loc%jj(1, m) < np_start) THEN
+            IF (mesh_loc%jj(1, m) < 1) THEN
                mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(1, m)
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
-            IF (mesh_loc%jj(2, m) < np_start) THEN
+            IF (mesh_loc%jj(2, m) < 1) THEN
                mesh_loc%loc_to_glob(mesh_loc%np) = mesh_loc%jj(2, m)
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
