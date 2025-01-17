@@ -39,15 +39,17 @@ PROGRAM test_matrix
 
    CALL MatMult(mass, test_vec, test_vec2, ierr)
 
-
    write(*, *) 'ok4'
-END PROGRAM test_matrix
 
-FUNCTION source(rr) RESULT(uu)
-   IMPLICIT NONE
-   REAL(KIND = 8), DIMENSION(:, :) :: rr
-   REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
-   REAL(KIND = 8) :: pi
-   pi = ACOS(-1.d0)
-   uu = COS(16 * rr(1, :)) * COS(16 * rr(2, :))
-END FUNCTION source
+CONTAINS
+
+   FUNCTION source(rr) RESULT(uu)
+      IMPLICIT NONE
+      REAL(KIND = 8), DIMENSION(:, :) :: rr
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
+      REAL(KIND = 8) :: pi
+      pi = ACOS(-1.d0)
+      uu = COS(16 * rr(1, :)) * COS(16 * rr(2, :))
+   END FUNCTION source
+
+END PROGRAM test_matrix
