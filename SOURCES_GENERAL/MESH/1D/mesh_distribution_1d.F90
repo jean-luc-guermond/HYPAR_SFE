@@ -98,6 +98,7 @@ CONTAINS
       DO n = 1, mesh_loc%dom_np
          mesh_loc%loc_to_glob(n) = n
       END DO
+      write(*,*) rank, me_start, me_end, np_start, np_end
 
       mesh_loc%i_d = mesh_glob%i_d(me_start:me_end)
       mesh_loc%jj = mesh_glob%jj(:, me_start:me_end) - np_start + 1
