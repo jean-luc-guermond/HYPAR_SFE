@@ -34,8 +34,8 @@ CONTAINS
          np_end = rank * mesh_glob%np / nb_procs
          mesh_loc%dom_np = np_end - np_start + 1
 
-         me_start = (rank - 1) * (mesh_loc%dom_np - 1) + 1
-         me_end = rank * (mesh_loc%dom_np - 1) + 1
+         me_start = np_start
+         me_end = np_end - 1
          mesh_loc%me = me_end - me_start - 1
 
          mesh_loc%mextra = 1
@@ -44,8 +44,8 @@ CONTAINS
          np_end = mesh_glob%np
          mesh_loc%dom_np = np_end - np_start + 1
 
-         me_start = (rank - 1) * (mesh_glob%np / nb_procs - 1) + 1
-         me_end = mesh_glob%me
+         me_start = np_start
+         me_end = np_end - 1
          mesh_loc%me = me_end - me_start - 1
 
          mesh_loc%mextra = 0
