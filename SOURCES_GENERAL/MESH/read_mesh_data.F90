@@ -13,7 +13,7 @@ MODULE mesh_data_module
   END TYPE mesh_data_type
 CONTAINS
   SUBROUTINE init(a)
-    CLASS(mesh_data), INTENT(INOUT) :: a
+    CLASS(mesh_data_type), INTENT(INOUT) :: a
     !===Logicals
     a%if_mesh_formatted = .FALSE.
     !===Characters
