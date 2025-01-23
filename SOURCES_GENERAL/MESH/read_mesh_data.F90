@@ -40,20 +40,20 @@ CONTAINS
     CHARACTER(LEN=100)           :: argument
     LOGICAL :: okay
     !===Initialize data to zero and false by default
-    CALL inputs%init
+    CALL mesh_data%init
 
     OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
     CALL read_until(in_unit, "===Name of directory for mesh file===")
-    READ (in_unit,*) inputs%directory
+    READ (in_unit,*) mesh_data%directory
     CALL read_until(in_unit, "===Name of mesh file===")
-    READ (in_unit,*) inputs%file_name
+    READ (in_unit,*) mesh_data%file_name
     CALL read_until(in_unit, "===Is the mesh formatted? (True/False)===")
-    READ (in_unit,*) inputs%if_mesh_formatted
+    READ (in_unit,*) mesh_data%if_mesh_formatted
     CALL read_until(in_unit, '===Number of subdomains in the mesh===')
-    READ(21,*) inputs%nb_dom
-    ALLOCATE(inputs%list_dom(inputs%nb_dom))
+    READ(21,*) mesh_data%nb_dom
+    ALLOCATE(mesh_data%list_dom(mesh_data%nb_dom))
     CALL read_until(21, '===List of subdomain in the mesh===')
-    READ(21,*) inputs%list_dom
+    READ(21,*) mesh_data%list_dom
 
 
     CLOSE(in_unit)
