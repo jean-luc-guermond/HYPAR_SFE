@@ -41,7 +41,7 @@ PROGRAM test_matrix
    !CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
    !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
-   write(*,*) rank, mesh*disp
+   write(*,*) rank, mesh%disp
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
