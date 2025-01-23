@@ -41,7 +41,6 @@ PROGRAM test_matrix
    !CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
    !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
-   write(*,*) rank, mesh%dom_np, mesh%np, mesh%domnp
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
@@ -63,7 +62,7 @@ PROGRAM test_matrix
    CALL VecAXPY(test_vec, -1.d0, test_vec3, ierr)
    CALL VecNorm(test_vec, NORM_1, error, ierr)
 
-   write(*,*) 'error', error
+   IF (rank == 0) write(*,*) 'error', error
 
 CONTAINS
 
