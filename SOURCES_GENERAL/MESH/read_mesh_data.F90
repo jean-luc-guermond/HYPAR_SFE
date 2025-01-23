@@ -1,6 +1,6 @@
 MODULE mesh_data_module
   IMPLICIT NONE
-  TYPE mesh_data
+  TYPE mesh_data_type
      CHARACTER(len=200)             :: directory
      CHARACTER(len=200)             :: file_name
      LOGICAL                        :: if_mesh_formatted
@@ -10,7 +10,7 @@ MODULE mesh_data_module
      INTEGER                        :: type_fe
    CONTAINS
      PROCEDURE, PUBLIC              :: init
-  END TYPE mesh_data
+  END TYPE mesh_data_type
 CONTAINS
   SUBROUTINE init(a)
     CLASS(mesh_data), INTENT(INOUT) :: a
@@ -29,7 +29,7 @@ MODULE input_mesh_data
   USE mesh_data_module
   IMPLICIT NONE
   PUBLIC :: read_mesh_data
-  TYPE(mesh_data), PUBLIC  :: mesh_data
+  TYPE(mesh_data_type), PUBLIC  :: mesh_data
   PRIVATE
 CONTAINS
   SUBROUTINE read_mesh_data(data_fichier)
