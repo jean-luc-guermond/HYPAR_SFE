@@ -30,7 +30,7 @@ CONTAINS
       mesh_loc%edge_stab = mesh_glob%edge_stab
 
       IF (rank < nb_procs) THEN
-         np_start = (rank - 1) * mesh_glob%np / nb_procs + 1
+         np_start = (rank - 1) * (mesh_glob%np / nb_procs) + 1
          np_end = rank * mesh_glob%np / nb_procs
          mesh_loc%dom_np = np_end - np_start + 1
          IF (rank == 1) THEN
