@@ -26,7 +26,7 @@ CONTAINS
 END MODULE mesh_data_module
 
 MODULE input_mesh_data
-  USE my_data_module
+  USE mesh_data_module
   IMPLICIT NONE
   PUBLIC :: read_mesh_data
   TYPE(mesh_data), PUBLIC  :: mesh_data
