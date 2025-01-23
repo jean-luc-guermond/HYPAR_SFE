@@ -61,9 +61,8 @@ ADD_CUSTOM_TARGET(native
 
  # Create local sources from local dir
 file(GLOB_RECURSE sfemans_sources
-	${SFEMaNS_DIR}/SOURCES_GENERAL/MESH/1D/*.F90
-	${SFEMaNS_DIR}/SOURCES_GENERAL/MESH/*.F90
-	${SFEMaNS_DIR}/SOURCES_GENERAL/INITIALISATION/*.F90
+	${SFEMaNS_DIR}/SOURCES_GENERAL/*.F90
+	${SFEMaNS_DIR}/SOURCES_GENERAL/PROJECT_TEMPLATE/EXAMPLE_MESH_CREATION/*.F90
 )
 # Define runtime output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../EXECUTABLE)
@@ -72,7 +71,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../EXECUTABLE)
 add_executable(a.exe ${sfemans_sources})
 
 # Include and link library
-target_link_libraries(a.exe PUBLIC  
+target_link_libraries(a.exe PUBLIC
   ${PETSC_LINK_LIBRARIES}
   ${PETSC_PRIVATE_LIBRARIES}
   ${FFTW_LINK_LIBRARIES}

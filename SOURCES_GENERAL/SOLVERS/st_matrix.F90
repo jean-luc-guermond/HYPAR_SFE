@@ -337,7 +337,6 @@ CONTAINS
          LA%ia(0) = 0
          RETURN
       END IF
-write(*,*) 'ok1131'
       ALLOCATE (ja_work(knp, kmax * nparm), a_d(kmax * nparm), nja(knp))
       ALLOCATE (per_loc(knp))
       ja_work = 0
@@ -384,7 +383,6 @@ write(*,*) 'ok1131'
             END DO
          END DO
       END DO
-      write(*,*) 'ok1132'
       !===Loop over the extra layer
       DO m = 1, mesh%mextra
          DO ni = 1, nw
@@ -423,7 +421,6 @@ write(*,*) 'ok1131'
             END DO
          END DO
       END DO
-write(*,*) 'ok1133'
       IF (PRESENT(opt_per)) THEN
          DO k = 1, opt_per%n_bord
             DO i = 1, SIZE(opt_per%list(k)%DIL)
@@ -448,7 +445,6 @@ write(*,*) 'ok1133'
          WRITE(*, *) 'ST_SPARSEKIT: dimension de ja doit etre >= ', nparm
          STOP
       END IF
-write(*,*) 'ok1135'
       nmax = 0
       DO i = 1, knp
          nmax = nmax + nja(i)
@@ -465,7 +461,6 @@ write(*,*) 'ok1135'
          LA%ia(i) = LA%ia(i - 1) + nja(i)
          LA%ja(LA%ia(i - 1):LA%ia(i) - 1) = a_d(1:nja(i)) - 1
       END DO
-      write(*,*) 'ok1134'
       DEALLOCATE (ja_work, nja, a_d)
       DEALLOCATE (per_loc)
    END SUBROUTINE st_aij_csr_glob_block_with_extra_layer

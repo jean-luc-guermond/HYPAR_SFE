@@ -1,5 +1,6 @@
 MODULE euler_bc_arrays
   USE dir_nodes
+  USE dir_nodes_petsc
   USE space_dim
   USE def_type_mesh
   USE input_data
@@ -21,19 +22,19 @@ CONTAINS
     INTEGER :: ms, ns, js, n
     ALLOCATE (dir(MAXVAL(mesh%sides)))
     dir = .TRUE.
-    CALL dirichlet_nodes(mesh%jjs, mesh%sides, Dir, whole_bdy_js_D)
+    CALL dirichlet_nodes_parallel(mesh%jjs, mesh%sides, Dir, whole_bdy_js_D)
     dir = .FALSE.
     dir(inputs%rho_Dir_list) = .TRUE.
-    CALL dirichlet_nodes(mesh%jjs, mesh%sides, Dir, rho_js_D)
+    CALL dirichlet_nodes_parallel(mesh%jjs, mesh%sides, Dir, rho_js_D)
     dir = .FALSE.
     dir(inputs%ux_Dir_list) = .TRUE.
-    CALL dirichlet_nodes(mesh%jjs, mesh%sides, Dir, ux_js_D)
+    CALL dirichlet_nodes_parallel(mesh%jjs, mesh%sides, Dir, ux_js_D)
     dir = .FALSE.
     dir(inputs%uy_Dir_list) = .TRUE.
-    CALL dirichlet_nodes(mesh%jjs, mesh%sides, Dir, uy_js_D)
+    CALL dirichlet_nodes_parallel(mesh%jjs, mesh%sides, Dir, uy_js_D)
     dir = .FALSE.
     dir(inputs%Dir_list) = .TRUE.
-    CALL dirichlet_nodes(mesh%iis, mesh%sides, Dir, DIR_js_D)
+    CALL dirichlet_nodes_parallel(mesh%iis, mesh%sides, Dir, DIR_js_D)
 
 
     !===Normal at vertices

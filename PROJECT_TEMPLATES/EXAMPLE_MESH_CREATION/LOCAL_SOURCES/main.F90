@@ -23,6 +23,8 @@ PROGRAM test_matrix
    PetscErrorCode :: ierr
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
+   communicator = PETSC_COMM_WORLD
+
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
    CALL MPI_Comm_rank(communicator, rank, ierr)
    !CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
@@ -35,17 +37,12 @@ PROGRAM test_matrix
    my_par%precond = 'MUMPS'
 
    !===User reads his/her own data=================================================
-   CALL read_my_data('data')
-   write(*, *) 'ok1'
-   CALL get_mesh(PETSC_COMM_WORLD, mesh, LA, js_d_loc, 1)
-   write(*, *) 'ok2'
-   write(*, *) rank, mesh%disp, mesh%discell
-   write(*, *) rank, mesh%jj
-   write(*, *) rank, mesh%jj_extra
-   write(*, *) rank, mesh%loc_to_glob
+   CALL get_mesh(communicator, mesh)
+   !CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
+   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
+   !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
-   write(*, *) 'ok3'
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
 
@@ -58,13 +55,10 @@ PROGRAM test_matrix
 
    CALL MatMult(mass, test_vec, test_vec2, ierr)
 
-   write(*, *) 'ok4'
-
    CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
 
    CALL solver(my_ksp, test_vec2, test_vec3, reinit = .FALSE., verbose = .FALSE.)
 
-   write(*, *) 'ok5'
 
    CALL VecAXPY(test_vec, -1.d0, test_vec3, ierr)
    CALL VecNorm(test_vec, NORM_1, error, ierr)

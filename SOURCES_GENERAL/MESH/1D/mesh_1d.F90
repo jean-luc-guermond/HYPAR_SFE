@@ -1,6 +1,6 @@
 MODULE mesh_1d
    USE def_type_mesh
-   USE input_data
+   USE input_mesh_data
    USE space_dim
    uSE mesh_tools
    PUBLIC :: load_mesh_1d, GAUSS_POINT_1d
@@ -14,11 +14,11 @@ CONTAINS
       INTEGER :: type_fe
       INTEGER :: i, n, m
       REAL(KIND = 8) :: x0, x1, dx
-      OPEN(in_unit, FILE = TRIM(ADJUSTL(inputs%directory)) // &
-           '/' // TRIM(ADJUSTL(inputs%file_name)), FORM = 'formatted')
-      READ(in_unit, *) mesh%me, inputs%type_fe
+      OPEN(in_unit, FILE = TRIM(ADJUSTL(mesh_data%directory)) // &
+           '/' // TRIM(ADJUSTL(mesh_data%file_name)), FORM = 'formatted')
+      READ(in_unit, *) mesh%me, mesh_data%type_fe
       READ(in_unit, *) x0, x1
-      type_fe = inputs%type_fe
+      type_fe = mesh_data%type_fe
       ALLOCATE(mesh%jj(type_fe + 1, mesh%me))
       ALLOCATE(mesh%neigh(2, mesh%me))
       DO m = 1, mesh%me
@@ -34,14 +34,12 @@ CONTAINS
       mesh%neigh(1, mesh%me) = 0
       ALLOCATE(mesh%i_d(mesh%me))
       mesh%i_d = 1
-   write(*,*) 'ok111'
 
       ALLOCATE(mesh%rr(1, mesh%np))
       dx = (x1 - x0) / (mesh%np - 1)
       DO i = 1, mesh%np
          mesh%rr(1, i) = x0 + (i - 1) * dx
       END DO
-   write(*,*) 'ok112'
 
       mesh%nps = 2
       mesh%mes = 2
@@ -50,15 +48,13 @@ CONTAINS
       mesh%jjs(1, mesh%mes) = mesh%np
       ALLOCATE(mesh%sides(mesh%mes))
       READ(in_unit, *) mesh%sides
-   write(*,*) 'ok113'
 
-      IF (inputs%type_fe==1) THEN
+      IF (mesh_data%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
       ELSE
          WRITE(*, *) ' BUG load_mesh_1d: FE not programmed yet'
          STOP
       END IF
-   write(*,*) 'ok114'
 
    END SUBROUTINE load_mesh_1d
 

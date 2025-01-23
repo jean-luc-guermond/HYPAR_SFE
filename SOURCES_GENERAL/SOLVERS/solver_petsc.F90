@@ -171,8 +171,6 @@ CONTAINS
     ALLOCATE(aa(0:nnzm1))
     aa =0.d0
 
-   write(*,*) 'ok21'
-
 !!$  ALLOCATE(ia(0:dom_np),ja(0:nnzm1))
 !!$  ia = LA%ia
 !!$  ja = LA%ja
@@ -184,7 +182,6 @@ CONTAINS
 
     CALL MatCreateMPIAIJWithArrays(communicator,dom_np,dom_np,PETSC_DECIDE, &
          PETSC_DECIDE, LA%ia, LA%ja, aa, matrix, ierr)
-   write(*,*) 'ok22'
 
     DEALLOCATE(aa)
     IF (PRESENT(clean)) THEN
