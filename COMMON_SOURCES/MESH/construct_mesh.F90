@@ -14,7 +14,6 @@ CONTAINS
       USE mesh_distribution_1d
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab
-      LOGICAL, OPTIONAL :: opt_periodic
       INTEGER, OPTIONAL :: opt_fe
       LOGICAL :: edge_stab
       TYPE(mesh_type) :: mesh_glob, mesh
