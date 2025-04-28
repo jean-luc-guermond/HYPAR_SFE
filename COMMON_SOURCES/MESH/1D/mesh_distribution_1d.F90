@@ -244,6 +244,7 @@ CONTAINS
       DO n = 1, nb_procs
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
+      write(*,*) rank, mesh%jj
 
    END SUBROUTINE extract_mesh_1d
 
