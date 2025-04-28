@@ -77,6 +77,7 @@ CONTAINS
       mesh%dom_np = mesh%np
       mesh%dom_me = mesh%me
       mesh%dom_mes = mesh%mes
+      mesh%mextra = 0
 
       ALLOCATE(mesh%iis(0, 0))
       ALLOCATE(mesh%jj_extra(2, mesh%mextra), mesh%jce_extra(0, mesh%medge), &
