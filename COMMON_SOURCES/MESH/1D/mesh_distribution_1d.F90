@@ -70,7 +70,7 @@ CONTAINS
 
          mesh_loc%mextra = 0
       END IF
-      write(*,*) rank, np_start, np_end
+      write(*, *) rank, np_start, np_end
 
       IF (rank == 1) THEN
          mesh_loc%np = mesh_loc%dom_np
@@ -172,7 +172,7 @@ CONTAINS
             mesh_loc%rr(:, mesh_loc%np - 1) = mesh_glob%rr(:, np_start - 1)
             mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, 2)
 
-            mesh_loc%loc_to_glob(mesh_loc%np - 1) = np_start - 1
+            mesh_loc%loc_to_glob(mesh_loc%np - 1) = np_start - 2
             mesh_loc%jj(1, 1) = mesh_loc%np - 1
 
             mesh_loc%loc_to_glob(mesh_loc%np) = 1
@@ -213,11 +213,19 @@ CONTAINS
          mesh_loc%jcc_extra = me_end + 1
          DO m = 1, mesh_loc%me
             IF (mesh_loc%jj(1, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
+               IF (per_bool) THEN
+                  mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 2
+               ELSE
+                  mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
+               END IF
                mesh_loc%jj(1, m) = mesh_loc%np
             END IF
             IF (mesh_loc%jj(2, m) < 1) THEN
-               mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
+               IF (per_bool) THEN
+                  mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 2
+               ELSE
+                  mesh_loc%loc_to_glob(mesh_loc%np) = np_start - 1
+               END IF
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
@@ -242,14 +250,6 @@ CONTAINS
       DO n = 1, nb_procs
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
-      !write(*,*) rank, mesh_loc%np, mesh_loc%jj
-      do m=1, mesh_loc%me
-         mesh_loc%jj(1, m) = mesh_loc%loc_to_glob(mesh_loc%jj(1, m))
-         mesh_loc%jj(2, m) = mesh_loc%loc_to_glob(mesh_loc%jj(2, m))
-      end do
-      write(*,*) rank, mesh_loc%jj
-
-      stop
 
    END SUBROUTINE extract_mesh_1d
 
