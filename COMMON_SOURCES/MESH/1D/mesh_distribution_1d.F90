@@ -251,6 +251,8 @@ CONTAINS
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
 
+      write(*,*) rank, mesh%jj
+
    END SUBROUTINE extract_mesh_1d
 
 END MODULE mesh_distribution_1d
