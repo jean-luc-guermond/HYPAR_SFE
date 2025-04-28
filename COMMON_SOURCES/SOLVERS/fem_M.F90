@@ -2,7 +2,6 @@ MODULE fem_M
    USE def_type_mesh
 #include "petsc/finclude/petsc.h"
    USE petsc
-   USE input_data
 CONTAINS
 
    SUBROUTINE qs_mass_diff_M (mesh, mass, visco, LA, matrix)
