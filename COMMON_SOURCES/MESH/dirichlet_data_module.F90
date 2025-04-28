@@ -9,7 +9,7 @@ MODULE dirichlet_data_module
 CONTAINS
    SUBROUTINE init(a)
       CLASS(dirichlet_data_type), INTENT(INOUT) :: a
-      a%nb_dirichlet_pairs = 0
+      a%nb_dirichlet = 0
    END SUBROUTINE init
 END MODULE dirichlet_data_module
 
@@ -39,7 +39,7 @@ CONTAINS
       ELSE
          dirichlet_data%nb_dirichlet_pairs = 0
       END IF
-      ALLOCATE(dirichlet_data%list_dirichlet(dirichlet_data%nb_dirichlet_pairs))
+      ALLOCATE(dirichlet_data%list_dirichlet(dirichlet_data%nb_dirichlet))
 
       IF (dirichlet_data%nb_dirichlet_pairs > 0) THEN
          CALL read_until(21, '===List of dirichlet boundaries===')
