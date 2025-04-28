@@ -22,6 +22,9 @@ CONTAINS
 
       IF (PRESENT(opt_per)) THEN
          per_bool = opt_per
+         IF (periodic_data%nb_periodic_pairs == 0) THEN
+            per_bool = .false.
+         END IF
       ELSE
          per_bool = .false.
       END IF
