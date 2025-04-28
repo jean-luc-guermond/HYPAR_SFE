@@ -14,7 +14,7 @@ CONTAINS
       INTEGER :: type_fe
       INTEGER :: i, n, m, nb_procs
       REAL(KIND = 8) :: x0, x1, dx
-      nb_proc = 1
+      nb_procs = 1
 
       OPEN(in_unit, FILE = TRIM(ADJUSTL(mesh_data%directory)) // &
            '/' // TRIM(ADJUSTL(mesh_data%file_name)), FORM = 'formatted')
