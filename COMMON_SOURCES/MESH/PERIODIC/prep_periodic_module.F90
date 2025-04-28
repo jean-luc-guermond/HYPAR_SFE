@@ -19,7 +19,7 @@ CONTAINS
       TYPE(mesh_type) :: mesh
       TYPE(periodic_type) :: periodic
       TYPE(periodic_data_type) :: periodic_data
-      INTEGER, OPTIONAL :: nb_bloc
+      INTEGER, OPTIONAL :: opt_nb_bloc
 
       CALL read_periodic_data('data')
 
