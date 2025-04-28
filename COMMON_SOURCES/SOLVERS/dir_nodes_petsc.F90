@@ -82,7 +82,7 @@ CONTAINS
       n_D_me = nn
       DO ms = 1, mesh%nis
          test = .false.
-         DO k = 1, mesh%nws
+         DO k = 1, mesh%gauss%nw_s
             test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
          END DO
          IF (test) THEN
