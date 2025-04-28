@@ -40,7 +40,6 @@ CONTAINS
       ELSE
          periodic_data%nb_periodic_pairs = 0
       END IF
-      write(*, *) periodic_data%nb_periodic_pairs, 'a'
       ALLOCATE(periodic_data%list_periodic(2, periodic_data%nb_periodic_pairs))
       ALLOCATE(periodic_data%vect_e(k_dim, periodic_data%nb_periodic_pairs))
 
@@ -50,7 +49,6 @@ CONTAINS
             READ(21, *) periodic_data%list_periodic(:, k), periodic_data%vect_e(:, k_dim)
          END DO
       END IF
-      write(*, *) periodic_data%list_periodic(:, 1), periodic_data%vect_e(:, 1), 'b'
 
       CLOSE(in_unit)
    END SUBROUTINE read_periodic_data
