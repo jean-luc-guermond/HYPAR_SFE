@@ -4,6 +4,8 @@ PROGRAM test_matrix
    USE def_type_mesh
    USE def_type_periodic
    USE prep_periodic_module
+   USE dirichlet_data_module
+   USE input_dirichlet_data
    USE compute_periodic
    USE petsc
    USE solver_petsc
@@ -40,11 +42,13 @@ PROGRAM test_matrix
    my_par%precond = 'MUMPS'
 
    !===User reads his/her own data=================================================
+   CALL read_dirichlet_data("data")
+
    CALL get_mesh(communicator, mesh, opt_per = .true.)
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
 
-   !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
+   CALL dirichlet_nodes_parallel(mesh, dirichlet_data%list_dirichlet, js_d_loc)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
