@@ -97,7 +97,7 @@ CONTAINS
 
     !  Enforces Dirichlet boundary conditions
 
-    USE dyn_line;
+    USE dyn_line_type;
     IMPLICIT NONE
     TYPE(dyn_int_line),  DIMENSION(:)           :: js_D   ! Dirichlet nodes
     INTEGER,      DIMENSION(:),   INTENT(IN)    :: ia

@@ -1,7 +1,7 @@
 !
 !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
 !
-MODULE dyn_line
+MODULE dyn_line_type
   TYPE dyn_int_line
      INTEGER, DIMENSION(:), POINTER :: DIL  ! POINTER attribute
   END TYPE dyn_int_line                     ! instead of ALLOCATABLE
@@ -17,4 +17,4 @@ MODULE dyn_line
   TYPE dyn_real_array_three
      REAL(KIND=8), DIMENSION(:,:,:), POINTER :: DRT  ! POINTER attribute
   END TYPE dyn_real_array_three                   ! instead of ALLOCATABLE
-END MODULE dyn_line
+END MODULE dyn_line_type

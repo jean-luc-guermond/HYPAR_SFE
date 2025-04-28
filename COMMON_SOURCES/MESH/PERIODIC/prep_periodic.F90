@@ -4,6 +4,7 @@
 MODULE prep_periodic
    USE def_type_mesh
    USE def_type_periodic
+   USE dyn_line_type
    USE input_periodic_data
    USE periodic_data_module
    IMPLICIT NONE

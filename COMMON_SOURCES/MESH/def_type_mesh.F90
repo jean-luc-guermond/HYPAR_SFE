@@ -2,7 +2,7 @@
 !Authors: Jean-Luc Guermond, Copyright 2000
 !
 MODULE def_type_mesh
-   USE dyn_line
+   USE dyn_line_type
    USE def_type_periodic
    IMPLICIT NONE
 

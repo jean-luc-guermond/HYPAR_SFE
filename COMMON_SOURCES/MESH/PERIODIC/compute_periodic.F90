@@ -9,7 +9,7 @@ MODULE compute_periodic
 CONTAINS
 
    SUBROUTINE periodic_matrix_petsc(n_bord, list, perlist, matrix, LA)
-      USE dyn_line
+      USE dyn_line_type
       USE def_type_mesh
       USE my_util
 #include "petsc/finclude/petsc.h"
@@ -88,7 +88,7 @@ CONTAINS
    END SUBROUTINE periodic_matrix_petsc
 
    SUBROUTINE periodic_rhs_petsc(n_bord, list, perlist, v_rhs, LA)
-      USE dyn_line
+      USE dyn_line_type
       USE def_type_mesh
 #include "petsc/finclude/petsc.h"
       USE petsc
