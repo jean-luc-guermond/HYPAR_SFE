@@ -49,6 +49,8 @@ CONTAINS
       ALLOCATE(mesh%sides(mesh%mes))
       READ(in_unit, *) mesh%sides
 
+      write(*,*) mesh%sides
+
       IF (mesh_data%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
       ELSE
