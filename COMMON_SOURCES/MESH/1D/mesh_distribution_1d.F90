@@ -158,9 +158,8 @@ CONTAINS
          IF (per_bool) THEN
             mesh_loc%i_d(1:mesh_loc%me - 1) = mesh_glob%i_d(me_start:me_end - 1)
             mesh_loc%i_d(mesh_loc%me) = mesh_glob%i_d(1)
-            write(*,*) mesh_glob%jj(:, me_start:me_end - 1), "????"
             mesh_loc%jj(:, 1:mesh_loc%me - 1) = mesh_glob%jj(:, me_start:me_end - 1) - np_start + 1
-            mesh_loc%jj(2, mesh_loc%me) = mesh_glob%np - np_start + 1
+            mesh_loc%jj(2, mesh_loc%me) = mesh_glob%dom_np
             mesh_loc%rr(:, 1:mesh_loc%dom_np - 1) = mesh_glob%rr(:, np_start:np_end - 1)
             mesh_loc%rr(:, mesh_loc%dom_np) = mesh_glob%rr(:, 1)
          ELSE
