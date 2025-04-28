@@ -111,6 +111,7 @@ CONTAINS
             test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
          END DO
          IF (test) THEN
+            nn = nn + 1
             js_D(nn) = mesh%isolated_jjs(nn - n_D_me) - mesh%loc_to_glob(1) + 1
          END IF
       END DO
