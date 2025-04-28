@@ -75,7 +75,7 @@ CONTAINS
       ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(0, 0))
       ALLOCATE(mesh_loc%jees(0), mesh_loc%jecs(0))
       ALLOCATE(mesh_loc%jji(0, 0, 0), mesh_loc%jjsi(0, 0), mesh_loc%j_s(0))
-      ALLOCATE(mesh_loc%rr(2, mesh_loc%np), mesh_loc%rrs_extra(2, 2, 0))
+      ALLOCATE(mesh_loc%rr(1, mesh_loc%np), mesh_loc%rrs_extra(1, 2, 0))
       ALLOCATE(mesh_loc%neigh(2, mesh_loc%me), mesh_loc%neighi(0, 0))
       ALLOCATE(mesh_loc%sides(mesh_loc%mes), mesh_loc%neighs(mesh_loc%mes))
       ALLOCATE(mesh_loc%sides_extra(mesh_loc%mes_extra), mesh_loc%neighs_extra(mesh_loc%mes_extra))
