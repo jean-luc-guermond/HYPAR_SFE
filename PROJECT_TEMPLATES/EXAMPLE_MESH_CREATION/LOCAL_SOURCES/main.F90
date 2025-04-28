@@ -47,7 +47,7 @@ PROGRAM test_matrix
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
-   CALL periodic_matrix_petsc(periodic, LA, mass)
+   CALL periodic_matrix_petsc(opt_per, LA, mass)
 
    CALL create_my_ghost(mesh, LA, ifrom)
    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)
