@@ -41,12 +41,13 @@ PROGRAM test_matrix
    !===User reads his/her own data=================================================
    CALL get_mesh(communicator, mesh, opt_per = .true.)
    CALL prep_periodic(mesh, opt_per)
-   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per=opt_per)
+   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
 
    !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
+   CALL periodic_matrix_petsc(pp_per%n_bord, pp_per%list, pp_per%perlist, mass_mat, pp_1_LA)
 
    CALL create_my_ghost(mesh, LA, ifrom)
    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)
@@ -61,11 +62,10 @@ PROGRAM test_matrix
 
    CALL solver(my_ksp, test_vec2, test_vec3, reinit = .FALSE., verbose = .FALSE.)
 
-
    CALL VecAXPY(test_vec, -1.d0, test_vec3, ierr)
    CALL VecNorm(test_vec, NORM_1, error, ierr)
 
-   IF (rank == 0) write(*,*) 'error', error
+   IF (rank == 0) write(*, *) 'error', error
 
 CONTAINS
 

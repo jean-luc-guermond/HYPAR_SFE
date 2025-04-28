@@ -8,15 +8,16 @@ MODULE compute_periodic
 
 CONTAINS
 
-   SUBROUTINE periodic_matrix_petsc(n_bord, list, perlist, matrix, LA)
+   SUBROUTINE periodic_matrix_petsc(matrix, LA, periodic)
       USE dyn_line_type
       USE def_type_mesh
       USE my_util
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n_bord
-      TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
+      TYPE(periodic_type), INTENT(IN) :: periodic
+      INTEGER :: n_bord
+      TYPE(dyn_int_line), DIMENSION(:), POINTER :: list, perlist
       TYPE(petsc_csr_la), INTENT(IN) :: LA
       INTEGER, PARAMETER :: nmaxcols = 300
       INTEGER :: ncols
@@ -32,6 +33,10 @@ CONTAINS
 
       CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
       CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
+
+      n_bord = periodic%n_bord
+      list = periodic%list
+      perlist = periodic%perlist
 
       DO k = 1, SIZE(LA%loc_to_glob, 1)
          DO n = 1, n_bord
