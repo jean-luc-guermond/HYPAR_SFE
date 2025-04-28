@@ -70,7 +70,6 @@ CONTAINS
 
          mesh_loc%mextra = 0
       END IF
-   write(*,*) mesh_glob%jj
       write(*,*) rank, np_start, np_end
 
       IF (rank == 1) THEN
@@ -165,6 +164,7 @@ CONTAINS
             mesh_loc%rr(:, mesh_loc%dom_np) = mesh_glob%rr(:, 1)
          ELSE
             mesh_loc%i_d = mesh_glob%i_d(me_start:me_end)
+            write(*,*) mesh_glob%jj(:, me_start:me_end) , '??'
             mesh_loc%jj = mesh_glob%jj(:, me_start:me_end) - np_start + 1
             mesh_loc%rr(:, 1:mesh_loc%dom_np) = mesh_glob%rr(:, np_start:np_end)
          END IF
