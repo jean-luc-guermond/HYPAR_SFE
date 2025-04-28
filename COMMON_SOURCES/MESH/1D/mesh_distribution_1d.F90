@@ -179,12 +179,12 @@ CONTAINS
             mesh_loc%jj(1, mesh_loc%me) = mesh_loc%np
 
             mesh_loc%sides(1) = mesh_glob%sides(2)
-            mesh_loc%neighs(1) = mesh_glob%np - 2
-            mesh_loc%jjs(1, 1) = mesh_glob%np - 1
+            mesh_loc%neighs(1) = mesh_loc%me - 1
+            mesh_loc%jjs(1, 1) = mesh_loc%dom_np - 1
 
             mesh_loc%sides(2) = mesh_glob%sides(1)
-            mesh_loc%neighs(2) = mesh_glob%np - 1
-            mesh_loc%jjs(1, 2) = mesh_glob%np
+            mesh_loc%neighs(2) = mesh_loc%me
+            mesh_loc%jjs(1, 2) = mesh_loc%dom_np
          ELSE
             mesh_loc%isolated_jjs(1) = mesh_glob%np
             mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(2)
@@ -200,8 +200,8 @@ CONTAINS
                END IF
             END DO
             mesh_loc%sides(1) = mesh_glob%sides(2)
-            mesh_loc%neighs(1) = mesh_glob%np - 1
-            mesh_loc%jjs(1, 1) = mesh_glob%np
+            mesh_loc%neighs(1) = mesh_loc%me
+            mesh_loc%jjs(1, 1) = mesh_loc%dom_np
          END IF
       ELSE
          mesh_loc%i_d = mesh_glob%i_d(me_start:me_end)
