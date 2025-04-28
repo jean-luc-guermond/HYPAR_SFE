@@ -23,6 +23,7 @@ MODULE input_periodic_data
 CONTAINS
    SUBROUTINE read_periodic_data(data_fichier)
       USE character_strings
+      USE space_dim
       IMPLICIT NONE
       INTEGER, PARAMETER :: in_unit = 21
       INTEGER :: k
@@ -41,12 +42,12 @@ CONTAINS
       END IF
       write(*, *) periodic_data%nb_periodic_pairs, 'a'
       ALLOCATE(periodic_data%list_periodic(2, periodic_data%nb_periodic_pairs))
-      ALLOCATE(periodic_data%vect_e(2, periodic_data%nb_periodic_pairs))
+      ALLOCATE(periodic_data%vect_e(k_dim, periodic_data%nb_periodic_pairs))
 
       IF (periodic_data%nb_periodic_pairs > 0) THEN
          CALL read_until(21, '===Indices of periodic boundaries and corresponding vectors===')
          DO k = 1, periodic_data%nb_periodic_pairs
-            READ(21, *) periodic_data%list_periodic(:, k), periodic_data%vect_e(:, k)
+            READ(21, *) periodic_data%list_periodic(:, k), periodic_data%vect_e(:, k_dim)
          END DO
       END IF
       write(*, *) periodic_data%list_periodic(:, k), 'a'
