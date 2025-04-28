@@ -3,6 +3,7 @@
 !
 MODULE def_type_mesh
    USE dyn_line
+   USE def_type_periodic
    IMPLICIT NONE
 
    TYPE aij_type
