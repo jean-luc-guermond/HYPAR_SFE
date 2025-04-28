@@ -155,7 +155,7 @@ CONTAINS
             mesh_loc%i_d(1:mesh_loc%me - 1) = mesh_glob%i_d(me_start:me_end - 1)
             mesh_loc%i_d(mesh_loc%me) = mesh_glob%i_d(1)
             mesh_loc%jj(:, 1:mesh_loc%me - 1) = mesh_glob%jj(:, me_start:me_end - 1) - np_start + 1
-            mesh_loc%jj(2, mesh_loc%me) = mesh_glob%np
+            mesh_loc%jj(2, mesh_loc%me) = mesh_glob%np - np_start + 1
             mesh_loc%rr(:, 1:mesh_loc%dom_np - 1) = mesh_glob%rr(:, np_start:np_end - 1)
             mesh_loc%rr(:, mesh_loc%dom_np) = mesh_glob%rr(:, 1)
          ELSE
@@ -239,6 +239,7 @@ CONTAINS
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
       write(*,*) rank, mesh_loc%jj
+      write(*,*) rank, mesh_loc%loc_to_glob(mesh_loc%jj)
 
    END SUBROUTINE extract_mesh_1d
 
