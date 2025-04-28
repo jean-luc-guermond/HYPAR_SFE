@@ -40,10 +40,8 @@ CONTAINS
       INTEGER :: n, side1, side2, n_b, nx, i
       REAL(KIND = 8), DIMENSION(:), POINTER :: e
 
-      WRITE (*, *) 'Loading periodic-data file ...'
-
       IF (mesh%np == 0) THEN
-         WRITE(*, *) 'no mesh on this proc'
+         !WRITE(*, *) 'no mesh on this proc'
          RETURN
       END IF
 
@@ -88,8 +86,6 @@ CONTAINS
       END DO
 
       DEALLOCATE(e)
-
-      WRITE (*, *) 'Treatment of periodic-data done'
 
    END SUBROUTINE prep_periodic_scal
 
