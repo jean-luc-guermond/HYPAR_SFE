@@ -19,6 +19,7 @@ CONTAINS
 
       IF  (nb_procs == 1) THEN
          CALL copy_mesh(mesh_glob, mesh_loc)
+         RETURN
       END IF
 
       mesh_loc%mi = 0
