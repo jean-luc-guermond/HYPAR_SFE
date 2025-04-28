@@ -41,8 +41,8 @@ CONTAINS
     LOGICAL :: okay
     !===Initialize data to zero and false by default
     CALL mesh_data%init
-
     OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
+
     CALL read_until(in_unit, "===Name of directory for mesh file===")
     READ (in_unit,*) mesh_data%directory
     CALL read_until(in_unit, "===Name of mesh file===")

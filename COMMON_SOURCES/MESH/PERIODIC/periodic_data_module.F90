@@ -31,6 +31,7 @@ CONTAINS
       LOGICAL :: test
       !===Initialize data to zero and false by default
       CALL periodic_data%init
+      OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
 
       CALL find_string(21, '===How many pieces of periodic boundary?===', test)
       IF (test) THEN
@@ -38,7 +39,7 @@ CONTAINS
       ELSE
          periodic_data%nb_periodic_pairs = 0
       END IF
-      write(*,*) periodic_data%nb_periodic_pairs
+      write(*, *) periodic_data%nb_periodic_pairs
       ALLOCATE(periodic_data%list_periodic(2, periodic_data%nb_periodic_pairs))
       ALLOCATE(periodic_data%vect_e(2, periodic_data%nb_periodic_pairs))
 
