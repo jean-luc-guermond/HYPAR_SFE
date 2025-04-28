@@ -13,7 +13,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w, mesh%gauss%n_w) :: mat_loc
 
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idxn
-      INTEGER :: m, ni, nj
+      INTEGER :: m, ni, nj, k
       REAL(KIND = 8), DIMENSION(mesh%gauss%l_G) :: al, bl
       Mat            :: matrix
       PetscErrorCode :: ierr
