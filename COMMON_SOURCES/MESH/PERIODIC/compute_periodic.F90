@@ -8,7 +8,7 @@ MODULE compute_periodic
 
 CONTAINS
 
-   SUBROUTINE periodic_matrix_petsc(matrix, LA, periodic)
+   SUBROUTINE periodic_matrix_petsc(periodic, LA, matrix)
       USE dyn_line_type
       USE def_type_mesh
       USE my_util
