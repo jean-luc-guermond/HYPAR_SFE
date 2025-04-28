@@ -140,11 +140,12 @@ CONTAINS
          mesh_loc%rr(:, 1:mesh_loc%dom_np) = mesh_glob%rr(:, np_start:np_end)
 
          IF (per_bool) THEN
-            mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
-            mesh_loc%jcc_extra(1) = me_end
+            mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1) - 1
+            mesh_loc%jcc_extra(1) = me_end + 1
+
+            mesh_loc%jcc_extra(2) = mesh_glob%me
             mesh_loc%jj_extra(1, 2) = 1
             mesh_loc%jj_extra(2, 2) = mesh_glob%np
-            mesh_loc%jcc_extra(2) = mesh_glob%me
          ELSE
             mesh_loc%isolated_jjs(1) = 1
             mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(1)
@@ -251,7 +252,7 @@ CONTAINS
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
 
-      write(*,*) rank, mesh_loc%jj
+      write(*, *) rank, mesh_loc%jj
 
    END SUBROUTINE extract_mesh_1d
 
