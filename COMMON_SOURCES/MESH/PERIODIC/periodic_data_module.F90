@@ -32,7 +32,7 @@ CONTAINS
       !===Initialize data to zero and false by default
       CALL periodic_data%init
 
-      CALL find_string(21, '===How many pieces of periodic boundary?', test)
+      CALL find_string(21, '===How many pieces of periodic boundary?===', test)
       IF (test) THEN
          READ (21, *) periodic_data%nb_periodic_pairs
       ELSE
@@ -43,7 +43,7 @@ CONTAINS
       ALLOCATE(periodic_data%vect_e(2, periodic_data%nb_periodic_pairs))
 
       IF (periodic_data%nb_periodic_pairs > 0) THEN
-         CALL read_until(21, '===Indices of periodic boundaries and corresponding vectors')
+         CALL read_until(21, '===Indices of periodic boundaries and corresponding vectors===')
          DO k = 1, periodic_data%nb_periodic_pairs
             READ(21, *) periodic_data%list_periodic(:, k), periodic_data%vect_e(:, k)
          END DO
