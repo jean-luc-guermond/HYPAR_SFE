@@ -29,12 +29,16 @@ CONTAINS
 
       ALLOCATE(mesh2%jj(SIZE(mesh1%jj, 1), SIZE(mesh1%jj, 2)))
       mesh2%jj = mesh1%jj
+      write(*,*) '11'
       ALLOCATE(mesh2%jjs(SIZE(mesh1%jjs, 1), SIZE(mesh1%jjs, 2)))
       mesh2%jjs = mesh1%jjs
+      write(*,*) '12'
       ALLOCATE(mesh2%rr(SIZE(mesh1%rr, 1), SIZE(mesh1%rr, 2)))
       mesh2%rr = mesh1%rr
+      write(*,*) '13'
       ALLOCATE(mesh2%loc_to_glob(SIZE(mesh1%loc_to_glob)))
       mesh2%loc_to_glob = mesh1%loc_to_glob
+      write(*,*) '14'
       ALLOCATE(mesh2%neigh(SIZE(mesh1%neigh, 1), SIZE(mesh1%neigh, 2)))
       mesh2%neigh = mesh1%neigh
       write(*,*) '1'
