@@ -26,7 +26,6 @@ CONTAINS
       mesh_loc%medges = 0
       mesh_loc%mes_extra = 0
       mesh_loc%mes_int = 0
-      mesh_loc%mes = 0
       mesh_loc%edge_stab = mesh_glob%edge_stab
 
       IF (rank < nb_procs) THEN
@@ -65,6 +64,7 @@ CONTAINS
       ELSE
          mesh_loc%np = mesh_loc%dom_np + 1
          mesh_loc%nis = 0
+         mesh_loc%mes = 0
       END IF
 
       mesh_loc%dom_me = mesh_loc%me
@@ -112,9 +112,11 @@ CONTAINS
          mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(1)
          mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
          mesh_loc%jcc_extra = me_end + 1
+         write(*,*) '1'
          mesh_loc%sides(1) = 1
          mesh_loc%neighs(1) = 1
          mesh_loc%jjs(1, 1) = 1
+         write(*,*) '1'
       ELSE IF (rank == nb_procs) THEN
          mesh_loc%isolated_jjs(1) = mesh_glob%np
          mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(2)
@@ -129,9 +131,11 @@ CONTAINS
                mesh_loc%jj(2, m) = mesh_loc%np
             END IF
          END DO
+         write(*,*) 'n'
          mesh_loc%sides(1) = mesh_glob%np
          mesh_loc%neighs(1) = mesh_glob%np - 1
          mesh_loc%jjs(1, 1) = mesh_glob%np
+         write(*,*) 'n'
       ELSE
          mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
          mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
