@@ -1,7 +1,7 @@
 !
 !Authors Jean-Luc Guermond, Copyrights 1996
 !
-MODULE prep_periodic
+MODULE prep_periodic_module
    USE def_type_mesh
    USE def_type_periodic
    USE dyn_line_type
@@ -252,4 +252,4 @@ CONTAINS
 
    END SUBROUTINE list_periodic
 
-END MODULE prep_periodic
+END MODULE prep_periodic_module

@@ -4,6 +4,7 @@ PROGRAM test_matrix
    USE input_data
    USE def_type_mesh
    USE def_type_periodic
+   USE prep_periodic_module
    USE petsc
    USE solver_petsc
    USE fem_M
