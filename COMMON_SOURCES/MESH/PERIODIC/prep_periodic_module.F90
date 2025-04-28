@@ -13,12 +13,10 @@ MODULE prep_periodic_module
    PRIVATE
 
 CONTAINS
-   SUBROUTINE prep_periodic(my_periodic, mesh, periodic, opt_nb_bloc)
+   SUBROUTINE prep_periodic(mesh, periodic, opt_nb_bloc)
       IMPLICIT NONE
-      TYPE(periodic_data_type), INTENT(IN) :: my_periodic
       TYPE(mesh_type) :: mesh
       TYPE(periodic_type) :: periodic
-      TYPE(periodic_data_type) :: periodic_data
       INTEGER, OPTIONAL :: opt_nb_bloc
 
       CALL read_periodic_data('data')
