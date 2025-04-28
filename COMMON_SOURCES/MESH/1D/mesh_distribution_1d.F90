@@ -29,8 +29,8 @@ CONTAINS
       IF  (nb_procs == 1) THEN
          IF (per_bool) THEN
             mesh_glob%nis = 0
-            DEALLOCATE(mesh%isolated_jjs, mesh%isolated_interfaces)
-            ALLOCATE(mesh%isolated_jjs(mesh%nis), mesh%isolated_interfaces(mesh%nis, 1))
+            DEALLOCATE(mesh_glob%isolated_jjs, mesh_glob%isolated_interfaces)
+            ALLOCATE(mesh_glob%isolated_jjs(mesh%nis), mesh_glob%isolated_interfaces(mesh%nis, 1))
          END IF
          CALL copy_mesh(mesh_glob, mesh_loc)
          RETURN
