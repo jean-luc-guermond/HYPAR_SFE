@@ -25,23 +25,17 @@ CONTAINS
       mesh2%dom_np = mesh1%dom_np
       mesh2%dom_mes = mesh1%dom_mes
       mesh2%nis = mesh1%nis
-      write(*,*) '??'
 
       ALLOCATE(mesh2%jj(SIZE(mesh1%jj, 1), SIZE(mesh1%jj, 2)))
       mesh2%jj = mesh1%jj
-      write(*,*) '11'
       ALLOCATE(mesh2%jjs(SIZE(mesh1%jjs, 1), SIZE(mesh1%jjs, 2)))
       mesh2%jjs = mesh1%jjs
-      write(*,*) '12'
       ALLOCATE(mesh2%rr(SIZE(mesh1%rr, 1), SIZE(mesh1%rr, 2)))
       mesh2%rr = mesh1%rr
-      write(*,*) '13'
       ALLOCATE(mesh2%loc_to_glob(SIZE(mesh1%loc_to_glob)))
       mesh2%loc_to_glob = mesh1%loc_to_glob
-      write(*,*) '14'
       ALLOCATE(mesh2%neigh(SIZE(mesh1%neigh, 1), SIZE(mesh1%neigh, 2)))
       mesh2%neigh = mesh1%neigh
-      write(*,*) '1'
 
       ALLOCATE(mesh2%sides(SIZE(mesh1%sides)))
       mesh2%sides = mesh1%sides
@@ -49,7 +43,6 @@ CONTAINS
       mesh2%neighs = mesh1%neighs
       ALLOCATE(mesh2%i_d(SIZE(mesh1%i_d)))
       mesh2%i_d = mesh1%i_d
-      write(*,*) '2'
 
       ALLOCATE(mesh2%jjs_int(SIZE(mesh1%jjs_int, 1), SIZE(mesh1%jjs_int, 2)))
       mesh2%jjs_int = mesh1%jjs_int
@@ -57,13 +50,11 @@ CONTAINS
       mesh2%sides_int = mesh1%sides_int
       ALLOCATE(mesh2%neighs_int(2, SIZE(mesh1%neighs_int, 2)))
       mesh2%neighs_int = mesh1%neighs_int
-      write(*,*) '3'
 
       ALLOCATE(mesh2%sides_extra(SIZE(mesh1%sides_extra)))
       mesh2%sides_extra = mesh1%sides_extra
       ALLOCATE(mesh2%neighs_extra(SIZE(mesh1%neighs_extra)))
       mesh2%neighs_extra = mesh1%neighs_extra
-      write(*,*) '4'
 
       ALLOCATE(mesh2%jce(SIZE(mesh1%jce, 1), SIZE(mesh1%jce, 2)))
       mesh2%jce = mesh1%jce
@@ -71,7 +62,6 @@ CONTAINS
       mesh2%jees = mesh1%jees
       ALLOCATE(mesh2%jecs(SIZE(mesh1%jecs)))
       mesh2%jecs = mesh1%jecs
-      write(*,*) '5'
 
       ALLOCATE(mesh2%disp(SIZE(mesh1%disp)))
       mesh2%disp = mesh1%disp
@@ -85,7 +75,6 @@ CONTAINS
       mesh2%disedge = mesh1%disedge
       ALLOCATE(mesh2%domedge(SIZE(mesh1%domnp)))
       mesh2%domedge = mesh1%domedge
-      write(*,*) '6'
 
       ALLOCATE(mesh2%jj_extra(SIZE(mesh1%jj_extra, 1), SIZE(mesh1%jj_extra, 2)))
       mesh2%jj_extra = mesh1%jj_extra
@@ -93,19 +82,16 @@ CONTAINS
       mesh2%jce_extra = mesh1%jce_extra
       ALLOCATE(mesh2%jcc_extra(SIZE(mesh1%jcc_extra)))
       mesh2%jcc_extra = mesh1%jcc_extra
-      write(*,*) '7'
 
       ALLOCATE(mesh2%jjs_extra(SIZE(mesh1%jjs_extra, 1), SIZE(mesh1%jjs_extra, 2)))
       mesh2%jjs_extra = mesh1%jjs_extra
       ALLOCATE(mesh2%rrs_extra(SIZE(mesh1%rrs_extra, 1), SIZE(mesh1%rrs_extra, 2), SIZE(mesh1%rrs_extra, 3)))
       mesh2%rrs_extra = mesh1%rrs_extra
-      write(*,*) '8'
 
       ALLOCATE(mesh2%isolated_jjs(SIZE(mesh1%isolated_jjs)))
       mesh2%isolated_jjs = mesh1%isolated_jjs
       ALLOCATE(mesh2%isolated_interfaces(SIZE(mesh1%isolated_interfaces, 1), SIZE(mesh1%isolated_interfaces, 2)))
       mesh2%isolated_interfaces = mesh1%isolated_interfaces
-      write(*,*) '?'
    END SUBROUTINE copy_mesh
 
    SUBROUTINE free_mesh(mesh)
