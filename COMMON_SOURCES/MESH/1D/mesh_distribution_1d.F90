@@ -242,8 +242,12 @@ CONTAINS
       DO n = 1, nb_procs
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
-      write(*,*) rank, mesh_loc%np, mesh_loc%jj
-      !write(*,*) rank, mesh_loc%loc_to_glob
+      !write(*,*) rank, mesh_loc%np, mesh_loc%jj
+      do m=1, mesh_loc%me
+         mesh_loc%jj(1, m) = mesh_loc%loc_to_glob(mesh_loc%jj(1, m))
+         mesh_loc%jj(2, m) = mesh_loc%loc_to_glob(mesh_loc%jj(2, m))
+      end do
+      write(*,*) rank, mesh_loc%jj
 
       stop
 
