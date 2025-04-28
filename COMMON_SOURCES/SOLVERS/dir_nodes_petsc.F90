@@ -56,7 +56,8 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN) :: list_dirichlet_sides
       INTEGER, DIMENSION(:), POINTER :: js_d
       LOGICAL, DIMENSION(:), POINTER :: virgin
-      INTEGER :: nn, ms, n, p, n_D, nws, n_D_me
+      INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
+      LOGICAL :: test
 
       IF (SIZE(list_dirichlet_sides)==0) THEN
          ALLOCATE(js_d(0))
@@ -80,8 +81,11 @@ CONTAINS
       END DO
       n_D_me = nn
       DO ms = 1, mesh%nis
-         IF ((MINVAL(ABS(mesh%isolated_interfaces(ms, 1) - list_dirichlet_sides))==0) &
-              .OR. (MINVAL(ABS(mesh%isolated_interfaces(ms, 2) - list_dirichlet_sides))==0)) THEN
+         test = .false.
+         DO k = 1, mesh%nws
+            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
+         END DO
+         IF (test) THEN
             nn = nn + 1
          END IF
       END DO
