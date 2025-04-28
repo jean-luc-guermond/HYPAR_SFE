@@ -17,7 +17,7 @@ CONTAINS
       IMPLICIT NONE
       TYPE(periodic_type), INTENT(IN) :: periodic
       INTEGER :: n_bord
-      TYPE(dyn_int_line), DIMENSION(:), POINTER :: list, perlist
+      TYPE(dyn_int_line), DIMENSION(20) :: list, perlist
       TYPE(petsc_csr_la), INTENT(IN) :: LA
       INTEGER, PARAMETER :: nmaxcols = 300
       INTEGER :: ncols
