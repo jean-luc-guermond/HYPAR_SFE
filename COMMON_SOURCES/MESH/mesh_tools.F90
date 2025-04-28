@@ -92,6 +92,7 @@ CONTAINS
       mesh2%isolated_jjs = mesh1%isolated_jjs
       ALLOCATE(mesh2%isolated_interfaces(SIZE(mesh1%isolated_interfaces, 1), SIZE(mesh1%isolated_interfaces, 2)))
       mesh2%isolated_interfaces = mesh1%isolated_interfaces
+      write(*,*) '?'
    END SUBROUTINE copy_mesh
 
    SUBROUTINE free_mesh(mesh)
