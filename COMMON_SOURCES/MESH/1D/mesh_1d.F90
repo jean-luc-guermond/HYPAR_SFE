@@ -57,37 +57,37 @@ CONTAINS
          mesh%loc_to_glob(i) = i
       END DO
 
-      ALLOCATE(mesh_loc%i_d(mesh_loc%me))
-      mesh_loc%i_d = 1
+      ALLOCATE(mesh%i_d(mesh%me))
+      mesh%i_d = 1
 
-      mesh_loc%nis = 2
-      ALLOCATE(mesh_loc%isolated_jjs(mesh_loc%nis), mesh_loc%isolated_interfaces(mesh_loc%nis, 1))
-      mesh_loc%isolated_jjs(1) = 1
-      mesh_loc%isolated_jjs(2) = mesh%np
-      mesh_loc%isolated_interfaces(1, 1) = 1
-      mesh_loc%isolated_interfaces(2, 1) = 2
+      mesh%nis = 2
+      ALLOCATE(mesh%isolated_jjs(mesh%nis), mesh%isolated_interfaces(mesh%nis, 1))
+      mesh%isolated_jjs(1) = 1
+      mesh%isolated_jjs(2) = mesh%np
+      mesh%isolated_interfaces(1, 1) = 1
+      mesh%isolated_interfaces(2, 1) = 2
 
-      mesh_loc%mi = 0
-      mesh_loc%medge = 0
-      mesh_loc%medges = 0
-      mesh_loc%mes_extra = 0
-      mesh_loc%mes_int = 0
-      mesh_loc%dom_np = mesh%np
-      mesh_loc%dom_me = mesh_loc%me
-      mesh_loc%dom_mes = mesh_loc%mes
+      mesh%mi = 0
+      mesh%medge = 0
+      mesh%medges = 0
+      mesh%mes_extra = 0
+      mesh%mes_int = 0
+      mesh%dom_np = mesh%np
+      mesh%dom_me = mesh%me
+      mesh%dom_mes = mesh%mes
 
-      ALLOCATE(mesh_loc%iis(0, 0))
-      ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
-           mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
-      ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(0, 0))
-      ALLOCATE(mesh_loc%jees(0), mesh_loc%jecs(0))
-      ALLOCATE(mesh_loc%jji(0, 0, 0), mesh_loc%jjsi(0, 0), mesh_loc%j_s(0))
-      ALLOCATE(mesh_loc%rrs_extra(1, 2, 0))
-      ALLOCATE(mesh_loc%neighi(0, 0))
-      ALLOCATE(mesh_loc%sides_extra(mesh_loc%mes_extra), mesh_loc%neighs_extra(mesh_loc%mes_extra))
-      ALLOCATE(mesh_loc%sides_int(mesh_loc%mes_int), mesh_loc%neighs_int(2, mesh_loc%mes_int))
-      ALLOCATE(mesh_loc%disp(nb_procs + 1), mesh_loc%disedge(nb_procs + 1), mesh_loc%discell(nb_procs + 1))
-      ALLOCATE(mesh_loc%domnp(nb_procs), mesh_loc%domedge(nb_procs), mesh_loc%domcell(nb_procs))
+      ALLOCATE(mesh%iis(0, 0))
+      ALLOCATE(mesh%jj_extra(2, mesh%mextra), mesh%jce_extra(0, mesh%medge), &
+           mesh%jjs_extra(0, mesh%mes_extra))
+      ALLOCATE(mesh%jjs_int(0, 0), mesh%jcc_extra(mesh%mextra), mesh%jce(0, 0))
+      ALLOCATE(mesh%jees(0), mesh%jecs(0))
+      ALLOCATE(mesh%jji(0, 0, 0), mesh%jjsi(0, 0), mesh%j_s(0))
+      ALLOCATE(mesh%rrs_extra(1, 2, 0))
+      ALLOCATE(mesh%neighi(0, 0))
+      ALLOCATE(mesh%sides_extra(mesh%mes_extra), mesh%neighs_extra(mesh%mes_extra))
+      ALLOCATE(mesh%sides_int(mesh%mes_int), mesh%neighs_int(2, mesh%mes_int))
+      ALLOCATE(mesh%disp(nb_procs + 1), mesh%disedge(nb_procs + 1), mesh%discell(nb_procs + 1))
+      ALLOCATE(mesh%domnp(nb_procs), mesh%domedge(nb_procs), mesh%domcell(nb_procs))
 
 
       IF (mesh_data%type_fe==1) THEN
