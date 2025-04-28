@@ -70,7 +70,7 @@ CONTAINS
 
          mesh_loc%mextra = 0
       END IF
-
+   write(*,*) mesh_glob%jj
       write(*,*) rank, np_start, np_end
 
       IF (rank == 1) THEN
