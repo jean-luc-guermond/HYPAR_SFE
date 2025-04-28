@@ -40,7 +40,9 @@ PROGRAM test_matrix
 
    !===User reads his/her own data=================================================
    CALL get_mesh(communicator, mesh)
+   write(*,*) 'a'
    CALL prep_periodic(mesh, opt_per)
+   write(*,*) 'b'
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per=opt_per)
    write(*,*) opt_per%n_bord, opt_per%pnt
    write(*,*) mesh%sides
