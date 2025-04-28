@@ -5,21 +5,28 @@ MODULE construct_mesh
    USE st_matrix
    USE petsc
    USE input_mesh_data
+   USE input_periodic_data
    USE mesh_data_module
    PUBLIC :: get_mesh
    PRIVATE
 CONTAINS
-   SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab)
+   SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_per)
       USE mesh_1d
       USE mesh_distribution_1d
       IMPLICIT NONE
-      LOGICAL, OPTIONAL :: opt_edge_stab
+      LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
       LOGICAL :: edge_stab
       TYPE(mesh_type) :: mesh_glob, mesh
       MPI_Comm       :: communicator
 
       CALL read_mesh_data('data')
+
+      IF (PRESENT(opt_per)) THEN
+         IF (opt_per) THEN
+            CALL read_periodic_data('data')
+         END IF
+      END IF
 
       IF (.NOT.PRESENT(opt_edge_stab)) THEN
          edge_stab = .FALSE.
@@ -34,7 +41,7 @@ CONTAINS
       CASE(1)
          CALL load_mesh_1d(mesh_glob)
 
-         CALL extract_mesh_1d(communicator, mesh_glob, mesh)
+         CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_per)
 
          CALL GAUSS_POINT_1d(mesh)
 

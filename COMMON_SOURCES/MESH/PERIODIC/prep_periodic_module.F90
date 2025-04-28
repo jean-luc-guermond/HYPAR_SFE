@@ -19,8 +19,6 @@ CONTAINS
       TYPE(periodic_type) :: periodic
       INTEGER, OPTIONAL :: opt_nb_bloc
 
-      CALL read_periodic_data('data')
-
       IF (PRESENT(opt_nb_bloc)) THEN
          CALL prep_periodic_bloc(periodic_data, mesh, periodic, opt_nb_bloc)
       ELSE
