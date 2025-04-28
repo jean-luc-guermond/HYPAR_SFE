@@ -78,7 +78,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
       REAL(KIND = 8) :: pi
       pi = ACOS(-1.d0)
-      uu = COS(16 * rr(1, :)) * COS(16 * rr(2, :))
+      uu = COS(16 * rr(1, :))
    END FUNCTION source
 
 END PROGRAM test_matrix
