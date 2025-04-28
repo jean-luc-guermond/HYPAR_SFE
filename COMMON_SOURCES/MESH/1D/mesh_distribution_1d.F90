@@ -71,6 +71,8 @@ CONTAINS
          mesh_loc%mextra = 0
       END IF
 
+      write(*,*) rank, np_start, np_end
+
       IF (rank == 1) THEN
          mesh_loc%np = mesh_loc%dom_np
          mesh_loc%nis = 1
