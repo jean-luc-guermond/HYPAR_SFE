@@ -13,7 +13,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w, mesh%gauss%n_w) :: mat_loc
 
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idxn
-      INTEGER :: m, ni, nj, k
+      INTEGER :: m, ni, nj
       REAL(KIND = 8), DIMENSION(mesh%gauss%l_G) :: al, bl
       Mat            :: matrix
       PetscErrorCode :: ierr
@@ -26,9 +26,9 @@ CONTAINS
          bl = mass * mesh%gauss%rj(:, m)
          DO nj = 1, mesh%gauss%n_w;
             DO ni = 1, mesh%gauss%n_w;
-               mat_loc(nj, ni) = SUM(mesh%gauss%ww(ni, :) * mesh%gauss%ww(nj, :)) * bl
+               mat_loc(nj, ni) = SUM(mesh%gauss%ww(ni, :) * mesh%gauss%ww(nj, :) * bl)
                DO k = 1, mesh%gauss%k_d
-                  mat_loc(nj, ni) = mat_loc(nj, ni) + SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%dw(k, ni, :, m)) * al
+                  mat_loc(nj, ni) = mat_loc(nj, ni) + SUM(mesh%gauss%dw(1, nj, :, m) * mesh%gauss%dw(1, ni, :, m)  * al)
                END DO
             ENDDO
          ENDDO
