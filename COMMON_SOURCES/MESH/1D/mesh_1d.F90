@@ -49,7 +49,12 @@ CONTAINS
       ALLOCATE(mesh%sides(mesh%mes))
       READ(in_unit, *) mesh%sides
 
-      write(*,*) mesh%sides
+      ALLOCATE(mesh%loc_to_glob(mesh%np))
+      DO i = 1, mesh%np
+         mesh%loc_to_glob(i) = i
+      END DO
+
+      write(*, *) mesh%sides
 
       IF (mesh_data%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
