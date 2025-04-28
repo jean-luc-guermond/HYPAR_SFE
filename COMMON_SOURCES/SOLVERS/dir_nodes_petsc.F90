@@ -106,9 +106,11 @@ CONTAINS
          END DO
       END DO
       DO ms = 1, mesh%nis
-         IF ((MINVAL(ABS(mesh%isolated_interfaces(ms, 1) - list_dirichlet_sides))==0) &
-              .OR. (MINVAL(ABS(mesh%isolated_interfaces(ms, 2) - list_dirichlet_sides))==0)) THEN
-            nn = nn + 1
+         test = .false.
+         DO k = 1, mesh%gauss%n_ws
+            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
+         END DO
+         IF (test) THEN
             js_D(nn) = mesh%isolated_jjs(nn - n_D_me) - mesh%loc_to_glob(1) + 1
          END IF
       END DO
