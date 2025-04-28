@@ -239,7 +239,7 @@ CONTAINS
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
       write(*,*) rank, mesh_loc%jj
-      do n=1, mesh%me
+      do n=1, mesh_loc%me
          mesh_loc%jj(1, m) = mesh_loc%loc_to_glob(mesh_loc%jj(1, m))
          mesh_loc%jj(2, m) = mesh_loc%loc_to_glob(mesh_loc%jj(2, m))
       end do
