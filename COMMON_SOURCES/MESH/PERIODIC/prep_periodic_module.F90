@@ -242,8 +242,6 @@ CONTAINS
       ALLOCATE (perlist_out(long))
       perlist_out(1:long) = perlist(1:long)
 
-
-      write(*,*) 'perlist' , perlist_out, list_out
    END SUBROUTINE list_periodic
 
 END MODULE prep_periodic_module

@@ -42,8 +42,7 @@ PROGRAM test_matrix
    CALL get_mesh(communicator, mesh, opt_per = .true.)
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per=opt_per)
-   write(*,*) opt_per%n_bord, opt_per%pnt
-   write(*,*) mesh%sides
+
    !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 
