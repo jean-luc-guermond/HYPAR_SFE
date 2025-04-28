@@ -1,7 +1,6 @@
 PROGRAM test_matrix
 #include "petsc/finclude/petsc.h"
    USE construct_mesh
-   USE input_data
    USE def_type_mesh
    USE def_type_periodic
    USE prep_periodic_module
