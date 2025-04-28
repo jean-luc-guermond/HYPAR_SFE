@@ -3,6 +3,7 @@ PROGRAM test_matrix
    USE construct_mesh
    USE input_data
    USE def_type_mesh
+   USE def_type_periodic
    USE petsc
    USE solver_petsc
    USE fem_M
@@ -19,6 +20,7 @@ PROGRAM test_matrix
    INTEGER, POINTER, DIMENSION(:) :: ifrom
    REAL(KIND = 8) :: error
    TYPE(solver_param) :: my_par
+   TYPE(periodic_type) :: opt_per
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
@@ -38,8 +40,8 @@ PROGRAM test_matrix
 
    !===User reads his/her own data=================================================
    CALL get_mesh(communicator, mesh)
-   !CALL prep_periodic_scal(inputs%my_periodic, mesh, opt_per)
-   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
+   CALL prep_periodic(mesh, opt_per)
+   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per=opt_per)
    !CALL dirichlet_nodes_parallel(mesh, inputs%Dir_list, js_d_loc)
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
 

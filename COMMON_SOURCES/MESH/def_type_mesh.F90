@@ -9,11 +9,6 @@ MODULE def_type_mesh
       INTEGER, POINTER, DIMENSION(:) :: ia, ja
    END TYPE aij_type
 
-   TYPE periodic_data
-      INTEGER :: nb_periodic_pairs
-      INTEGER, DIMENSION(:, :), POINTER :: list_periodic
-      REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
-   END TYPE periodic_data
 
    TYPE petsc_csr_LA
       INTEGER, DIMENSION(:), POINTER :: ia, ja
@@ -51,13 +46,6 @@ MODULE def_type_mesh
       REAL(KIND = 8), DIMENSION(:, :, :, :), POINTER :: dwps !special!
       REAL(KIND = 8), DIMENSION(:, :, :, :), POINTER :: dws  !SPECIAL!
    END TYPE gauss_type
-
-   TYPE periodic_type
-      TYPE(dyn_int_line), DIMENSION(20) :: list
-      TYPE(dyn_int_line), DIMENSION(20) :: perlist
-      INTEGER, POINTER, DIMENSION(:) :: pnt
-      INTEGER :: n_bord
-   END TYPE periodic_type
 
    !------------------------------------------------------------------------------
    !  loc_to_glob(np)   gives global numbering from local numbering on current processor

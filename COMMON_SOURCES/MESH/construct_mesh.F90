@@ -4,19 +4,19 @@ MODULE construct_mesh
    USE space_dim
    USE st_matrix
    USE petsc
-   USE input_data
+   USE input_mesh_data
+   USE mesh_data_module
    PUBLIC :: get_mesh
    PRIVATE
 CONTAINS
-   SUBROUTINE get_mesh(communicator, mesh, opt_edge_stab)
+   SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab)
       USE mesh_1d
-      USE mesh_data_module
-      USE input_mesh_data
       USE mesh_distribution_1d
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab
+      LOGICAL, OPTIONAL :: opt_periodic
+      INTEGER, OPTIONAL :: opt_fe
       LOGICAL :: edge_stab
-      INTEGER :: fe_type
       TYPE(mesh_type) :: mesh_glob, mesh
       MPI_Comm       :: communicator
 
