@@ -37,11 +37,11 @@ CONTAINS
       IF (test) THEN
          READ (21, *) dirichlet_data%nb_dirichlet
       ELSE
-         dirichlet_data%nb_dirichlet_pairs = 0
+         dirichlet_data%nb_dirichlet = 0
       END IF
       ALLOCATE(dirichlet_data%list_dirichlet(dirichlet_data%nb_dirichlet))
 
-      IF (dirichlet_data%nb_dirichlet_pairs > 0) THEN
+      IF (dirichlet_data%nb_dirichlet > 0) THEN
          CALL read_until(21, '===List of dirichlet boundaries===')
          READ(21, *) dirichlet_data%list_dirichlet
       END IF
