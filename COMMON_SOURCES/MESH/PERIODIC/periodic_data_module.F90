@@ -38,7 +38,7 @@ CONTAINS
       ELSE
          periodic_data%nb_periodic_pairs = 0
       END IF
-
+      write(*,*) periodic_data%nb_periodic_pairs
       ALLOCATE(periodic_data%list_periodic(2, periodic_data%nb_periodic_pairs))
       ALLOCATE(periodic_data%vect_e(2, periodic_data%nb_periodic_pairs))
 
