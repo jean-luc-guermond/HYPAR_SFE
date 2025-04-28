@@ -1,0 +1,10 @@
+===Name of directory for mesh file===
+.
+===Name of mesh file===
+mesh
+===Is the mesh formatted? (True/False)===
+t
+===Number of subdomains in the mesh===
+1
+===List of subdomain in the mesh===
+1

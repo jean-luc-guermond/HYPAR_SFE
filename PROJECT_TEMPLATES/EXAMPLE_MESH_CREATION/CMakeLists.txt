@@ -61,11 +61,13 @@ ADD_CUSTOM_TARGET(native
 
  # Create local sources from local dir
 file(GLOB_RECURSE sfemans_sources
-	${SFEMaNS_DIR}/SOURCES_GENERAL/*.F90
-	${SFEMaNS_DIR}/SOURCES_GENERAL/PROJECT_TEMPLATE/EXAMPLE_MESH_CREATION/*.F90
+	${SFEMaNS_DIR}/COMMON_SOURCES/*.F90
+	${SFEMaNS_DIR}/PROJECT_TEMPLATES/EXAMPLE_MESH_CREATION/*.F90
 )
 # Define runtime output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../EXECUTABLE)
+
+message(${sfemans_sources})
 
 # Add executable
 add_executable(a.exe ${sfemans_sources})
