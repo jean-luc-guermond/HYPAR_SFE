@@ -79,7 +79,7 @@ CONTAINS
             CALL free_mesh(mesh_r)
 
             !===gauss points on mesh
-            CALL gauss_points_2d(mesh, mesh_data%type_fe)
+            CALL create_gauss_points_2d(mesh, mesh_data%type_fe)
 
          END IF
 
