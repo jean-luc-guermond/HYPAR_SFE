@@ -60,12 +60,12 @@ CONTAINS
       INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
       LOGICAL :: test
 
-      IF (SIZE(list_dirichlet_sides)==0) THEN
+      CALL read_dirichlet_data("data")
+
+      IF (SIZE(dirichlet_data%list_dirichlet)==0) THEN
          ALLOCATE(js_d(0))
          RETURN
       END IF
-
-      CALL read_dirichlet_data("data")
 
       nws = SIZE(mesh%jjs, 1)
       nn = 0
@@ -163,94 +163,94 @@ CONTAINS
 
    END SUBROUTINE dirichlet_rhs
 
-   SUBROUTINE vector_glob_js_D(vv_mesh, list_mode, vv_3_LA, vv_list_dirichlet_sides, vv_js_D, vv_mode_global_js_D)
-      USE def_type_mesh
-      IMPLICIT NONE
-      TYPE(mesh_type), INTENT(IN) :: vv_mesh
-      INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
-      TYPE(petsc_csr_LA), INTENT(IN) :: vv_3_LA
-      TYPE(dyn_int_line), DIMENSION(3), INTENT(IN) :: vv_list_dirichlet_sides
-      TYPE(dyn_int_line), DIMENSION(:), POINTER :: vv_mode_global_js_D
-      TYPE(dyn_int_line), DIMENSION(3), INTENT(OUT) :: vv_js_D
-      INTEGER, DIMENSION(:), POINTER :: vv_js_axis_D
-      INTEGER :: k, m_max_c, i, n1, n2, n3, n123, nalloc, nx
-      m_max_c = SIZE(list_mode)
-
-      DO k = 1, 3
-         CALL dirichlet_nodes_parallel(vv_mesh, vv_list_dirichlet_sides(k)%DIL, vv_js_D(k)%DIL)
-      END DO
-      CALL dir_axis_nodes_parallel(vv_mesh, vv_js_axis_d)
-
-      ALLOCATE(vv_mode_global_js_D(m_max_c))
-      DO i = 1, m_max_c
-         n1 = SIZE(vv_js_D(1)%DIL)
-         n2 = SIZE(vv_js_D(2)%DIL)
-         n3 = SIZE(vv_js_D(3)%DIL)
-         nx = SIZE(vv_js_axis_d)
-         n123 = n1 + n2 + n3
-         IF (list_mode(i)==0) THEN
-            nalloc = n123 + 2 * nx
-         ELSE IF (list_mode(i)==1) THEN
-            nalloc = n123 + nx
-         ELSE
-            nalloc = n123 + 3 * nx
-         END IF
-         ALLOCATE(vv_mode_global_js_D(i)%DIL(nalloc))
-         vv_mode_global_js_D(i)%DIL(1:n1) = vv_3_LA%loc_to_glob(1, vv_js_D(1)%DIL)
-         vv_mode_global_js_D(i)%DIL(n1 + 1:n1 + n2) = vv_3_LA%loc_to_glob(2, vv_js_D(2)%DIL)
-         vv_mode_global_js_D(i)%DIL(n1 + n2 + 1:n123) = vv_3_LA%loc_to_glob(3, vv_js_D(3)%DIL)
-
-         IF (list_mode(i)==0 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL(n123 + 1:n123 + nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(n123 + nx + 1:) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
-         ELSE IF (list_mode(i)==1 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL(n123 + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
-         ELSE IF (list_mode(i).GE.2 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL(n123 + 1:n123 + nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(n123 + nx + 1:n123 + 2 * nx) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(n123 + 2 * nx + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
-         END IF
-      END DO
-
-   END SUBROUTINE vector_glob_js_D
-
-   SUBROUTINE vector_without_bc_glob_js_D(vv_mesh, list_mode, vv_3_LA, vv_mode_global_js_D)
-      USE def_type_mesh
-      IMPLICIT NONE
-      TYPE(mesh_type), INTENT(IN) :: vv_mesh
-      INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
-      TYPE(petsc_csr_LA), INTENT(IN) :: vv_3_LA
-      TYPE(dyn_int_line), DIMENSION(:), POINTER :: vv_mode_global_js_D
-      INTEGER, DIMENSION(:), POINTER :: vv_js_axis_D
-      INTEGER :: m_max_c, i, nalloc, nx
-
-      m_max_c = SIZE(list_mode)
-      CALL dir_axis_nodes_parallel(vv_mesh, vv_js_axis_d)
-      ALLOCATE(vv_mode_global_js_D(m_max_c))
-      DO i = 1, m_max_c
-         nx = SIZE(vv_js_axis_d)
-         IF (list_mode(i)==0) THEN
-            nalloc = 2 * nx
-         ELSE IF (list_mode(i)==1) THEN
-            nalloc = nx
-         ELSE
-            nalloc = 3 * nx
-         END IF
-         ALLOCATE(vv_mode_global_js_D(i)%DIL(nalloc))
-
-         IF (list_mode(i)==0 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL(1:nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(nx + 1:) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
-         ELSE IF (list_mode(i)==1 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
-         ELSE IF (list_mode(i).GE.2 .AND. nx>0) THEN
-            vv_mode_global_js_D(i)%DIL(1:nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(nx + 1:2 * nx) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
-            vv_mode_global_js_D(i)%DIL(2 * nx + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
-         END IF
-      END DO
-
-   END SUBROUTINE vector_without_bc_glob_js_D
+!   SUBROUTINE vector_glob_js_D(vv_mesh, list_mode, vv_3_LA, vv_list_dirichlet_sides, vv_js_D, vv_mode_global_js_D)
+!      USE def_type_mesh
+!      IMPLICIT NONE
+!      TYPE(mesh_type), INTENT(IN) :: vv_mesh
+!      INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
+!      TYPE(petsc_csr_LA), INTENT(IN) :: vv_3_LA
+!      TYPE(dyn_int_line), DIMENSION(3), INTENT(IN) :: vv_list_dirichlet_sides
+!      TYPE(dyn_int_line), DIMENSION(:), POINTER :: vv_mode_global_js_D
+!      TYPE(dyn_int_line), DIMENSION(3), INTENT(OUT) :: vv_js_D
+!      INTEGER, DIMENSION(:), POINTER :: vv_js_axis_D
+!      INTEGER :: k, m_max_c, i, n1, n2, n3, n123, nalloc, nx
+!      m_max_c = SIZE(list_mode)
+!
+!      DO k = 1, 3
+!         CALL dirichlet_nodes_parallel(vv_mesh, vv_list_dirichlet_sides(k)%DIL, vv_js_D(k)%DIL)
+!      END DO
+!      CALL dir_axis_nodes_parallel(vv_mesh, vv_js_axis_d)
+!
+!      ALLOCATE(vv_mode_global_js_D(m_max_c))
+!      DO i = 1, m_max_c
+!         n1 = SIZE(vv_js_D(1)%DIL)
+!         n2 = SIZE(vv_js_D(2)%DIL)
+!         n3 = SIZE(vv_js_D(3)%DIL)
+!         nx = SIZE(vv_js_axis_d)
+!         n123 = n1 + n2 + n3
+!         IF (list_mode(i)==0) THEN
+!            nalloc = n123 + 2 * nx
+!         ELSE IF (list_mode(i)==1) THEN
+!            nalloc = n123 + nx
+!         ELSE
+!            nalloc = n123 + 3 * nx
+!         END IF
+!         ALLOCATE(vv_mode_global_js_D(i)%DIL(nalloc))
+!         vv_mode_global_js_D(i)%DIL(1:n1) = vv_3_LA%loc_to_glob(1, vv_js_D(1)%DIL)
+!         vv_mode_global_js_D(i)%DIL(n1 + 1:n1 + n2) = vv_3_LA%loc_to_glob(2, vv_js_D(2)%DIL)
+!         vv_mode_global_js_D(i)%DIL(n1 + n2 + 1:n123) = vv_3_LA%loc_to_glob(3, vv_js_D(3)%DIL)
+!
+!         IF (list_mode(i)==0 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL(n123 + 1:n123 + nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(n123 + nx + 1:) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
+!         ELSE IF (list_mode(i)==1 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL(n123 + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
+!         ELSE IF (list_mode(i).GE.2 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL(n123 + 1:n123 + nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(n123 + nx + 1:n123 + 2 * nx) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(n123 + 2 * nx + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
+!         END IF
+!      END DO
+!
+!   END SUBROUTINE vector_glob_js_D
+!
+!   SUBROUTINE vector_without_bc_glob_js_D(vv_mesh, list_mode, vv_3_LA, vv_mode_global_js_D)
+!      USE def_type_mesh
+!      IMPLICIT NONE
+!      TYPE(mesh_type), INTENT(IN) :: vv_mesh
+!      INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
+!      TYPE(petsc_csr_LA), INTENT(IN) :: vv_3_LA
+!      TYPE(dyn_int_line), DIMENSION(:), POINTER :: vv_mode_global_js_D
+!      INTEGER, DIMENSION(:), POINTER :: vv_js_axis_D
+!      INTEGER :: m_max_c, i, nalloc, nx
+!
+!      m_max_c = SIZE(list_mode)
+!      CALL dir_axis_nodes_parallel(vv_mesh, vv_js_axis_d)
+!      ALLOCATE(vv_mode_global_js_D(m_max_c))
+!      DO i = 1, m_max_c
+!         nx = SIZE(vv_js_axis_d)
+!         IF (list_mode(i)==0) THEN
+!            nalloc = 2 * nx
+!         ELSE IF (list_mode(i)==1) THEN
+!            nalloc = nx
+!         ELSE
+!            nalloc = 3 * nx
+!         END IF
+!         ALLOCATE(vv_mode_global_js_D(i)%DIL(nalloc))
+!
+!         IF (list_mode(i)==0 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL(1:nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(nx + 1:) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
+!         ELSE IF (list_mode(i)==1 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
+!         ELSE IF (list_mode(i).GE.2 .AND. nx>0) THEN
+!            vv_mode_global_js_D(i)%DIL(1:nx) = vv_3_LA%loc_to_glob(1, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(nx + 1:2 * nx) = vv_3_LA%loc_to_glob(2, vv_js_axis_D)
+!            vv_mode_global_js_D(i)%DIL(2 * nx + 1:) = vv_3_LA%loc_to_glob(3, vv_js_axis_D)
+!         END IF
+!      END DO
+!
+!   END SUBROUTINE vector_without_bc_glob_js_D
 
 
    SUBROUTINE scalar_with_bc_glob_js_D(pp_mesh, list_mode, pp_1_LA, pp_js_D, pp_mode_global_js_D)
