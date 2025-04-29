@@ -338,7 +338,7 @@ CONTAINS
                        'BUG in create_iso_grid: cell near boundary isnt in neighs', m_op_k, m
                   IF (mesh_p1%neighs(ms) == m) EXIT
                END DO
-               CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
+!               CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
 
             END IF
 
@@ -348,9 +348,9 @@ CONTAINS
                   j_mid((k - 1) * f_dof + l, m) = l + n_new_start
                   mesh%rr(:, l + n_new_start) = mesh_p1%rr(:, n_start) &
                        + l * (mesh_p1%rr(:, n_end) - mesh_p1%rr(:, n_start)) / type_fe
-                  IF (iso) THEN
-                     CALL rescale_to_curved_boundary(mesh%rr(:, l + n_new_start), interface)
-                  END IF
+!                  IF (iso) THEN
+!                     CALL rescale_to_curved_boundary(mesh%rr(:, l + n_new_start), interface)
+!                  END IF
                   mesh%loc_to_glob(l + n_new_start) = l + n_new_start + mesh%disp(proc) - 1
                END DO
             ELSE !===the side has been already considered
@@ -500,7 +500,7 @@ CONTAINS
       !==connectivity array the surface elements of the iso grid for extras
       DO ms = 1, mesh%mes_extra
          iso = .FALSE.
-         CALL is_on_curved_interface(mesh%sides_extra(ms), iso, interface)
+!         CALL is_on_curved_interface(mesh%sides_extra(ms), iso, interface)
 
          cell_g = mesh%neighs_extra(ms)
          DO m = 1, mesh%mextra !find associated extra cell
@@ -531,9 +531,9 @@ CONTAINS
             DO l = 1, f_dof
                mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms) = mesh_p1%rrs_extra(:, n_start, ms) &
                     + l * (mesh_p1%rrs_extra(:, n_end, ms) - mesh_p1%rrs_extra(:, n_start, ms)) / type_fe
-               IF (iso) THEN
-                  CALL rescale_to_curved_boundary(mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms), interface)
-               END IF
+!               IF (iso) THEN
+!                  CALL rescale_to_curved_boundary(mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms), interface)
+!               END IF
             END DO
          END DO
 
@@ -784,10 +784,10 @@ CONTAINS
          mesh%sides(ms) = mesh_p1%sides(ms)
          mesh%sides(mes + ms) = mesh_p1%sides(ms)
 
-         CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
-         IF (iso) THEN
-            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
-         END IF
+!         CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
+!         IF (iso) THEN
+!            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
+!         END IF
       ENDDO
 
       !===Internal surface elements
@@ -815,10 +815,10 @@ CONTAINS
          mesh%sides_int(ms) = mesh_p1%sides_int(ms)
          mesh%sides_int(mes_int + ms) = mesh_p1%sides_int(ms)
 
-         CALL is_on_curved_interface(mesh_p1%sides_int(ms), iso, interface)
-         IF (iso) THEN
-            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
-         END IF
+!         CALL is_on_curved_interface(mesh_p1%sides_int(ms), iso, interface)
+!         IF (iso) THEN
+!            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
+!         END IF
       ENDDO
 
       !===Counting number of new extra cells
@@ -937,7 +937,7 @@ CONTAINS
 
       mextra = 0
       DO m = 1, mesh_p1%mes_extra
-         CALL is_on_curved_interface(mesh_p1%sides_extra(m), iso, interface)
+         !CALL is_on_curved_interface(mesh_p1%sides_extra(m), iso, interface)
 
          cell_g = mesh_p1%neighs_extra(m)
          DO m1 = 1, mesh_p1%mextra !find associated extra cell
@@ -994,9 +994,9 @@ CONTAINS
             END IF
             mesh%jjs_extra(2, mextra) = mesh%jj_extra(tab1, m2)
             mesh%rrs_extra(:, tab1, mextra) = (mesh_p1%rrs_extra(:, n_ks(1), m) + mesh_p1%rrs_extra(:, n_ks(2), m)) / 2
-            IF (iso) THEN
-               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
-            END IF
+!            IF (iso) THEN
+!               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
+!            END IF
             mesh%rrs_extra(:, tab2, mextra) = (mesh_p1%rrs_extra(:, n_ks(k), m) + mesh_p1%rrs_extra(:, n, m)) / 2
          END DO
       END DO
