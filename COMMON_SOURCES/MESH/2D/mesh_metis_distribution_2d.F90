@@ -16,7 +16,7 @@ CONTAINS
       USE def_type_mesh
       USE my_util
       USE sub_plot
-      USE prep_periodic
+      USE prep_periodic_module
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       INTEGER, DIMENSION(mesh%me) :: part
