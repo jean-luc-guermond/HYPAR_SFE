@@ -14,7 +14,6 @@ CONTAINS
       !===jjs_f(:, :)  nodes of the surface_elements of the output p2 grid
       !===rr_f(:, :)  cartesian coordinates of the nodes of the output p2 grid
       USE def_type_mesh
-      USE input_data
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh_p1, mesh
       INTEGER, INTENT(IN) :: type_fe
@@ -1012,55 +1011,55 @@ CONTAINS
       CALL copy_mesh(mesh, mesh_p1)
       CALL free_mesh(mesh)
    END SUBROUTINE refinement_iso_grid_distributed
-
-   SUBROUTINE is_on_curved_interface(side, iso, interface)
-      USE input_data
-      INTEGER :: side, interface
-      LOGICAL :: iso
-      interface = -1
-      iso = .FALSE.
-
-      IF (inputs%nb_spherical + inputs%nb_curved > 0) THEN
-         IF (MINVAL(ABS(side - inputs%list_spherical)) == 0 .OR. &
-              MINVAL(ABS(side - inputs%list_curved)) == 0) THEN
-            DO interface = 1, inputs%nb_spherical + inputs%nb_curved
-               IF (interface <= inputs%nb_spherical) THEN
-                  IF (side - inputs%list_spherical(interface) == 0) EXIT
-               ELSE
-                  IF (side - inputs%list_curved(interface - inputs%nb_spherical) == 0) EXIT
-               END IF
-            END DO
-            iso = .TRUE.
-         ELSE
-            iso = .FALSE.
-         END IF
-      ELSE
-         iso = .FALSE.
-      END IF
-
-   END SUBROUTINE is_on_curved_interface
-
-   SUBROUTINE rescale_to_curved_boundary(rr, interface)
-      USE input_data
-      USE boundary
-      REAL(KIND = 8), DIMENSION(2) :: rr, rr_ref
-      INTEGER :: interface
-      REAL(KIND = 8) :: rescale, pi = ACOS(-1.d0), theta
-      IF (interface <= inputs%nb_spherical) THEN
-         rr_ref = rr - inputs%origin_spherical(:, interface)
-         rescale = inputs%radius_spherical(interface) / SQRT(SUM(rr_ref * rr_ref))
-         rr = rr_ref * rescale + inputs%origin_spherical(:, interface)
-      ELSE
-         rr_ref = rr - inputs%origin_curved(:, interface - inputs%nb_spherical)
-         theta = pi - pi / 2 * (1 + sgn(rr_ref(1))) * (1 - sgn(rr_ref(2) * rr_ref(2))) &
-              - pi / 4 * (2 + sgn(rr_ref(1))) * sgn(rr_ref(2)) &
-              - sgn(rr_ref(1) * rr_ref(2)) * ATAN((ABS(rr_ref(1)) - ABS(rr_ref(2))) / (ABS(rr_ref(1)) + ABS(rr_ref(2))))
-         rescale = curved_boundary_radius(inputs%list_curved(interface - inputs%nb_spherical), theta) &
-              / SQRT(SUM(rr_ref * rr_ref))
-         rr = rr_ref * rescale + inputs%origin_curved(:, interface - inputs%nb_spherical)
-      END IF
-
-   END SUBROUTINE rescale_to_curved_boundary
+! TODO add back curved boundaries
+!   SUBROUTINE is_on_curved_interface(side, iso, interface)
+!      USE input_data
+!      INTEGER :: side, interface
+!      LOGICAL :: iso
+!      interface = -1
+!      iso = .FALSE.
+!
+!      IF (inputs%nb_spherical + inputs%nb_curved > 0) THEN
+!         IF (MINVAL(ABS(side - inputs%list_spherical)) == 0 .OR. &
+!              MINVAL(ABS(side - inputs%list_curved)) == 0) THEN
+!            DO interface = 1, inputs%nb_spherical + inputs%nb_curved
+!               IF (interface <= inputs%nb_spherical) THEN
+!                  IF (side - inputs%list_spherical(interface) == 0) EXIT
+!               ELSE
+!                  IF (side - inputs%list_curved(interface - inputs%nb_spherical) == 0) EXIT
+!               END IF
+!            END DO
+!            iso = .TRUE.
+!         ELSE
+!            iso = .FALSE.
+!         END IF
+!      ELSE
+!         iso = .FALSE.
+!      END IF
+!
+!   END SUBROUTINE is_on_curved_interface
+!
+!   SUBROUTINE rescale_to_curved_boundary(rr, interface)
+!      USE input_data
+!      USE boundary
+!      REAL(KIND = 8), DIMENSION(2) :: rr, rr_ref
+!      INTEGER :: interface
+!      REAL(KIND = 8) :: rescale, pi = ACOS(-1.d0), theta
+!      IF (interface <= inputs%nb_spherical) THEN
+!         rr_ref = rr - inputs%origin_spherical(:, interface)
+!         rescale = inputs%radius_spherical(interface) / SQRT(SUM(rr_ref * rr_ref))
+!         rr = rr_ref * rescale + inputs%origin_spherical(:, interface)
+!      ELSE
+!         rr_ref = rr - inputs%origin_curved(:, interface - inputs%nb_spherical)
+!         theta = pi - pi / 2 * (1 + sgn(rr_ref(1))) * (1 - sgn(rr_ref(2) * rr_ref(2))) &
+!              - pi / 4 * (2 + sgn(rr_ref(1))) * sgn(rr_ref(2)) &
+!              - sgn(rr_ref(1) * rr_ref(2)) * ATAN((ABS(rr_ref(1)) - ABS(rr_ref(2))) / (ABS(rr_ref(1)) + ABS(rr_ref(2))))
+!         rescale = curved_boundary_radius(inputs%list_curved(interface - inputs%nb_spherical), theta) &
+!              / SQRT(SUM(rr_ref * rr_ref))
+!         rr = rr_ref * rescale + inputs%origin_curved(:, interface - inputs%nb_spherical)
+!      END IF
+!
+!   END SUBROUTINE rescale_to_curved_boundary
 
    FUNCTION sgn(x) RESULT(out)
       REAL(KIND = 8) :: x, out
