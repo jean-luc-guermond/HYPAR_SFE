@@ -7,25 +7,35 @@ MODULE construct_mesh
    USE input_mesh_data
    USE input_periodic_data
    USE mesh_data_module
+   USE mesh_tools
+   USE periodic_data_module
    PUBLIC :: get_mesh
    PRIVATE
 CONTAINS
    SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_per)
       USE mesh_1d
       USE mesh_distribution_1d
+      USE load_mesh_2d
+      USE mesh_metis_distribution_2d
+      USE two_dim_metis_distribution
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
-      LOGICAL :: edge_stab
-      TYPE(mesh_type) :: mesh_glob, mesh
+      INTEGER, DIMENSION(1) :: list_dom = 1
+      LOGICAL :: edge_stab, per_bool
+      TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
       CALL read_mesh_data('data')
 
       IF (PRESENT(opt_per)) THEN
-         IF (opt_per) THEN
-            CALL read_periodic_data('data')
-         END IF
+         per_bool = opt_per
+      ELSE
+         per_bool = .false.
+      END IF
+
+      IF (per_bool) THEN
+         CALL read_periodic_data('data')
       END IF
 
       IF (.NOT.PRESENT(opt_edge_stab)) THEN
@@ -36,13 +46,48 @@ CONTAINS
 
       SELECT CASE(k_dim)
       CASE(2)
-         write(*, *) ' BUG in construct_mesh, k_dim = 2 not implemented'
-         STOP
+         IF (per_bool) THEN
+            !===load and re order mesh
+            CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
+                 list_dom, periodic_data%list_periodic, mesh_glob, mesh_data%if_mesh_formatted)
+
+            CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
+            CALL deallocate_mesh(mesh_glob)
+
+            !===mesh refinements
+            DO n = 1, mesh_data%nb_refinement
+               !===Create refined mesh
+               t1 = user_time()
+               CALL refinement_iso_grid_distributed(mesh, mesh_r)
+               CALL deallocate_mesh(mesh)
+               CALL copy_mesh(mesh_r, mesh)
+               CALL deallocate_mesh(mesh_r)
+            END DO
+
+            !===special meshes
+            !      IF(mesh_data%if_HCT) THEN
+            !         CALL HCT_iso_grid_distributed(mesh_p1, HCT_mesh_p1)
+            !         CALL deallocate_mesh(mesh_p1)
+            !         CALL copy_mesh(HCT_mesh_p1, mesh_p1)
+            !         CALL deallocate_mesh(HCT_mesh_p1)
+            !      END IF
+
+            !===create finite elements polynome on mesh
+            CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
+            CALL deallocate_mesh(mesh)
+            CALL copy_mesh(mesh_r, mesh)
+            CALL deallocate_mesh(mesh_r)
+
+            !===gauss points on mesh
+            CALL gauss_points_2d(mesh, mesh_data%type_fe)
+
+         END IF
+
       CASE(1)
          CALL load_mesh_1d(mesh_glob)
 
          CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_per)
-
+         CALL deallocate_mesh(mesh_glob)
          CALL GAUSS_POINT_1d(mesh)
 
       CASE DEFAULT
