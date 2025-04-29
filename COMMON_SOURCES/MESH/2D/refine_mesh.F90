@@ -1,4 +1,4 @@
-MODULE refine_mesh_2d
+MODULE refine_mesh
    USE mesh_tools
    PUBLIC :: create_iso_grid_distributed, refinement_iso_grid_distributed
    PRIVATE
@@ -1073,4 +1073,4 @@ CONTAINS
       ENDIF
    END FUNCTION sgn
 
-END MODULE refine_mesh_2d
+END MODULE refine_mesh

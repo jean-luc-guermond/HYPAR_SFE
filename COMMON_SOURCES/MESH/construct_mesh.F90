@@ -16,8 +16,9 @@ CONTAINS
       USE mesh_1d
       USE mesh_distribution_1d
       USE load_mesh_2d
-      USE mesh_metis_distribution_2d
+      USE refine_mesh
       USE two_dim_metis_distribution
+      USE gauss_points_2d
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
