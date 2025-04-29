@@ -75,6 +75,7 @@ CONTAINS
             !      END IF
 
             !===create finite elements polynome on mesh
+            write(*,*) 'iso start'
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
             write(*,*) 'iso done'
             CALL free_mesh(mesh)
