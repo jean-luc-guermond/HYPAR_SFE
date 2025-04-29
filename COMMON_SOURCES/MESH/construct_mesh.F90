@@ -23,7 +23,8 @@ CONTAINS
       LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
       INTEGER, DIMENSION(1) :: list_dom = 1
-      INTEGER :: n, nb_proc
+      INTEGER, DIMENSION(0) :: list_inter
+      INTEGER :: n, nb_proc, ierr
       LOGICAL :: edge_stab, per_bool
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
@@ -52,7 +53,7 @@ CONTAINS
          IF (per_bool) THEN
             !===load and re order mesh
             CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
-                 list_dom, periodic_data%list_periodic, mesh_glob, mesh_data%if_mesh_formatted)
+                 list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
 
             CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
             CALL deallocate_mesh(mesh_glob)
@@ -60,7 +61,6 @@ CONTAINS
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
-               t1 = user_time()
                CALL refinement_iso_grid_distributed(mesh)
             END DO
 
