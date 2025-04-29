@@ -56,7 +56,7 @@ CONTAINS
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
 
             CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
-            CALL deallocate_mesh(mesh_glob)
+            CALL free_mesh(mesh_glob)
 
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
@@ -74,9 +74,9 @@ CONTAINS
 
             !===create finite elements polynome on mesh
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
-            CALL deallocate_mesh(mesh)
+            CALL free_mesh(mesh)
             CALL copy_mesh(mesh_r, mesh)
-            CALL deallocate_mesh(mesh_r)
+            CALL free_mesh(mesh_r)
 
             !===gauss points on mesh
             CALL gauss_points_2d(mesh, mesh_data%type_fe)
@@ -87,7 +87,7 @@ CONTAINS
          CALL load_mesh_1d(mesh_glob)
 
          CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_per)
-         CALL deallocate_mesh(mesh_glob)
+         CALL free_mesh(mesh_glob)
          CALL GAUSS_POINT_1d(mesh)
 
       CASE DEFAULT
