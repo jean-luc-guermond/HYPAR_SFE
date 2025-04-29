@@ -13,7 +13,7 @@ CONTAINS
 
    SUBROUTINE load_dg_mesh_free_format(dir, fil, list_dom, list_inter, mesh, mesh_formatted)
       USE def_type_mesh
-      USE chaine_caractere
+      USE chaine_strings
       USE dir_nodes
       USE my_util
       IMPLICIT NONE
