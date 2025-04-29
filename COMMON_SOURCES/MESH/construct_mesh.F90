@@ -23,11 +23,13 @@ CONTAINS
       LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
       INTEGER, DIMENSION(1) :: list_dom = 1
+      INTEGER :: n, nb_proc
       LOGICAL :: edge_stab, per_bool
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
       CALL read_mesh_data('data')
+      CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
 
       IF (PRESENT(opt_per)) THEN
          per_bool = opt_per
@@ -59,10 +61,7 @@ CONTAINS
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
                t1 = user_time()
-               CALL refinement_iso_grid_distributed(mesh, mesh_r)
-               CALL deallocate_mesh(mesh)
-               CALL copy_mesh(mesh_r, mesh)
-               CALL deallocate_mesh(mesh_r)
+               CALL refinement_iso_grid_distributed(mesh)
             END DO
 
             !===special meshes
