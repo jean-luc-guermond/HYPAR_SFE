@@ -49,11 +49,12 @@ CONTAINS
 
    END SUBROUTINE dir_axis_nodes_parallel
 
-   SUBROUTINE dirichlet_nodes_parallel(mesh, list_dirichlet_sides, js_d)
+   SUBROUTINE dirichlet_nodes_parallel(mesh, js_d)
       USE def_type_mesh
+      USE input_dirichlet_data
+      USE dirichlet_data_module
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
-      INTEGER, DIMENSION(:), INTENT(IN) :: list_dirichlet_sides
       INTEGER, DIMENSION(:), POINTER :: js_d
       LOGICAL, DIMENSION(:), POINTER :: virgin
       INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
@@ -64,12 +65,14 @@ CONTAINS
          RETURN
       END IF
 
+      CALL read_dirichlet_data("data")
+
       nws = SIZE(mesh%jjs, 1)
       nn = 0
       ALLOCATE(virgin(mesh%dom_np))
       virgin = .TRUE.
       DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - list_dirichlet_sides))/=0) CYCLE
+         IF (MINVAL(ABS(mesh%sides(ms) - dirichlet_data%list_dirichlet))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
             IF (p>mesh%dom_np) CYCLE
@@ -83,7 +86,7 @@ CONTAINS
       DO ms = 1, mesh%nis
          test = .false.
          DO k = 1, mesh%gauss%n_ws
-            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
+            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - dirichlet_data%list_dirichlet))==0
          END DO
          IF (test) THEN
             nn = nn + 1
@@ -94,7 +97,7 @@ CONTAINS
       nn = 0
       virgin = .TRUE.
       DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - list_dirichlet_sides))/=0) CYCLE
+         IF (MINVAL(ABS(mesh%sides(ms) - dirichlet_data%list_dirichlet))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
             IF (p>mesh%dom_np) CYCLE
@@ -108,7 +111,7 @@ CONTAINS
       DO ms = 1, mesh%nis
          test = .false.
          DO k = 1, mesh%gauss%n_ws
-            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - list_dirichlet_sides))==0
+            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - dirichlet_data%list_dirichlet))==0
          END DO
          IF (test) THEN
             nn = nn + 1
@@ -117,55 +120,6 @@ CONTAINS
       END DO
       DEALLOCATE(virgin)
    END SUBROUTINE dirichlet_nodes_parallel
-
-   SUBROUTINE dirichlet_nodes_local(mesh, list_dirichlet_sides, js_d)
-      USE def_type_mesh
-      USE my_util
-      IMPLICIT NONE
-      TYPE(mesh_type) :: mesh
-      INTEGER, DIMENSION(:), INTENT(IN) :: list_dirichlet_sides
-      INTEGER, DIMENSION(:), POINTER :: js_d
-      LOGICAL, DIMENSION(:), POINTER :: virgin
-      INTEGER :: nn, ms, n, p, n_D, nws
-
-      IF (SIZE(list_dirichlet_sides)==0) THEN
-         ALLOCATE(js_d(0))
-         RETURN
-      END IF
-
-      nws = SIZE(mesh%jjs, 1)
-      nn = 0
-      ALLOCATE(virgin(mesh%np))
-      virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - list_dirichlet_sides))/=0) CYCLE
-         DO n = 1, nws
-            p = mesh%jjs(n, ms)
-            IF (p>mesh%np) CALL error_petsc('BUG in dirichlet_nodes_local')
-            IF (virgin(p)) THEN
-               virgin(p) = .FALSE.
-               nn = nn + 1
-            END IF
-         END DO
-      END DO
-      n_D = nn
-      ALLOCATE(js_D(n_D))
-      nn = 0
-      virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - list_dirichlet_sides))/=0) CYCLE
-         DO n = 1, nws
-            p = mesh%jjs(n, ms)
-            IF (p>mesh%np) CALL error_petsc('BUG in dirichlet_nodes_local')
-            IF (virgin(p)) THEN
-               virgin(p) = .FALSE.
-               nn = nn + 1
-               js_D(nn) = mesh%jjs(n, ms)
-            END IF
-         END DO
-      END DO
-      DEALLOCATE(virgin)
-   END SUBROUTINE dirichlet_nodes_local
 
    SUBROUTINE Dirichlet_M_parallel(matrix, glob_js_D)
 #include "petsc/finclude/petsc.h"
