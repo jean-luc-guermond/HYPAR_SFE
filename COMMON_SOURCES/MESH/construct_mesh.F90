@@ -54,14 +54,16 @@ CONTAINS
             !===load and re order mesh
             CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
-
+            write(*, *) 'load done'
             CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
+            write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
 
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
                CALL refinement_iso_grid_distributed(mesh)
+               write(*, *) 'refinement done', n
             END DO
 
             !===special meshes
@@ -74,12 +76,14 @@ CONTAINS
 
             !===create finite elements polynome on mesh
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
+            write(*,*) 'iso done'
             CALL free_mesh(mesh)
             CALL copy_mesh(mesh_r, mesh)
             CALL free_mesh(mesh_r)
 
             !===gauss points on mesh
             CALL create_gauss_points_2d(mesh, mesh_data%type_fe)
+            write(*,*) 'gauss points done'
 
          END IF
 
