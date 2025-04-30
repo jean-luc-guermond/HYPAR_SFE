@@ -3,7 +3,7 @@ MODULE dirichlet_type_module
    TYPE dirichlet_bc
       CHARACTER(100) :: name
       INTEGER :: nb_sides
-      INTEGER :: list_sides
+      INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
    CONTAINS
       PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel
@@ -17,21 +17,20 @@ CONTAINS
       TYPE(dirichlet_bc) :: this
       INTEGER, PARAMETER :: in_unit = 21
       INTEGER :: k
-      CHARACTER(len = *), INTENT(IN) :: data_fichier
       CHARACTER(LEN = 100) :: argument
       LOGICAL :: test
       !===Initialize data to zero and false by default
 
-      OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
+      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
 
       CALL find_string(21, '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?===', test)
       IF (test) THEN
-         READ (21, *) dirichlet_data%nb_dirichlet
+         READ (21, *) this%nb_sides
       ELSE
          this%nb_sides = 0
          WRITE(*,*) 'Boundaries for '//  trim(adjustl(this%name)) // ' not found. Set to none by default.'
       END IF
-      ALLOCATE(this%list_sides(dirichlet_data%nb_dirichlet))
+      ALLOCATE(this%list_sides(this%nb_sides))
 
       IF (this%nb_sides > 0) THEN
          CALL read_until(21, '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '===')
