@@ -53,7 +53,7 @@ CONTAINS
          write(*,*) '1'
          ALLOCATE(mesh%jjs(nws, mes))
          mesh%jjs = mesh_p1%jjs
-           write(*,*) '2'
+           write(*,*) '2', nws, mesh%mes_extra, SIZE(mesh_p1%jjs_extra, 1), SIZE(mesh_p1%jjs_extra, 2)
          ALLOCATE(mesh%jjs_extra(nws, mesh%mes_extra))
          mesh%jjs_extra = mesh_p1%jjs_extra
          !ALLOCATE(mesh%iis(nws,mes))
