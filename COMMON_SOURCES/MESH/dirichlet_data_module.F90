@@ -4,7 +4,7 @@ MODULE dirichlet_type_module
       CHARACTER(100) :: name
       INTEGER :: nb_sides
       INTEGER :: list_sides
-      INTEGER, DIMENSION(:) :: jsd
+      INTEGER, DIMENSION(:), POINTER :: jsd
    CONTAINS
       PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel
    END type dirichlet_bc
