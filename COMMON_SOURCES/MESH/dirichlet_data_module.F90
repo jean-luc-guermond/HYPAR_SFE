@@ -21,21 +21,21 @@ CONTAINS
       CHARACTER(LEN = 100) :: argument
       LOGICAL :: test
       !===Initialize data to zero and false by default
-      CALL dirichlet_data%init
+
       OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
 
       CALL find_string(21, '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?===', test)
       IF (test) THEN
          READ (21, *) dirichlet_data%nb_dirichlet
       ELSE
-         dirichlet_data%nb_dirichlet = 0
+         this%nb_sides = 0
          WRITE(*,*) 'Boundaries for '//  trim(adjustl(this%name)) // ' not found. Set to none by default.'
       END IF
-      ALLOCATE(dirichlet_data%list_dirichlet(dirichlet_data%nb_dirichlet))
+      ALLOCATE(this%list_sides(dirichlet_data%nb_dirichlet))
 
-      IF (dirichlet_data%nb_dirichlet > 0) THEN
+      IF (this%nb_sides > 0) THEN
          CALL read_until(21, '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '===')
-         READ(21, *) dirichlet_data%list_dirichlet
+         READ(21, *) this%list_sides
       END IF
 
       CLOSE(in_unit)
