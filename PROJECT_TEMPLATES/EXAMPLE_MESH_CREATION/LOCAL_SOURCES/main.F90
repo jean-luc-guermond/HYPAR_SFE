@@ -47,12 +47,12 @@ PROGRAM test_matrix
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
    CALL dir%set(mesh, "a")
-   js_d_loc = dir%jsd
+
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
    CALL periodic_matrix_petsc(opt_per, LA, mass)
-   CALL Dirichlet_M_parallel(mass, js_d_loc)
+   CALL Dirichlet_M_parallel(mass, dir%jsd)
 
    CALL create_my_ghost(mesh, LA, ifrom)
    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)

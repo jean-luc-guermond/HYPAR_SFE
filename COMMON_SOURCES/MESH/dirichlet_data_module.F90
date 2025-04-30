@@ -16,7 +16,6 @@ CONTAINS
       IMPLICIT NONE
       CLASS(dirichlet_bc) :: this
       INTEGER, PARAMETER :: in_unit = 21
-      CHARACTER(LEN = 100) :: argument
       LOGICAL :: test
       !===Initialize data to zero and false by default
 
