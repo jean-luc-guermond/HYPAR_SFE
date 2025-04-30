@@ -23,7 +23,6 @@ MODULE euler_type_MODULE
      TYPE(euler_bc_type) :: euler_bc
    CONTAINS
      PROCEDURE, PUBLIC :: init
-     PROCEDURE, PRIVATE :: construct_euler_bc
   END TYPE euler_type
   
 CONTAINS
@@ -45,8 +44,8 @@ CONTAINS
     a%LA => LA
     a%per => per
     a%pressure => pressure
-    a%ERK%init(erk_sv)
-    a%construct_euler_bc
+    CALL a%ERK%init(erk_sv)
+    CALL a%euler_bc%construct_euler_bc(a%mesh)
     
   END SUBROUTINE init
 END MODULE euler_type_MODULE

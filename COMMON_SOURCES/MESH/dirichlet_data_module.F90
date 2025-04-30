@@ -11,32 +11,43 @@ MODULE dirichlet_type_module
    END type dirichlet_bc
 CONTAINS
 
- SUBROUTINE read_dirichlet_data(this)
-      USE character_strings
-      IMPLICIT NONE
-      CLASS(dirichlet_bc) :: this
-      INTEGER, PARAMETER :: in_unit = 21
-      LOGICAL :: test
-      !===Initialize data to zero and false by default
+  SUBROUTINE read_dirichlet_data(this)
+    use petsc
+    USE character_strings
+    IMPLICIT NONE
+    CLASS(dirichlet_bc) :: this
+    INTEGER, PARAMETER :: in_unit = 21
+    LOGICAL :: test
+    INTEGER :: rank, ierr
+    !===Initialize data to zero and false by default
+    CALL MPI_Comm_rank(petsc_comm_world, rank, ierr)
+    OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
 
-      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
+    CALL find_string(in_unit, '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?===', test)
+    IF (test) THEN
+       READ (21, *) this%nb_sides
+    ELSE
+       this%nb_sides = 0
+       IF (rank==0) WRITE(*,*) 'Boundaries for '//  trim(adjustl(this%name)) // &
+            ' not found. Set to none by default and added to data file.'
+       CLOSE(in_unit)
+       OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position='append')
+       IF (rank==0) THEN
+          WRITE(in_unit,'(g0)') '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?==='
+          WRITE(in_unit,'(g0)') '0'
+          WRITE(in_unit,'(g0)') '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '==='
+          WRITE(in_unit,'(g0)') '0'
+       END IF
+    END IF
+    ALLOCATE(this%list_sides(this%nb_sides))
 
-      CALL find_string(21, '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?===', test)
-      IF (test) THEN
-         READ (21, *) this%nb_sides
-      ELSE
-         this%nb_sides = 0
-         WRITE(*,*) 'Boundaries for '//  trim(adjustl(this%name)) // ' not found. Set to none by default.'
-      END IF
-      ALLOCATE(this%list_sides(this%nb_sides))
+    IF (this%nb_sides > 0) THEN
+       CALL read_until(21, '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '===')
+       READ(21, *) this%list_sides
+    END IF
 
-      IF (this%nb_sides > 0) THEN
-         CALL read_until(21, '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '===')
-         READ(21, *) this%list_sides
-      END IF
-
-      CLOSE(in_unit)
-   END SUBROUTINE read_dirichlet_data
+    CLOSE(in_unit)
+  END SUBROUTINE read_dirichlet_data
 
    SUBROUTINE dirichlet_nodes_parallel(this, mesh, name)
       USE def_type_mesh

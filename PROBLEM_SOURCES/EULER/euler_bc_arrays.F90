@@ -1,5 +1,6 @@
 MODULE euler_bc_arrays
-   TYPE euler_bc_type
+  USE dirichlet_type_module
+  TYPE euler_bc_type 
       TYPE(dirichlet_bc) :: rho_js_D, ux_js_D, uy_js_D, DIR_js_D, whole_bdy_js_D
       TYPE(dirichlet_bc) :: udotn_js_D, surf_udotn_js_D
       REAL(KIND = 8), POINTER, DIMENSION(:, :) :: surf_normal_vtx
@@ -7,27 +8,29 @@ MODULE euler_bc_arrays
    CONTAINS
       PROCEDURE, PUBLIC :: construct_euler_bc
    END TYPE euler_bc_type
-   PRIVATE
 CONTAINS
-   SUBROUTINE construct_euler_bc(this)
+   SUBROUTINE construct_euler_bc(this, mesh)
       USE sub_plot
       USE dir_nodes_petsc
+      USE def_type_mesh
+      USE space_dim
       IMPLICIT NONE
-      TYPE(euler_type) :: this
-      LOGICAL, DIMENSION(this%mesh%nps) :: virgin
-      REAL(KIND = 8), DIMENSION(k_dim, this%mesh%nps) :: normal_vtx
+      CLASS(euler_bc_type) :: this
+      TYPE(mesh_type) :: mesh
+      LOGICAL, DIMENSION(mesh%nps) :: virgin
+      REAL(KIND = 8), DIMENSION(k_dim, mesh%nps) :: normal_vtx
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
       INTEGER :: ms, ns, js, n
 
       !CALL this%euler_bc%whole_bdy_js_D%set(mesh, "")
 
-      CALL this%euler_bc%rho_js_D%set(mesh, "density")
+      CALL this%rho_js_D%set(mesh, "density")
 
-      CALL this%euler_bc%ux_js_D%set(mesh, "ux")
+      CALL this%ux_js_D%set(mesh, "ux")
 
-      CALL this%euler_bc%uy_js_D%set(mesh, "uy")
+      If (k_dim>1) CALL this%uy_js_D%set(mesh, "uy")
 
-      CALL this%euler_bc%DIR_js_D%set(mesh, "")
+      !CALL this%DIR_js_D%set(mesh, "")
 
 
       !!$    !===Normal at vertices

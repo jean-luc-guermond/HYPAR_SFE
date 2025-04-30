@@ -7,7 +7,7 @@
 #set(release_bounds "-O3")
 
 # Variables to set for Whistler
-set(SFEMaNS_DIR "/home/mcreff/HYPAR_SFE")
+set(SFEMaNS_DIR "/home/guermond/HYPAR_SFE")
 set(ADDITIONAL_LINKS "-lmetis -lz -L /usr/lib/x86_64-linux-gnu/hdf5/serial")
 set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
 set(release_bounds "-O4")
