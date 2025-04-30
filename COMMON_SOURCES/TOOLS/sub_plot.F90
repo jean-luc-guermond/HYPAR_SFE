@@ -1071,37 +1071,37 @@ CONTAINS
     CHARACTER(*),                               INTENT(IN) :: file_name
     INTEGER :: i
 
-    write(*,*) 'ecriture header'
+    WRITE(*,*) 'ecriture header'
     OPEN (UNIT=unit_file,FILE=file_name,FORM = 'formatted',&
          STATUS = 'unknown')
 
-    write(unit_file,'(A)') '# vtk DataFile Version 3.0'
-    write(unit_file,'(A)') 'vtk '//file_name//''
-    write(unit_file,'(A)')'ASCII'
-    write(unit_file,'(A)')'DATASET UNSTRUCTURED_GRID'
-    write(unit_file,'(A,I7,A)')'POINTS ', mesh%np, ' float'
-    write(*,*) 'points ...'
+    WRITE(unit_file,'(A)') '# vtk DataFile Version 3.0'
+    WRITE(unit_file,'(A)') 'vtk '//file_name//''
+    WRITE(unit_file,'(A)')'ASCII'
+    WRITE(unit_file,'(A)')'DATASET UNSTRUCTURED_GRID'
+    WRITE(unit_file,'(A,I7,A)')'POINTS ', mesh%np, ' float'
+    WRITE(*,*) 'points ...'
     DO i=1, mesh%np
-       write(unit_file,'(2(e14.7,2x),A)') mesh%rr(1,i), &
+       WRITE(unit_file,'(2(e14.7,2x),A)') mesh%rr(1,i), &
             mesh%rr(2,i), ' 0.0 '
     ENDDO
-    write(*,*) 'cells ...'
-    write(unit_file,'(A,I7,I8)') 'CELLS ', mesh%me, mesh%me*4
+    WRITE(*,*) 'cells ...'
+    WRITE(unit_file,'(A,I7,I8)') 'CELLS ', mesh%me, mesh%me*4
     DO i=1, mesh%me
-       write(unit_file,'(A,3(I8,1x))') '3 ',  mesh%jj(1,i)-1,  &
+       WRITE(unit_file,'(A,3(I8,1x))') '3 ',  mesh%jj(1,i)-1,  &
             mesh%jj(2,i)-1, mesh%jj(3,i)-1
     ENDDO
-    write(unit_file,'(A,I7)') 'CELL_TYPES ', mesh%me
+    WRITE(unit_file,'(A,I7)') 'CELL_TYPES ', mesh%me
     DO i=1, mesh%me
-       write(unit_file,'(A)') '5'
+       WRITE(unit_file,'(A)') '5'
     ENDDO
 
-    write(*,*) 'data ...'
-    write(unit_file,'(A,I7)') 'POINT_DATA ',mesh%np
-    write(unit_file,'(A)') 'SCALARS scalars float 1'
-    write(unit_file,'(A)') 'LOOKUP_TABLE default'
+    WRITE(*,*) 'data ...'
+    WRITE(unit_file,'(A,I7)') 'POINT_DATA ',mesh%np
+    WRITE(unit_file,'(A)') 'SCALARS scalars float 1'
+    WRITE(unit_file,'(A)') 'LOOKUP_TABLE default'
     DO i=1, mesh%np
-       write(unit_file,'(e14.7,2x)') champ(i)
+       WRITE(unit_file,'(e14.7,2x)') champ(i)
     ENDDO
     CLOSE(unit_file)
   END SUBROUTINE vtk_p1_2d
@@ -1119,53 +1119,53 @@ CONTAINS
     INTEGER :: i, vtk_cell, n, m
 
 
-    write(*,*) 'ecriture header'
+    WRITE(*,*) 'ecriture header'
     OPEN (UNIT=unit_file,FILE=file_name,FORM = 'formatted',&
          STATUS = 'unknown')
 
-    write(unit_file,'(A)') '# vtk DataFile Version 3.0'
-    write(unit_file,'(A)') 'vtk '//file_name//''
-    write(unit_file,'(A)')'ASCII'
-    write(unit_file,'(A)')'DATASET UNSTRUCTURED_GRID'
-    write(unit_file,'(A,I7,A)')'POINTS ', mesh%np, ' float'
-    write(*,*) 'points ...'
+    WRITE(unit_file,'(A)') '# vtk DataFile Version 3.0'
+    WRITE(unit_file,'(A)') 'vtk '//file_name//''
+    WRITE(unit_file,'(A)')'ASCII'
+    WRITE(unit_file,'(A)')'DATASET UNSTRUCTURED_GRID'
+    WRITE(unit_file,'(A,I7,A)')'POINTS ', mesh%np, ' float'
+    WRITE(*,*) 'points ...'
     DO i=1, mesh%np
-       write(unit_file,'(2(e14.7,2x),A)') mesh%rr(1,i), &
+       WRITE(unit_file,'(2(e14.7,2x),A)') mesh%rr(1,i), &
             mesh%rr(2,i), ' 0.0 '
     ENDDO
-    write(*,*) 'cells ...'
+    WRITE(*,*) 'cells ...'
 
-    write(unit_file,'(A,I7,I8)') 'CELLS ', mesh%me, mesh%me*(mesh%gauss%n_w+1)
+    WRITE(unit_file,'(A,I7,I8)') 'CELLS ', mesh%me, mesh%me*(mesh%gauss%n_w+1)
     IF (mesh%gauss%n_w==3) THEN
        vtK_cell = 5
        DO m=1, mesh%me
-          write(unit_file,'(I2,6(I8,1x))') mesh%gauss%n_w,  (mesh%jj(n,m)-1, n=1,mesh%gauss%n_w)
+          WRITE(unit_file,'(I2,6(I8,1x))') mesh%gauss%n_w,  (mesh%jj(n,m)-1, n=1,mesh%gauss%n_w)
        ENDDO
     ELSE IF (mesh%gauss%n_w==6) THEN
        vtK_cell = 22
        DO m=1, mesh%me
-          write(unit_file,'(I2,6(I8,1x))') mesh%gauss%n_w,  &
+          WRITE(unit_file,'(I2,6(I8,1x))') mesh%gauss%n_w,  &
                mesh%jj(1,m)-1,  mesh%jj(2,m)-1, mesh%jj(3,m)-1,  mesh%jj(6,m)-1, mesh%jj(4,m)-1,  mesh%jj(5,m)-1
        ENDDO
     ELSE
        WRITE(*,*) ' BUG  in  vtk_2d '
     END IF
-    write(unit_file,'(A,I7)') 'CELL_TYPES ', mesh%me
+    WRITE(unit_file,'(A,I7)') 'CELL_TYPES ', mesh%me
     DO i=1, mesh%me
-       write(unit_file,'(i2)')  vtK_cell
+       WRITE(unit_file,'(i2)')  vtK_cell
     ENDDO
 
-    write(*,*) 'data ...'
-    write(unit_file,'(A,I7)') 'POINT_DATA ',mesh%np
-    write(unit_file,'(A)') 'SCALARS scalars float 1'
-    write(unit_file,'(A)') 'LOOKUP_TABLE default'
+    WRITE(*,*) 'data ...'
+    WRITE(unit_file,'(A,I7)') 'POINT_DATA ',mesh%np
+    WRITE(unit_file,'(A)') 'SCALARS scalars float 1'
+    WRITE(unit_file,'(A)') 'LOOKUP_TABLE default'
     DO i=1, mesh%np
-       write(unit_file,'(e14.7,2x)') champ(i)
+       WRITE(unit_file,'(e14.7,2x)') champ(i)
     ENDDO
     CLOSE(unit_file)
 
 
-    write(*,*) 'ecriture header'
+    WRITE(*,*) 'ecriture header'
     OPEN (UNIT=unit_file,FILE=file_name,FORM = 'formatted',&
          STATUS = 'unknown')
 
@@ -1250,7 +1250,7 @@ CONTAINS
           tmode(l:l) = '0'
        END DO
 
-       DO k= 1, size(v,2)
+       DO k= 1, SIZE(v,2)
           WRITE(tcomp,'(i1)') k
           CALL plot_scalar_field(mesh%jj, mesh%rr, &
                v(:,k,i) , nom_champ//tcomp//'_m='//tmode//'_'//tit_S//'_'//tit//'.plt')
@@ -1259,5 +1259,24 @@ CONTAINS
     END DO
 
   END SUBROUTINE trace_profile
-
+SUBROUTINE plot_1d(rr,un,file)
+    IMPLICIT NONE
+    REAL(KIND=8), DIMENSION(:), INTENT(IN) :: rr, un
+    INTEGER :: n, unit=10
+    CHARACTER(*) :: file
+    OPEN(unit,FILE=TRIM(ADJUSTL(file)),FORM='formatted')
+    !WRITE(unit,*) '%toplabel='' '''
+    !WRITE(unit,*) '%xlabel='' '''
+    !WRITE(unit,*) '%ylabel='' '''
+    !WRITE(unit,*) '%ymax=', MAXVAL(un)
+    !WRITE(unit,*) '%ymin=', MINVAL(un)
+    !WRITE(unit,*) '%xyratio=1'
+    !WRITE(unit,*) '%mt=4'
+    !WRITE(unit,*) '%mc=2'
+    !WRITE(unit,*) '%lc=2'
+    DO n = 1, SIZE(rr)
+       WRITE(unit,*) rr(n), un(n)
+    END DO
+    CLOSE(unit)
+  END SUBROUTINE plot_1d
 END MODULE sub_plot
