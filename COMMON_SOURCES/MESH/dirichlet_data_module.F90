@@ -6,7 +6,8 @@ MODULE dirichlet_type_module
       INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
    CONTAINS
-      PROCEDURE, PUBLIC :: dirichlet_nodes_parallel
+      PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel
+      PROCEDURE, PRIVATE :: read_dirichlet_data
    END type dirichlet_bc
 CONTAINS
 
@@ -14,7 +15,7 @@ CONTAINS
       USE character_strings
       USE space_dim
       IMPLICIT NONE
-      TYPE(dirichlet_bc) :: this
+      CLASS(dirichlet_bc) :: this
       INTEGER, PARAMETER :: in_unit = 21
       INTEGER :: k
       CHARACTER(LEN = 100) :: argument
@@ -54,7 +55,7 @@ CONTAINS
 
       this%name = name
 
-      CALL read_dirichlet_data(this)
+      CALL this%read_dirichlet_data
 
       IF (SIZE(this%list_sides)==0) THEN
          ALLOCATE(this%jsd(0))
