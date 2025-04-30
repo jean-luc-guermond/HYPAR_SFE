@@ -55,7 +55,9 @@ CONTAINS
             CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
             write(*, *) 'load done'
+            write(*,*) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
             CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
+            write(*,*) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
             write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
 
