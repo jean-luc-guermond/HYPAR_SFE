@@ -5,7 +5,6 @@ PROGRAM test_matrix
    USE def_type_periodic
    USE prep_periodic_module
    USE dirichlet_type_module
-   USE input_dirichlet_data
    USE compute_periodic
    USE petsc
    USE solver_petsc
