@@ -45,7 +45,7 @@ CONTAINS
       USE input_dirichlet_data
       USE dirichlet_data_module
       IMPLICIT NONE
-      TYPE(dirichlet_bc) :: this
+      CLASSdirichlet_bc) :: this
       TYPE(mesh_type) :: mesh
       CHARACTER(100) :: name
       LOGICAL, DIMENSION(:), POINTER :: virgin
