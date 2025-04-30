@@ -4,7 +4,7 @@ PROGRAM test_matrix
    USE def_type_mesh
    USE def_type_periodic
    USE prep_periodic_module
-   USE dirichlet_data_module
+   USE dirichlet_type_module
    USE input_dirichlet_data
    USE compute_periodic
    USE petsc
@@ -48,6 +48,7 @@ PROGRAM test_matrix
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
    CALL dir%set(mesh, "a")
+   js_d_loc = dir%jsd
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
