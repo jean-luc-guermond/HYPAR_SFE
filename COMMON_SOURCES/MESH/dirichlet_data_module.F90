@@ -12,12 +12,9 @@ MODULE dirichlet_type_module
 CONTAINS
 
  SUBROUTINE read_dirichlet_data(this)
-      USE character_strings
-      USE space_dim
       IMPLICIT NONE
       CLASS(dirichlet_bc) :: this
       INTEGER, PARAMETER :: in_unit = 21
-      INTEGER :: k
       CHARACTER(LEN = 100) :: argument
       LOGICAL :: test
       !===Initialize data to zero and false by default
@@ -43,8 +40,6 @@ CONTAINS
 
    SUBROUTINE dirichlet_nodes_parallel(this, mesh, name)
       USE def_type_mesh
-      USE input_dirichlet_data
-      USE dirichlet_data_module
       IMPLICIT NONE
       CLASS(dirichlet_bc) :: this
       TYPE(mesh_type) :: mesh
