@@ -6,7 +6,7 @@ MODULE dir_nodes_petsc
      CHARACTER(100) :: name
      INTEGER :: nb_sides
      INTEGER :: list_sides 
-     INTEGER, DIMENSION(:) :: jsd
+     INTEGER, DIMENSION(:), POINTER :: jsd
    CONTAINS
      PROCEDURE, PUBLIC :: get => dirichlet_nodes_parallel
   END type dirichlet_bc
