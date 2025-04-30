@@ -47,7 +47,7 @@ CONTAINS
          mesh%medges = mesh_p1%medges
          mesh%mextra = mesh_p1%mextra
          mesh%mes_extra = mesh_p1%mes_extra
-
+      write(*,*) 'alloc start'
          ALLOCATE(mesh%jj(nw, me))
          mesh%jj = mesh_p1%jj
          ALLOCATE(mesh%jjs(nws, mes))
@@ -56,12 +56,14 @@ CONTAINS
          mesh%jjs_extra = mesh_p1%jjs_extra
          !ALLOCATE(mesh%iis(nws,mes))
          !mesh%iis = mesh_p1%iis
+         write(*,*) 'jj end'
          ALLOCATE(mesh%jj_extra(nw, mesh%mextra))
          mesh%jj_extra = mesh_p1%jj_extra
          ALLOCATE(mesh%jce(nw, me))
          mesh%jce = mesh_p1%jce
          !ALLOCATE(mesh%jev(nw - 1, mesh%medge))
          !mesh%jev = mesh_p1%jev
+                  write(*,*) 'jc end'
          ALLOCATE(mesh%rr(kd, mesh%np))
          mesh%rr = mesh_p1%rr
          ALLOCATE(mesh%neigh(nw, mesh%me))
@@ -82,7 +84,7 @@ CONTAINS
          mesh%loc_to_glob = mesh_p1%loc_to_glob
          ALLOCATE(mesh%jcc_extra(mesh%mextra))
          mesh%jcc_extra = mesh_p1%jcc_extra
-
+         write(*,*) 'other end'
          mesh%dom_me = mesh_p1%dom_me
          mesh%dom_np = mesh_p1%dom_np
          mesh%dom_mes = mesh_p1%dom_mes
@@ -95,20 +97,20 @@ CONTAINS
          ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
          mesh%domedge = mesh_p1%domedge
          mesh%disedge = mesh_p1%disedge
-
+         write(*,*) 'dis dom end'
          mesh%nis = mesh_p1%nis
          ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
          mesh%isolated_interfaces = mesh_p1%isolated_interfaces
          ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
          mesh%isolated_jjs = mesh_p1%isolated_jjs
-
+         write(*,*) 'isolated end'
          ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
          mesh%jce_extra = mesh_p1%jce_extra
          ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
          mesh%jees = mesh_p1%jees
          ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
          mesh%jecs = mesh_p1%jecs
-
+         write(*,*) 'jjss end'
          mesh%gauss%n_w = 3
          mesh%gauss%n_ws = 2
          RETURN
