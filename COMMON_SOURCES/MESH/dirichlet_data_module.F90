@@ -12,6 +12,7 @@ MODULE dirichlet_type_module
 CONTAINS
 
  SUBROUTINE read_dirichlet_data(this)
+      USE character_strings
       IMPLICIT NONE
       CLASS(dirichlet_bc) :: this
       INTEGER, PARAMETER :: in_unit = 21
