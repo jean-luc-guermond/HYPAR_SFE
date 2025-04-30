@@ -37,6 +37,8 @@ CONTAINS
       f_dof = type_fe - 1
       nb_proc = SIZE(mesh_p1%domnp)
 
+      write(*,*) 'alloc start'
+
       IF (type_fe==1 .OR. mesh_p1%me == 0) THEN
          mesh%me = mesh_p1%me
          mesh%mes = mesh_p1%mes
@@ -236,7 +238,7 @@ CONTAINS
          mesh%gauss%n_w = 10
          mesh%gauss%n_ws = 4
       END IF
-
+      write(*,*) 'alloc end'
       nb_angle = 0
       ALLOCATE(virgin(mesh_p1%medge), j_mid(nw * f_dof, me), jjs_mid(f_dof, mes), r_mid(kd))
 
@@ -306,7 +308,7 @@ CONTAINS
       END DO
 
       virgin = .TRUE.
-
+      write(*,*) 'renum end'
       n_dof = 0
       DO m = 1, me !===loop on the elements
          DO k = 1, nw !===loop on the nodes (sides) of the element
@@ -373,7 +375,7 @@ CONTAINS
          WRITE(*, *) 'BUG in create_iso_grid_distributed, n_dof /= mesh_p1%medge * f_dof'
          STOP
       END IF
-
+      write(*,*) 'new me end'
       n_dof = 0
       DO edges = 1, mesh_p1%medges
          edge_g = mesh_p1%jees(edges)
@@ -419,7 +421,7 @@ CONTAINS
          WRITE(*, *) 'BUG in create_iso_grid_distributed, n_dof /= mesh_p1%medge * f_dof'
          STOP
       END IF
-
+      write(*,*) 'new edge end'
       n_dof = 0
       !===connectivity array for iso grid
       DO m = 1, me
@@ -466,7 +468,7 @@ CONTAINS
       mesh%jjs(nws + 1:, :) = jjs_mid
 
       DEALLOCATE(virgin, j_mid, jjs_mid, r_mid)
-
+      write(*,*) 'connec end'
       !===new vertices on extra cells
       DO m = 1, mesh%mextra
          DO k = 1, nw !===loop on the nodes (sides) of the element
@@ -496,7 +498,7 @@ CONTAINS
             END IF
          END DO
       END DO
-
+      write(*,*) 'extra count end'
       !==connectivity array the surface elements of the iso grid for extras
       DO ms = 1, mesh%mes_extra
          iso = .FALSE.
