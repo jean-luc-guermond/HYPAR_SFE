@@ -6,7 +6,7 @@ MODULE dirichlet_type_module
       INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
    CONTAINS
-      PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel
+      PROCEDURE, PUBLIC :: dirichlet_nodes_parallel
    END type dirichlet_bc
 CONTAINS
 
