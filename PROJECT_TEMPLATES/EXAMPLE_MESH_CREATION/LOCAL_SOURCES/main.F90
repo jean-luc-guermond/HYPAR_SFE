@@ -16,6 +16,7 @@ PROGRAM test_matrix
    IMPLICIT NONE
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
+   TYPE(dirichlet_bc) :: dir
    Mat :: mass
    Vec :: test_vec, test_vec2, test_vec3
    KSP   :: my_ksp
@@ -46,7 +47,7 @@ PROGRAM test_matrix
    CALL get_mesh(communicator, mesh, opt_per = .true.)
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
-   CALL dirichlet_nodes_parallel(mesh, js_d_loc)
+   CALL dir%set(mesh, "a")
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
