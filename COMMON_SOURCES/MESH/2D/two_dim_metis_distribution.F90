@@ -386,23 +386,23 @@ CONTAINS
 
 
    SUBROUTINE create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news)
-!      USE def_type_mesh
-!      USE my_util
-!      IMPLICIT NONE
-!      TYPE(mesh_type) :: mesh, mesh_loc
-!      INTEGER, DIMENSION(2), INTENT(IN) :: me_loc, mes_loc, np_loc
-!      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL :: inter_news
-!      INTEGER, OPTIONAL :: news
-!      INTEGER, DIMENSION(mesh%me) :: m_glob_to_loc, m_loc_to_glob
-!      INTEGER, DIMENSION(mesh%np) :: glob_to_loc, loc_to_glob
-!      LOGICAL, DIMENSION(mesh%np) :: virgin
-!      LOGICAL, DIMENSION(mesh%medge) :: virgins
-!      LOGICAL, ALLOCATABLE, DIMENSION(:) :: virginss
-!      LOGICAL, DIMENSION(mesh%me) :: not_my_cells
-!      INTEGER, DIMENSION(SIZE(mesh%jj, 1)) :: jglob, eglob
-!      LOGICAL :: test
-!      INTEGER :: dim, nws, nw, m, ms, mop, msop, ns, msup, minf, dof, proc, &
-!           dom_me, nwc, dom_mes, dom_np, n, i, rank, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
+      USE def_type_mesh
+      USE my_util
+      IMPLICIT NONE
+      TYPE(mesh_type) :: mesh, mesh_loc
+      INTEGER, DIMENSION(2), INTENT(IN) :: me_loc, mes_loc, np_loc
+      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL :: inter_news
+      INTEGER, OPTIONAL :: news
+      INTEGER, DIMENSION(mesh%me) :: m_glob_to_loc, m_loc_to_glob
+      INTEGER, DIMENSION(mesh%np) :: glob_to_loc, loc_to_glob
+      LOGICAL, DIMENSION(mesh%np) :: virgin
+      LOGICAL, DIMENSION(mesh%medge) :: virgins
+      LOGICAL, ALLOCATABLE, DIMENSION(:) :: virginss
+      LOGICAL, DIMENSION(mesh%me) :: not_my_cells
+      INTEGER, DIMENSION(SIZE(mesh%jj, 1)) :: jglob, eglob
+      LOGICAL :: test
+      INTEGER :: dim, nws, nw, m, ms, mop, msop, ns, msup, minf, dof, proc, &
+           dom_me, nwc, dom_mes, dom_np, n, i, rank, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
 !
 !      dim = SIZE(mesh%rr, 1)
 !      nws = SIZE(mesh%jjs, 1)
