@@ -48,7 +48,7 @@ CONTAINS
       IMPLICIT NONE
       CLASS(dirichlet_bc) :: this
       TYPE(mesh_type) :: mesh
-      CHARACTER(100) :: name
+      CHARACTER(*) :: name
       LOGICAL, DIMENSION(:), POINTER :: virgin
       INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
       LOGICAL :: test
