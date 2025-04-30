@@ -50,8 +50,10 @@ CONTAINS
       write(*,*) 'alloc start'
          ALLOCATE(mesh%jj(nw, me))
          mesh%jj = mesh_p1%jj
+         write(*,*) '1'
          ALLOCATE(mesh%jjs(nws, mes))
          mesh%jjs = mesh_p1%jjs
+           write(*,*) '2'
          ALLOCATE(mesh%jjs_extra(nws, mesh%mes_extra))
          mesh%jjs_extra = mesh_p1%jjs_extra
          !ALLOCATE(mesh%iis(nws,mes))
