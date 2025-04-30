@@ -57,329 +57,329 @@ CONTAINS
       !   ALLOCATE(part(mesh%me))
       !END IF
 
-      IF (nb_proc==1) THEN
-         me_loc = (/ 1, mesh%me /)
-         mes_loc = (/ 1, mesh%mes /)
-         np_loc = (/ 1, mesh%np /)
-         !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc)
-         CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
-         RETURN
-      END IF
-
-      ! Create the connectivity array based on neigh
-      nb_neigh = SIZE(mesh%neigh, 1)
-      xind(1) = 1
-      DO m = 1, mesh%me
-         nb = 0
-         DO n = 1, nb_neigh
-            IF (mesh%neigh(n, m)==0) CYCLE
-            nb = nb + 1
-         END DO
-         xind(m + 1) = xind(m) + nb
-      END DO
-      ALLOCATE(xadj(xind(mesh%me + 1) - 1))
-      p = 0
-      DO m = 1, mesh%me
-         DO n = 1, nb_neigh
-            IF (mesh%neigh(n, m)==0) CYCLE
-            p = p + 1
-            xadj(p) = mesh%neigh(n, m)
-         END DO
-      END DO
-      IF (p/=xind(mesh%me + 1) - 1) THEN
-         CALL error_Petsc('BUG, p/=xind(mesh%me+1)-1')
-      END IF
-      ! End create the connectivity array based on neigh
-
-      ALLOCATE(adjwgt(SIZE(xadj)))
-      opts = 0
-      adjwgt = 1
-      numflag = 1 ! Fortran numbering of processors
-      wgtflag = 2
-      vwgt = 1
-      vsize = 1
-      ncon = 1
-      ALLOCATE(tpwgts(nb_proc))
-      tpwgts = 1.d0 / nb_proc
-      CALL METIS_SetDefaultOptions(metis_opt)
-      metis_opt(METIS_OPTION_NUMBERING) = 1
-      ubvec = 1.01
-      !IF (once) THEN
-      CALL METIS_PartGraphRecursive(mesh%me, ncon, xind(1:), xadj(1:), vwgt(1:), vsize(1:), adjwgt(1:), &
-           nb_proc, tpwgts(1:), ubvec(1:), metis_opt(1:), edge, part(1:))
-      !   once = .false.
-      !END IF
-
-      IF (rank==0) THEN
-         WRITE(tit, '(i4)') SIZE(mesh%jj, 1)
-         plot = 0.d0
-         do m = 1, mesh%me
-            if (part(m) == 150) then
-               plot(m) = 1.d0
-            else if (part(m) == 152)  then
-               plot(m) = 2.d0
-            else if (part(m) == 153)  then
-               plot(m) = 3.d0
-            end if
-         end do
-         CALL plot_const_p1_label(mesh%jj, mesh%rr, plot, 'dd' // tit // '.plt')
-      END IF
-
-      ! Count elements on processors
-      ALLOCATE(nblmt_per_proc(nb_proc), start(nb_proc), displ(nb_proc))
-      nblmt_per_proc = 0
-      DO m = 1, mesh%me
-         nblmt_per_proc(part(m)) = nblmt_per_proc(part(m)) + 1
-      END DO
-      start(1) = 0
-      DO n = 2, nb_proc
-         start(n) = start(n - 1) + nblmt_per_proc(n - 1)
-      END DO
-      me_loc(1) = start(rank + 1) + 1
-      me_loc(2) = start(rank + 1) + nblmt_per_proc(rank + 1)
-      displ = start
-      ! End count elements on processors
-
-      ! Re-order elements
-      DO m = 1, mesh%me
-         start(part(m)) = start(part(m)) + 1
-         old_m_to_new(m) = start(part(m))
-      END DO
-      ! Re-order elements
-
-
-      !==Search on the boundary whether ms is on a cut.
-      nws = SIZE(mesh%jjs, 1)
-      news = 0
-      inter_news = 0
-      parts = part(mesh%neighs)
-      IF (PRESENT(list_of_interfaces)) THEN !==There is an interface
-         IF (SIZE(list_of_interfaces)/=0) THEN
-            virgins = .TRUE.
-            news = 0
-            DO ms = 1, mesh%mes
-               IF (.NOT.virgins(ms)) CYCLE
-               IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
-               i_loc = mesh%jjs(:, ms)
-               DO msop = 1, mesh%mes
-                  IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
-                  IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
-                  DO ns = 1, nws
-                     test = .FALSE.
-                     DO nsop = 1, nws
-                        iop = mesh%jjs(nsop, msop)
-                        IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
-                           test = .TRUE.
-                           EXIT
-                        END IF
-                     END DO
-                     IF (.NOT.test) THEN
-                        EXIT !==This msop does not coincide with ms
-                     END IF
-                  END DO
-                  IF (test) EXIT
-               END DO
-               IF (.NOT.test) THEN
-                  CALL error_Petsc('BUG in create_local_mesh, .NOT.test ')
-               END IF
-               IF (part(mesh%neighs(ms)) == part(mesh%neighs(msop))) CYCLE !==ms is an internal cut
-               proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-               parts(ms) = proc
-               parts(msop) = proc
-               virgins(ms) = .FALSE.
-               virgins(msop) = .FALSE.
-               IF (proc /= rank + 1) CYCLE !==ms and msop do not touch the current proc
-               news = news + 1
-               inter_news(1, news) = ms
-               inter_news(2, news) = msop
-            END DO
-         END IF
-      END IF
-
-
-      ! Re-order jj
-      ALLOCATE(inter(SIZE(mesh%jj, 1), mesh%me))
-      DO m = 1, mesh%me
-         inter(:, old_m_to_new(m)) = mesh%jj(:, m)
-      END DO
-      mesh%jj = inter
-
-      virgin = .TRUE.
-      new_dof = 0
-      DO k = 1, nb_proc
-         DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-            DO n = 1, 3
-               j = mesh%jj(n, m)
-               IF (.NOT.virgin(j)) CYCLE
-               new_dof = new_dof + 1
-               virgin(j) = .FALSE.
-               old_j_to_new(j) = new_dof
-            END DO
-         END DO
-
-         IF (SIZE(mesh%jj, 1) == 6) THEn
-            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-               DO n = 4, 6
-                  j = mesh%jj(n, m)
-                  IF (.NOT.virgin(j)) CYCLE
-                  new_dof = new_dof + 1
-                  virgin(j) = .FALSE.
-                  old_j_to_new(j) = new_dof
-               END DO
-            END DO
-         END IF
-         IF (SIZE(mesh%jj, 1) == 10) THEn
-            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-               DO n = 4, 9
-                  j = mesh%jj(n, m)
-                  IF (.NOT.virgin(j)) CYCLE
-                  new_dof = new_dof + 1
-                  virgin(j) = .FALSE.
-                  old_j_to_new(j) = new_dof
-               END DO
-            END DO
-            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-               j = mesh%jj(10, m)
-               IF (.NOT.virgin(j)) CYCLE
-               new_dof = new_dof + 1
-               virgin(j) = .FALSE.
-               old_j_to_new(j) = new_dof
-            END DO
-         END IF
-      END DO
-
-      DO m = 1, mesh%me
-         inter(:, m) = old_j_to_new(mesh%jj(:, m))
-      END DO
-      mesh%jj = inter
-      DEALLOCATE(inter)
-
-      IF (rank == 0) THEN
-         np_loc(1) = 1
-      ELSE
-         np_loc(1) = MAXVAL(mesh%jj(:, displ(rank) + 1:displ(rank) + nblmt_per_proc(rank))) + 1
-      END IF
-      np_loc(2) = MAXVAL(mesh%jj(:, me_loc(1):me_loc(2)))
-      ! End re-order jj
-
-      ! Re-order edge
-      ALLOCATE(inter(SIZE(mesh%jce, 1), mesh%me))
-      DO m = 1, mesh%me
-         inter(:, old_m_to_new(m)) = mesh%jce(:, m)
-      END DO
-      mesh%jce = inter
-
-      virginss = .TRUE.
-      new_dof = 0
-      DO m = 1, mesh%me
-         DO n = 1, SIZE(mesh%jce, 1)
-            j = mesh%jce(n, m)
-            IF (.NOT.virginss(j)) CYCLE
-            new_dof = new_dof + 1
-            virginss(j) = .FALSE.
-            old_edge_to_new(j) = new_dof
-         END DO
-      END DO
-
-      DO m = 1, mesh%me
-         inter(:, m) = old_edge_to_new(mesh%jce(:, m))
-      END DO
-
-      mesh%jce = inter
-      DEALLOCATE(inter)
-      ! End re-order edge
-
-      ! Re-order rr
-      DO  n = 1, SIZE(mesh%rr, 1)
-         r_old_j_to_new(old_j_to_new) = mesh%rr(n, :)
-         mesh%rr(n, :) = r_old_j_to_new(:)
-      END DO
-      ! Re-order rr
-
-      ! Re-order neigh
-      ALLOCATE(inter(SIZE(mesh%neigh, 1), mesh%me))
-      dim = SIZE(mesh%rr, 1)
-      DO m = 1, mesh%me
-         DO n = 1, dim + 1
-            IF (mesh%neigh(n, m) /=0) THEN
-               inter(n, old_m_to_new(m)) = old_m_to_new(mesh%neigh(n, m))
-            ELSE
-               inter(n, old_m_to_new(m)) = 0
-            END IF
-         END DO
-      END DO
-      mesh%neigh = inter
-      DEALLOCATE(inter)
-      ! End re-order neigh
-
-      ! Re-order i_d
-      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%me))
-      xadj(old_m_to_new) = mesh%i_d
-      mesh%i_d = xadj
-      ! End Re-order i_d
-
-      ! Re-order jev
-      !      ALLOCATE(inter(SIZE(mesh%jev, 1), mesh%medge))
-      !      dim = SIZE(mesh%jev, 1)
-      !      DO m = 1, mesh%medge
-      !         DO n = 1, dim
-      !            inter(n, old_edge_to_new(m)) = old_j_to_new(mesh%jev(n, m))
-      !         END DO
-      !      END DO
-      !      mesh%jev = inter
-      !      DEALLOCATE(inter)
-      ! End Re-order jev
-
-      ! Re-order neighs
-      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%mes))
-
-      nblmt_per_proc = 0
-      DO ms = 1, mesh%mes
-         n = parts(ms)
-         nblmt_per_proc(n) = nblmt_per_proc(n) + 1
-      END DO
-      start(1) = 0
-      DO n = 2, nb_proc
-         start(n) = start(n - 1) + nblmt_per_proc(n - 1)
-      END DO
-      mes_loc(1) = start(rank + 1) + 1
-      mes_loc(2) = start(rank + 1) + nblmt_per_proc(rank + 1)
-
-      DO ms = 1, mesh%mes
-         n = parts(ms)
-         start(n) = start(n) + 1
-         old_ms_to_new(ms) = start(n)
-      END DO
-      xadj(old_ms_to_new) = mesh%neighs
-      mesh%neighs = xadj
-      xadj = old_m_to_new(mesh%neighs)
-      mesh%neighs = xadj
-      ! End re-order neighs
-
-      ! Re-order inter_news
-      xadj(1:news) = old_ms_to_new(inter_news(1, 1:news))
-      inter_news(1, 1:news) = xadj(1:news)
-      xadj(1:news) = old_ms_to_new(inter_news(2, 1:news))
-      inter_news(2, 1:news) = xadj(1:news)
-      ! End re-order inter_news
-
-      ! Re-order sides
-      xadj(old_ms_to_new) = mesh%sides
-      mesh%sides = xadj
-      ! End re-order sides
-
-      ! Re-order jjs
-      DO n = 1, SIZE(mesh%jjs, 1)
-         xadj(old_ms_to_new) = old_j_to_new(mesh%jjs(n, :))
-         mesh%jjs(n, :) = xadj
-      END DO
-      ! End re-order jjs
-
-      !==We create the local mesh now
-      !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:,1:news))
-
-      CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:, 1:news))
-      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+!      IF (nb_proc==1) THEN
+!         me_loc = (/ 1, mesh%me /)
+!         mes_loc = (/ 1, mesh%mes /)
+!         np_loc = (/ 1, mesh%np /)
+!         !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc)
+!         CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
+!         RETURN
+!      END IF
+!
+!      ! Create the connectivity array based on neigh
+!      nb_neigh = SIZE(mesh%neigh, 1)
+!      xind(1) = 1
+!      DO m = 1, mesh%me
+!         nb = 0
+!         DO n = 1, nb_neigh
+!            IF (mesh%neigh(n, m)==0) CYCLE
+!            nb = nb + 1
+!         END DO
+!         xind(m + 1) = xind(m) + nb
+!      END DO
+!      ALLOCATE(xadj(xind(mesh%me + 1) - 1))
+!      p = 0
+!      DO m = 1, mesh%me
+!         DO n = 1, nb_neigh
+!            IF (mesh%neigh(n, m)==0) CYCLE
+!            p = p + 1
+!            xadj(p) = mesh%neigh(n, m)
+!         END DO
+!      END DO
+!      IF (p/=xind(mesh%me + 1) - 1) THEN
+!         CALL error_Petsc('BUG, p/=xind(mesh%me+1)-1')
+!      END IF
+!      ! End create the connectivity array based on neigh
+!
+!      ALLOCATE(adjwgt(SIZE(xadj)))
+!      opts = 0
+!      adjwgt = 1
+!      numflag = 1 ! Fortran numbering of processors
+!      wgtflag = 2
+!      vwgt = 1
+!      vsize = 1
+!      ncon = 1
+!      ALLOCATE(tpwgts(nb_proc))
+!      tpwgts = 1.d0 / nb_proc
+!      CALL METIS_SetDefaultOptions(metis_opt)
+!      metis_opt(METIS_OPTION_NUMBERING) = 1
+!      ubvec = 1.01
+!      !IF (once) THEN
+!      CALL METIS_PartGraphRecursive(mesh%me, ncon, xind(1:), xadj(1:), vwgt(1:), vsize(1:), adjwgt(1:), &
+!           nb_proc, tpwgts(1:), ubvec(1:), metis_opt(1:), edge, part(1:))
+!      !   once = .false.
+!      !END IF
+!
+!      IF (rank==0) THEN
+!         WRITE(tit, '(i4)') SIZE(mesh%jj, 1)
+!         plot = 0.d0
+!         do m = 1, mesh%me
+!            if (part(m) == 150) then
+!               plot(m) = 1.d0
+!            else if (part(m) == 152)  then
+!               plot(m) = 2.d0
+!            else if (part(m) == 153)  then
+!               plot(m) = 3.d0
+!            end if
+!         end do
+!         CALL plot_const_p1_label(mesh%jj, mesh%rr, plot, 'dd' // tit // '.plt')
+!      END IF
+!
+!      ! Count elements on processors
+!      ALLOCATE(nblmt_per_proc(nb_proc), start(nb_proc), displ(nb_proc))
+!      nblmt_per_proc = 0
+!      DO m = 1, mesh%me
+!         nblmt_per_proc(part(m)) = nblmt_per_proc(part(m)) + 1
+!      END DO
+!      start(1) = 0
+!      DO n = 2, nb_proc
+!         start(n) = start(n - 1) + nblmt_per_proc(n - 1)
+!      END DO
+!      me_loc(1) = start(rank + 1) + 1
+!      me_loc(2) = start(rank + 1) + nblmt_per_proc(rank + 1)
+!      displ = start
+!      ! End count elements on processors
+!
+!      ! Re-order elements
+!      DO m = 1, mesh%me
+!         start(part(m)) = start(part(m)) + 1
+!         old_m_to_new(m) = start(part(m))
+!      END DO
+!      ! Re-order elements
+!
+!
+!      !==Search on the boundary whether ms is on a cut.
+!      nws = SIZE(mesh%jjs, 1)
+!      news = 0
+!      inter_news = 0
+!      parts = part(mesh%neighs)
+!      IF (PRESENT(list_of_interfaces)) THEN !==There is an interface
+!         IF (SIZE(list_of_interfaces)/=0) THEN
+!            virgins = .TRUE.
+!            news = 0
+!            DO ms = 1, mesh%mes
+!               IF (.NOT.virgins(ms)) CYCLE
+!               IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
+!               i_loc = mesh%jjs(:, ms)
+!               DO msop = 1, mesh%mes
+!                  IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
+!                  IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
+!                  DO ns = 1, nws
+!                     test = .FALSE.
+!                     DO nsop = 1, nws
+!                        iop = mesh%jjs(nsop, msop)
+!                        IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
+!                           test = .TRUE.
+!                           EXIT
+!                        END IF
+!                     END DO
+!                     IF (.NOT.test) THEN
+!                        EXIT !==This msop does not coincide with ms
+!                     END IF
+!                  END DO
+!                  IF (test) EXIT
+!               END DO
+!               IF (.NOT.test) THEN
+!                  CALL error_Petsc('BUG in create_local_mesh, .NOT.test ')
+!               END IF
+!               IF (part(mesh%neighs(ms)) == part(mesh%neighs(msop))) CYCLE !==ms is an internal cut
+!               proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
+!               parts(ms) = proc
+!               parts(msop) = proc
+!               virgins(ms) = .FALSE.
+!               virgins(msop) = .FALSE.
+!               IF (proc /= rank + 1) CYCLE !==ms and msop do not touch the current proc
+!               news = news + 1
+!               inter_news(1, news) = ms
+!               inter_news(2, news) = msop
+!            END DO
+!         END IF
+!      END IF
+!
+!
+!      ! Re-order jj
+!      ALLOCATE(inter(SIZE(mesh%jj, 1), mesh%me))
+!      DO m = 1, mesh%me
+!         inter(:, old_m_to_new(m)) = mesh%jj(:, m)
+!      END DO
+!      mesh%jj = inter
+!
+!      virgin = .TRUE.
+!      new_dof = 0
+!      DO k = 1, nb_proc
+!         DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
+!            DO n = 1, 3
+!               j = mesh%jj(n, m)
+!               IF (.NOT.virgin(j)) CYCLE
+!               new_dof = new_dof + 1
+!               virgin(j) = .FALSE.
+!               old_j_to_new(j) = new_dof
+!            END DO
+!         END DO
+!
+!         IF (SIZE(mesh%jj, 1) == 6) THEn
+!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
+!               DO n = 4, 6
+!                  j = mesh%jj(n, m)
+!                  IF (.NOT.virgin(j)) CYCLE
+!                  new_dof = new_dof + 1
+!                  virgin(j) = .FALSE.
+!                  old_j_to_new(j) = new_dof
+!               END DO
+!            END DO
+!         END IF
+!         IF (SIZE(mesh%jj, 1) == 10) THEn
+!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
+!               DO n = 4, 9
+!                  j = mesh%jj(n, m)
+!                  IF (.NOT.virgin(j)) CYCLE
+!                  new_dof = new_dof + 1
+!                  virgin(j) = .FALSE.
+!                  old_j_to_new(j) = new_dof
+!               END DO
+!            END DO
+!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
+!               j = mesh%jj(10, m)
+!               IF (.NOT.virgin(j)) CYCLE
+!               new_dof = new_dof + 1
+!               virgin(j) = .FALSE.
+!               old_j_to_new(j) = new_dof
+!            END DO
+!         END IF
+!      END DO
+!
+!      DO m = 1, mesh%me
+!         inter(:, m) = old_j_to_new(mesh%jj(:, m))
+!      END DO
+!      mesh%jj = inter
+!      DEALLOCATE(inter)
+!
+!      IF (rank == 0) THEN
+!         np_loc(1) = 1
+!      ELSE
+!         np_loc(1) = MAXVAL(mesh%jj(:, displ(rank) + 1:displ(rank) + nblmt_per_proc(rank))) + 1
+!      END IF
+!      np_loc(2) = MAXVAL(mesh%jj(:, me_loc(1):me_loc(2)))
+!      ! End re-order jj
+!
+!      ! Re-order edge
+!      ALLOCATE(inter(SIZE(mesh%jce, 1), mesh%me))
+!      DO m = 1, mesh%me
+!         inter(:, old_m_to_new(m)) = mesh%jce(:, m)
+!      END DO
+!      mesh%jce = inter
+!
+!      virginss = .TRUE.
+!      new_dof = 0
+!      DO m = 1, mesh%me
+!         DO n = 1, SIZE(mesh%jce, 1)
+!            j = mesh%jce(n, m)
+!            IF (.NOT.virginss(j)) CYCLE
+!            new_dof = new_dof + 1
+!            virginss(j) = .FALSE.
+!            old_edge_to_new(j) = new_dof
+!         END DO
+!      END DO
+!
+!      DO m = 1, mesh%me
+!         inter(:, m) = old_edge_to_new(mesh%jce(:, m))
+!      END DO
+!
+!      mesh%jce = inter
+!      DEALLOCATE(inter)
+!      ! End re-order edge
+!
+!      ! Re-order rr
+!      DO  n = 1, SIZE(mesh%rr, 1)
+!         r_old_j_to_new(old_j_to_new) = mesh%rr(n, :)
+!         mesh%rr(n, :) = r_old_j_to_new(:)
+!      END DO
+!      ! Re-order rr
+!
+!      ! Re-order neigh
+!      ALLOCATE(inter(SIZE(mesh%neigh, 1), mesh%me))
+!      dim = SIZE(mesh%rr, 1)
+!      DO m = 1, mesh%me
+!         DO n = 1, dim + 1
+!            IF (mesh%neigh(n, m) /=0) THEN
+!               inter(n, old_m_to_new(m)) = old_m_to_new(mesh%neigh(n, m))
+!            ELSE
+!               inter(n, old_m_to_new(m)) = 0
+!            END IF
+!         END DO
+!      END DO
+!      mesh%neigh = inter
+!      DEALLOCATE(inter)
+!      ! End re-order neigh
+!
+!      ! Re-order i_d
+!      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%me))
+!      xadj(old_m_to_new) = mesh%i_d
+!      mesh%i_d = xadj
+!      ! End Re-order i_d
+!
+!      ! Re-order jev
+!      !      ALLOCATE(inter(SIZE(mesh%jev, 1), mesh%medge))
+!      !      dim = SIZE(mesh%jev, 1)
+!      !      DO m = 1, mesh%medge
+!      !         DO n = 1, dim
+!      !            inter(n, old_edge_to_new(m)) = old_j_to_new(mesh%jev(n, m))
+!      !         END DO
+!      !      END DO
+!      !      mesh%jev = inter
+!      !      DEALLOCATE(inter)
+!      ! End Re-order jev
+!
+!      ! Re-order neighs
+!      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%mes))
+!
+!      nblmt_per_proc = 0
+!      DO ms = 1, mesh%mes
+!         n = parts(ms)
+!         nblmt_per_proc(n) = nblmt_per_proc(n) + 1
+!      END DO
+!      start(1) = 0
+!      DO n = 2, nb_proc
+!         start(n) = start(n - 1) + nblmt_per_proc(n - 1)
+!      END DO
+!      mes_loc(1) = start(rank + 1) + 1
+!      mes_loc(2) = start(rank + 1) + nblmt_per_proc(rank + 1)
+!
+!      DO ms = 1, mesh%mes
+!         n = parts(ms)
+!         start(n) = start(n) + 1
+!         old_ms_to_new(ms) = start(n)
+!      END DO
+!      xadj(old_ms_to_new) = mesh%neighs
+!      mesh%neighs = xadj
+!      xadj = old_m_to_new(mesh%neighs)
+!      mesh%neighs = xadj
+!      ! End re-order neighs
+!
+!      ! Re-order inter_news
+!      xadj(1:news) = old_ms_to_new(inter_news(1, 1:news))
+!      inter_news(1, 1:news) = xadj(1:news)
+!      xadj(1:news) = old_ms_to_new(inter_news(2, 1:news))
+!      inter_news(2, 1:news) = xadj(1:news)
+!      ! End re-order inter_news
+!
+!      ! Re-order sides
+!      xadj(old_ms_to_new) = mesh%sides
+!      mesh%sides = xadj
+!      ! End re-order sides
+!
+!      ! Re-order jjs
+!      DO n = 1, SIZE(mesh%jjs, 1)
+!         xadj(old_ms_to_new) = old_j_to_new(mesh%jjs(n, :))
+!         mesh%jjs(n, :) = xadj
+!      END DO
+!      ! End re-order jjs
+!
+!      !==We create the local mesh now
+!      !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:,1:news))
+!
+!      CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:, 1:news))
+!      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
 
       DEALLOCATE(xadj, adjwgt, nblmt_per_proc, start, displ, tpwgts)
    END SUBROUTINE reorder_mesh
