@@ -213,6 +213,7 @@ CONTAINS
       DO ms = 1, mesh%mi
          i = mesh%jjsi(1,ms)
          j = mesh%jjsi(2,ms)
+
          k = MIN(i,j)
          j = MAX(i,j)
          i = k ! Make sure row i is on the processor (1\le i \le mesh%dom_np)
