@@ -9,8 +9,8 @@ MODULE euler_matrices_module
    TYPE euler_matrices_type
       Mat :: mass, dij
       Mat, DIMENSION(k_dim) :: cij
-      Mat, DIMENSION(k_dim) :: cij_loc
-      Mat, DIMENSION(1):: test
+      Mat, DIMENSION(1, k_dim) :: cij_loc
+      Mat, DIMENSION(1) :: test
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
@@ -26,7 +26,7 @@ CONTAINS
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k, ierr
       MPI_Comm       :: communicator
-      IS, DIMENSION(1)  :: is
+      IS, DIMENSION(1) :: is
 
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
@@ -42,13 +42,12 @@ CONTAINS
       CALL construct_cij(mesh, LA, this%cij)
       write(*, *) 'const base mat ok'
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
-write(*, *) 'is ok'
+      write(*, *) 'is ok'
       CALL MatCreateSubMatrices(this%mass, 1, is, is, MAT_INITIAL_MATRIX, this%test, ierr)
       write(*, *) 'end_test'
 
       DO k = 1, k_dim
-         CALL MatCreateSubMatrices(this%cij(k), 0, is, &
-              is, MAT_INITIAL_MATRIX, this%cij_loc(k), ierr)
+         CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
          write(*, *) 'a', k
       END DO
 
