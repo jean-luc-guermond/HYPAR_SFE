@@ -76,6 +76,7 @@ CONTAINS
       WRITE(*,*) 'local mat coomp ok'
       write(*, *) local_xx1 - local_xx2
       write(*, *) local_xx2
+      write(*, *) local_xx1
       !TEST
 
    END SUBROUTINE construct_euler_matrices
