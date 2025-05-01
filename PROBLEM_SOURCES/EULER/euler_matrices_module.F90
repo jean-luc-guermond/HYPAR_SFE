@@ -67,7 +67,6 @@ CONTAINS
          tab(k) = k - 1
       END DO
       !TEST
-      CALL MPI_
       CALL VecDuplicate(xx, yy, ierr)
       CALL array_to_petsc_vec(SIN(mesh%rr(1, :)), xx, mesh, LA, 'insert')
       CALL MatMult(this%cij(1), xx, yy, ierr)
