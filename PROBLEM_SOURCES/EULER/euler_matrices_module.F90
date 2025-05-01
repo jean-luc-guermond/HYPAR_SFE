@@ -26,6 +26,7 @@ CONTAINS
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k, ierr
       MPI_Comm       :: communicator
+      IS, DIMESION(1)  :: is
 
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
@@ -40,9 +41,12 @@ CONTAINS
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       CALL construct_cij(mesh, LA, this%cij)
       write(*, *) 'const base mat ok'
-      CALL MatCreateSubMatrices(this%mass, 1, LA%loc_to_glob(1, :) - 1, &
-           LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%test, ierr)
+      CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1))
+
+      CALL MatCreateSubMatrices(this%mass, 1, is, &
+           is, MAT_INITIAL_MATRIX, this%test, ierr)
       write(*, *) 'end_test'
+
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 0, LA%loc_to_glob(1, :) - 1, &
               LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(k), ierr)
