@@ -48,8 +48,8 @@ CONTAINS
       write(*, *) 'end_test'
 
       DO k = 1, k_dim
-         CALL MatCreateSubMatrices(this%cij(k), 0, LA%loc_to_glob(1, :) - 1, &
-              LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(k), ierr)
+         CALL MatCreateSubMatrices(this%cij(k), 0, is, &
+              is, MAT_INITIAL_MATRIX, this%cij_loc(k), ierr)
          write(*, *) 'a', k
       END DO
 
