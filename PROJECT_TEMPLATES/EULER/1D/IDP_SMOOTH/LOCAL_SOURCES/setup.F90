@@ -12,7 +12,7 @@ CONTAINS
       TYPE(mesh_type) :: mesh
       TYPE(euler_bc_type) :: euler_bc
       REAL(KIND = 8) :: time
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
+      REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
       INTEGER :: comp
 
       DO comp = 1, euler_bc%syst_size
