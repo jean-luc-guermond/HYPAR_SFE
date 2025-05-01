@@ -31,7 +31,7 @@ CONTAINS
       !TEST
       Vec :: xx, yy, x_ghost, xx_loc, yy_loc !TEST
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
-      REAL(KIND = 8), DIMENSION(mesh%np), POINTER :: local_xx1, local_xx2
+      REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
 
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
@@ -68,7 +68,7 @@ CONTAINS
       CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
       CALL VecDuplicate(xx_loc, yy_loc, ierr)
       CALL VecSet(xx_loc, 1.d0, ierr)
-      CALL MatMult(this%cij_loc(1), xx_loc, yy_loc, ierr)
+      CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
       write(*,*) local_xx1 - local_xx2
       !TEST
