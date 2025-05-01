@@ -6,7 +6,7 @@ MODULE euler_matrices_module
    TYPE euler_matrices_type
       Mat :: mass, dij
       Mat, DIMENSION(k_dim) :: cij
-      Mat, DIMENSION(:, k_dim):: cij_loc
+      Mat, DIMENSION(1, k_dim):: cij_loc
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
