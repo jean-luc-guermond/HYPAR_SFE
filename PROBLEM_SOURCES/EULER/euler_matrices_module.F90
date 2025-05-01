@@ -47,6 +47,7 @@ CONTAINS
    END SUBROUTINE construct_euler_matrices
 
    SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
+      USE st_matrix
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       Mat, INTENT(IN) :: mass
