@@ -18,6 +18,8 @@ MODULE euler_type_MODULE
 
    ABSTRACT INTERFACE
       SUBROUTINE function_template_impose_bc(un, euler_bc, mesh, time)
+         USE def_type_mesh
+         USE euler_bc_arrays
          REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
          TYPE(mesh_type) :: mesh
          TYPE(euler_bc_type) :: euler_bc
