@@ -4,6 +4,7 @@ MODULE start_setup_MODULE
    USE def_type_mesh
    USE eos
    USE euler_type_module
+   USE setup
    MPI_Comm        :: communicator
    INTEGER :: rank
    TYPE(mesh_type) :: mesh
