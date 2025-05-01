@@ -18,8 +18,6 @@ MODULE euler_type_MODULE
 
    ABSTRACT INTERFACE
       SUBROUTINE function_template_impose_bc(un, euler_bc, mesh, time)
-         USE petsc
-         USE def_type_mesh
          REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
          TYPE(mesh_type) :: mesh
          TYPE(euler_bc_type) :: euler_bc
@@ -33,7 +31,7 @@ MODULE euler_type_MODULE
       TYPE(petsc_csr_LA), POINTER :: LA
       TYPE(periodic_type), POINTER :: per
       PROCEDURE(function_template_pressure), NOPASS, POINTER :: pressure
-      PROCEDURE(function_template_impose_bc), NOPASS, POINTER :: pressure
+      PROCEDURE(function_template_impose_bc), NOPASS, POINTER :: impose_bc
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
