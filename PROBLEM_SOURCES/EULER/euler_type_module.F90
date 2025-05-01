@@ -97,17 +97,17 @@ CONTAINS
          CALL VecSet(x2vec, 0.d0, ierr)
          DO k = 1, k_dim
             !=== set flux_k in x1vec
-            CALL array_to_petsc_vec(ff(:, k), x1vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
             !=== compute sum_j cij_k * fluxj_k in x3vec
-            CALL MatMult(this%matrices%cij(k), x1vec, x3vec, ierr)
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x3vec, ierr)
             !=== construct sum_k sum_j cij_k flux_k into x2vec
-            CALL VecAXPY(x2vec, 1.d0, x3vec, ierr)
+            CALL VecAXPY(this%x2vec, 1.d0, this%x3vec, ierr)
          END DO
 
-         CALL VecGhostGetLocalForm(x2vec, x2_ghost, ierr)
-         CALL VecGhostUpdateBegin(x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-         CALL VecGhostUpdateEnd(x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-         CALL extract(x2_ghost, 1, 1, this%LA, rk)
+         CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+         CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+         CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
          rk = rk * this%dt / this%matrices%lumped_mass
 
