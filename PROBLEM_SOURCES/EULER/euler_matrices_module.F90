@@ -42,9 +42,8 @@ CONTAINS
       CALL construct_cij(mesh, LA, this%cij)
       write(*, *) 'const base mat ok'
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
-
-      CALL MatCreateSubMatrices(this%mass, 1, is, &
-           is, MAT_INITIAL_MATRIX, this%test, ierr)
+write(*, *) 'is ok'
+      CALL MatCreateSubMatrices(this%mass, 1, is, is, MAT_INITIAL_MATRIX, this%test, ierr)
       write(*, *) 'end_test'
 
       DO k = 1, k_dim
