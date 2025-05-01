@@ -28,6 +28,17 @@ CONTAINS
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 
+      !TEST
+      Vec :: xx, yy, x_ghost, xx_loc, yy_loc !TEST
+      INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
+      REAL(KIND = 8), DIMENSION(mesh%np), POINTER :: local_xx1, local_xx2
+
+      !===Create ghost structure
+      CALL create_my_ghost(mesh, LA, ifrom)
+      CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
+           PETSC_DETERMINE, SIZE(ifrom), ifrom, xx, ierr)
+
+
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
       CALL create_local_petsc_matrix(communicator, LA, this%dij, clean = .FALSE.)
@@ -35,21 +46,32 @@ CONTAINS
          CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
       END DO
       ALLOCATE(this%lumped_mass(mesh%np))
-      write(*, *) 'alloc mat ok'
+
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       CALL construct_cij(mesh, LA, this%cij)
-      write(*, *) 'const base mat ok'
-      CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
-      write(*, *) 'is ok'
-      CALL MatCreateSubMatrices(this%mass, 1, is, is, MAT_INITIAL_MATRIX, this%test, ierr)
-      write(*, *) 'end_test'
 
+      CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
-         write(*, *) 'a', k
       END DO
+
+      !TEST
+      CALL VecSet(xx, 1.d0, ierr)
+      CALL MatMult(this%cij(1), xx, yy, ierr)
+      CALL VecGhostGetLocalForm(yy, x_ghost, ierr)
+      CALL VecGhostUpdateBegin(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CALL VecGhostUpdateEnd(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CALL extract(x_ghost, 1, 1, LA, local_xx1)
+
+      CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
+      CALL VecDuplicate(xx_loc, yy_loc, ierr)
+      CALL VecSet(xx_loc, 1.d0, ierr)
+      CALL MatMult(this%cij_loc(1), xx_loc, yy_loc, ierr)
+      CALL extract(yy_loc, 1, 1, LA, local_xx2)
+      write(*,*) local_xx1 - local_xx2
+      !TEST
 
    END SUBROUTINE construct_euler_matrices
 
