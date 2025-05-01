@@ -8,6 +8,7 @@ CONTAINS
 
    SUBROUTINE impose_bc_euler(this, un)
       USE euler_bc_arrays
+      USE euler_type_MODULE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
       CLASS(euler_type) :: this
       REAL(KIND = 8), DIMENSION(SIZE(un, 1), SIZE(un, 2)) :: vv
