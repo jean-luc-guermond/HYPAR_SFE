@@ -36,10 +36,12 @@ CONTAINS
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
       INTEGER, DIMENSION(mesh%np) :: tab
+      INTEGER :: rank
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
       CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
            PETSC_DETERMINE, SIZE(ifrom), ifrom, xx, ierr)
+      CALL MPI_Comm_rank(communicator, rank, ierr)
 
 
       !===Mat allocations
@@ -61,11 +63,11 @@ CONTAINS
       END DO
       WRITE(*, *) 'mat cons ok'
 
-
-      DO k=1, mesh%np
+      DO k = 1, mesh%np
          tab(k) = k - 1
       END DO
       !TEST
+      CALL MPI_
       CALL VecDuplicate(xx, yy, ierr)
       CALL array_to_petsc_vec(SIN(mesh%rr(1, :)), xx, mesh, LA, 'insert')
       CALL MatMult(this%cij(1), xx, yy, ierr)
@@ -80,9 +82,7 @@ CONTAINS
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
       WRITE(*, *) 'local mat coomp ok'
-      write(*, *) local_xx1 - local_xx2
-      write(*, *) local_xx2
-      write(*, *) local_xx1
+      write(*, *) rank, local_xx1 - local_xx2
       !TEST
 
    END SUBROUTINE construct_euler_matrices
