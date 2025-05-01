@@ -45,7 +45,7 @@ MODULE euler_type_MODULE
    END TYPE euler_type
 
 CONTAINS
-   SUBROUTINE init(a, communicator, mesh, LA, per, pressure, erk_s, impose_bc, time_init)
+   SUBROUTINE init(a, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
       CLASS(euler_type), INTENT(INOUT) :: a
       MPI_Comm, INTENT(IN) :: communicator
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
@@ -53,7 +53,7 @@ CONTAINS
       TYPE(periodic_type), TARGET, INTENT(IN) :: per
       INTEGER :: erk_sv
       REAL(KIND = 8) :: time_init
-
+      PROCEDURE(function_template_impose_bc) :: impose_bc
       INTERFACE
          FUNCTION pressure(un) RESULT(vv)
             REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
@@ -66,7 +66,7 @@ CONTAINS
       a%per => per
       a%pressure => pressure
       a%impose_bc => impose_bc
-      a%euler_bc%syst_size = a%syst_size
+      a%euler_bc%syst_dim = a%syst_dim
       a%time = time_init
       CALL a%ERK%init(erk_sv)
       CALL a%euler_bc%construct_euler_bc(a%mesh)
@@ -82,7 +82,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       INTEGER k
 
-      DO comp = 1, thid%syst_size
+      DO comp = 1, this%syst_dim
          ff = flux(comp, un)
 
          CALL VecSet(x2vec, 0.d0, ierr)

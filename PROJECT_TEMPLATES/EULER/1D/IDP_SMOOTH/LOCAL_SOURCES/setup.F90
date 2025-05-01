@@ -15,7 +15,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
       INTEGER :: comp
 
-      DO comp = 1, euler_bc%syst_size
+      DO comp = 1, euler_bc%syst_dim
          SELECT CASE(comp)
          CASE(1)
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))

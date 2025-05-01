@@ -2,7 +2,7 @@ MODULE euler_bc_arrays
    USE dirichlet_type_module
 
    TYPE euler_bc_type
-      INTEGER :: syst_size
+      INTEGER :: syst_dim
       TYPE(dirichlet_bc) :: rho_bc, ux_bc, uy_bc, DIR_bc, whole_bdy_bc
       TYPE(dirichlet_bc) :: udotn_bc, surf_udotn_bc
       REAL(KIND = 8), POINTER, DIMENSION(:, :) :: surf_normal_vtx
