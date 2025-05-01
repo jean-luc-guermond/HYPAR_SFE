@@ -85,8 +85,9 @@ CONTAINS
       write(*, *) rank, local_xx1 - local_xx2
 
       CALL MatGetValues(this%cij_loc(1, 1), mesh%np, LA%loc_to_glob(1, :) - 1, mesh%np, LA%loc_to_glob(1, :) - 1, out, ierr)
+      WRITE(*, *) 'value ok', rank
       DO k=1, mesh%np
-         write(*,*) out(k,:)
+         write(*,*) rank, k, out(k,:)
       END DO
 
       !TEST
