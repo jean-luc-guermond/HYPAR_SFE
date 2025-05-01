@@ -9,7 +9,7 @@ MODULE euler_matrices_module
    TYPE euler_matrices_type
       Mat :: mass, dij
       Mat, DIMENSION(k_dim) :: cij
-      Mat, DIMENSION(2, k_dim) :: cij_loc
+      Mat, DIMENSION(k_dim) :: cij_loc
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
@@ -33,16 +33,15 @@ CONTAINS
          CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
       END DO
       ALLOCATE(this%lumped_mass(mesh%np))
-write(*,*) 'alloc mat ok'
+      write(*, *) 'alloc mat ok'
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       CALL construct_cij(mesh, LA, this%cij)
-write(*,*) 'const base mat ok'
+      write(*, *) 'const base mat ok'
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, &
-              LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
-         write(*,*) 'ierr', ierr
+              LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(k), ierr)
       END DO
 
    END SUBROUTINE construct_euler_matrices
