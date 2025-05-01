@@ -2,11 +2,13 @@ MODULE euler_matrices_module
 #include "petsc/finclude/petsc.h"
    USE space_dim
    USE petsc
+   USE def_type_mesh
+   USE space_dim
 
    TYPE euler_matrices_type
       Mat :: mass, dij
       Mat, DIMENSION(k_dim) :: cij
-      Mat, DIMENSION(1, k_dim):: cij_loc
+      Mat, DIMENSION(1, k_dim) :: cij_loc
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
@@ -16,10 +18,7 @@ MODULE euler_matrices_module
 CONTAINS
 
    SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
-      USE petsc
-      USE def_type_mesh
       USE fem_M
-      USE space_dim
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
@@ -103,14 +102,10 @@ CONTAINS
       USE my_util
       USE def_type_mesh
       CLASS(euler_matrices_type) :: this
-
       TYPE(mesh_type), INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
-      Mat :: mass, dij
-      Mat, DIMENSION(:) :: cij
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-      LOGICAL, DIMENSION(mesh%medge) :: virgin = .TRUE.
-      INTEGER :: m, ni, nj, e, nw
+      INTEGER :: m, ni, nj, e, nw, n, j, k
 
       nw = mesh%gauss%n_w
 
