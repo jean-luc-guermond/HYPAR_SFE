@@ -4,11 +4,11 @@ MODULE petsc_tools
    USE def_type_mesh
 
 CONTAINS
-   SUBROUTINE array_to_petsc_vec(uu, xx, LA, operation)
-      USE mesh_handling
+   SUBROUTINE array_to_petsc_vec(uu, xx, mesh, LA, operation)
       USE my_util
       IMPLICIT NONE
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
+      TYPE(mesh_type), INTENT(IN) :: mesh
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: uu
       CHARACTER(LEN = 6), INTENT(IN) :: operation
       INTEGER, DIMENSION(SIZE(uu)) :: idxm
