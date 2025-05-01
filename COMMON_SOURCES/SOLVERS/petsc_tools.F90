@@ -12,7 +12,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: uu
       CHARACTER(LEN = 6), INTENT(IN) :: operation
       INTEGER, DIMENSION(SIZE(uu)) :: idxm
-      INTEGER :: i
+      INTEGER :: i, ierr
       Vec     :: xx
 
       DO i = 1, mesh%np
