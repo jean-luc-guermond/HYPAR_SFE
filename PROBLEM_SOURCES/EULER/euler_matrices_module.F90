@@ -21,6 +21,8 @@ CONTAINS
 
    SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
       USE fem_M
+      USE st_matrix
+
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
@@ -70,7 +72,7 @@ CONTAINS
       CALL VecSet(xx_loc, 1.d0, ierr)
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
-      write(*,*) local_xx1 - local_xx2
+      write(*, *) local_xx1 - local_xx2
       !TEST
 
    END SUBROUTINE construct_euler_matrices
