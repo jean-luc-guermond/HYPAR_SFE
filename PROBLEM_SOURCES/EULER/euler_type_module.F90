@@ -36,7 +36,7 @@ MODULE euler_type_MODULE
    ABSTRACT INTERFACE
       FUNCTION function_template_impose_bc(this, un) RESULT(vv)
          REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
-         CLASS(euler_type) :: this
+         TYPE(euler_type) :: this
          REAL(KIND = 8), DIMENSION(SIZE(un, 1), SIZE(un, 2)) :: vv
       END FUNCTION function_template_impose_bc
    END INTERFACE
