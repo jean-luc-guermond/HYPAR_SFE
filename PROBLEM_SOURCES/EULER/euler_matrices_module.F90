@@ -33,12 +33,12 @@ CONTAINS
          CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
       END DO
       ALLOCATE(this%lumped_mass(mesh%np))
-
+write(*,*) 'alloc mat ok'
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       CALL construct_cij(mesh, LA, this%cij)
-
+write(*,*) 'const base mat ok'
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, &
               LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)

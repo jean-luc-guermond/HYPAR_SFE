@@ -48,8 +48,9 @@ CONTAINS
       a%pressure => pressure
       CALL a%ERK%init(erk_sv)
       CALL a%euler_bc%construct_euler_bc(a%mesh)
+      write(*, *) 'pre mat ok'
       CALL a%matrices%construct(a%communicator, a%mesh, a%LA)
-
+      write(*, *) 'post mat ok'
    END SUBROUTINE init
 
 
