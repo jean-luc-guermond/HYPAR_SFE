@@ -1,7 +1,7 @@
 MODULE setup
    USE space_dim
    USE eos
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
    REAL(KIND = 8) :: x0, x1
 CONTAINS
