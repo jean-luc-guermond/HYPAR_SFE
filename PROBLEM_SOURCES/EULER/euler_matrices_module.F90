@@ -4,6 +4,7 @@ MODULE euler_matrices_module
    USE petsc
    USE def_type_mesh
    USE space_dim
+   USE solver_petsc
 
    TYPE euler_matrices_type
       Mat :: mass, dij
@@ -78,7 +79,7 @@ CONTAINS
       Mat, DIMENSION(:) :: cij
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
-      INTEGER :: m, ni, nj, l, k
+      INTEGER :: m, ni, nj, l, k, ierr
 
       DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
