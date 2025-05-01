@@ -82,12 +82,12 @@ CONTAINS
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
       WRITE(*, *) 'local mat coomp ok'
-      write(*, *) rank, local_xx1 - local_xx2
+      !write(*, *) rank, local_xx1 - local_xx2
 
       CALL MatGetValues(this%cij_loc(1, 1), mesh%np, tab, mesh%np, tab, out, ierr)
       WRITE(*, *) 'value ok', rank
       DO k=1, mesh%np
-         write(*,*) rank, k, out(k,:)
+         IF (rank == 1) write(*,*) rank, k, out(k,:)
       END DO
 
       !TEST
