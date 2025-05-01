@@ -53,7 +53,7 @@ CONTAINS
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
       TYPE(periodic_type), TARGET, INTENT(IN) :: per
-      INTEGER :: erk_sv
+      INTEGER :: erk_sv, ierr
       REAL(KIND = 8) :: time_init
       PROCEDURE(function_template_pressure) :: pressure
       PROCEDURE(function_template_impose_bc) :: impose_bc
