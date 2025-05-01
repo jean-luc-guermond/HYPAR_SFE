@@ -47,8 +47,8 @@ MODULE euler_type_MODULE
    END TYPE euler_type
 
 CONTAINS
-   SUBROUTINE init(a, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
-      CLASS(euler_type), INTENT(INOUT) :: a
+   SUBROUTINE init(this, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
+      CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
@@ -59,17 +59,17 @@ CONTAINS
       PROCEDURE(function_template_impose_bc) :: impose_bc
       INTEGER, POINTER, DIMENSION(:) :: ifrom
 
-      a%mesh => mesh
-      a%communicator = communicator
-      a%LA => LA
-      a%per => per
-      a%pressure => pressure
-      a%impose_bc => impose_bc
-      a%euler_bc%syst_dim = a%syst_dim
-      a%time = time_init
-      CALL a%ERK%init(erk_sv)
-      CALL a%euler_bc%construct_euler_bc(a%mesh)
-      CALL a%matrices%construct(a%communicator, a%mesh, a%LA)
+      this%mesh => mesh
+      this%communicator = communicator
+      this%LA => LA
+      this%per => per
+      this%pressure => pressure
+      this%impose_bc => impose_bc
+      this%euler_bc%syst_dim = this%syst_dim
+      this%time = time_init
+      CALL this%ERK%init(erk_sv)
+      CALL this%euler_bc%construct_euler_bc(this%mesh)
+      CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
 
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
       CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
