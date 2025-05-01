@@ -26,7 +26,7 @@ CONTAINS
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k, ierr
       MPI_Comm       :: communicator
-      IS, DIMESION(1)  :: is
+      IS, DIMENSION(1)  :: is
 
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
