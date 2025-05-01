@@ -42,6 +42,7 @@ write(*,*) 'const base mat ok'
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, &
               LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
+         write(*,*) 'ierr'
       END DO
 
    END SUBROUTINE construct_euler_matrices
