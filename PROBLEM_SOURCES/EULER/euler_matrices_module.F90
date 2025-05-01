@@ -36,6 +36,7 @@ CONTAINS
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
       INTEGER, DIMENSION(mesh%np) :: tab
+      INTEGER, DIMENSION(mesh%np, mesh%np) :: out
       INTEGER :: rank
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
@@ -82,6 +83,12 @@ CONTAINS
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
       WRITE(*, *) 'local mat coomp ok'
       write(*, *) rank, local_xx1 - local_xx2
+
+      CALL MatGetValues(this%cij_loc(1, 1), mesh%np, LA%loc_to_glob(1, :) - 1, mesh%np, LA%loc_to_glob(1, :) - 1, out, ierr)
+      DO k=1, mesh%np
+         write(*,*) out(k,:)
+      END DO
+
       !TEST
 
    END SUBROUTINE construct_euler_matrices
