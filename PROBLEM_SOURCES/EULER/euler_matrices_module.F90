@@ -6,7 +6,7 @@ MODULE euler_matrices_module
    TYPE euler_matrices_type
       Mat :: mass, dij
       Mat, DIMENSION(k_dim) :: cij
-      Mat, DIMENSION(:, k_dim), POINTER :: cij_loc
+      Mat, DIMENSION(:, k_dim):: cij_loc
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
@@ -20,7 +20,7 @@ CONTAINS
       USE def_type_mesh
       USE fem_M
       USE space_dim
-
+      CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k
@@ -39,7 +39,8 @@ CONTAINS
       CALL construct_cij(mesh, this%cij)
 
       DO k = 1, k_dim
-         CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
+         CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, &
+              LA%loc_to_glob(1, :) - 1, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
       END DO
 
    END SUBROUTINE construct_euler_matrices
@@ -96,11 +97,12 @@ CONTAINS
       END DO
    END SUBROUTINE construct_cij
 
-   SUBROUTINE compute_dij()
+   SUBROUTINE compute_dij(this, mesh, LA)
       USE space_dim
       USE petsc
       USE my_util
       USE def_type_mesh
+      CLASS(euler_matrices_type) :: this
 
       TYPE(mesh_type), INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
