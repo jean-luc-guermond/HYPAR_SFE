@@ -61,7 +61,7 @@ CONTAINS
       WRITE(*,*) 'mat cons ok'
       !TEST
       CALL VecDuplicate(xx, yy, ierr)
-      CALL VecSet(xx, 1.d0, ierr)
+      CALL array_to_petsc_vec(SIN(mesh%rr(1,:)), xx, mesh, LA, 'insert')
       CALL MatMult(this%cij(1), xx, yy, ierr)
       CALL VecGhostGetLocalForm(yy, x_ghost, ierr)
       CALL VecGhostUpdateBegin(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
