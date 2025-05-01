@@ -58,7 +58,7 @@ CONTAINS
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
       END DO
-
+      WRITE(*,*) 'mat cons ok'
       !TEST
       CALL VecSet(xx, 1.d0, ierr)
       CALL MatMult(this%cij(1), xx, yy, ierr)
@@ -66,12 +66,13 @@ CONTAINS
       CALL VecGhostUpdateBegin(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL VecGhostUpdateEnd(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL extract(x_ghost, 1, 1, LA, local_xx1)
-
+      WRITE(*,*) 'genera mat coomp ok'
       CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
       CALL VecDuplicate(xx_loc, yy_loc, ierr)
       CALL VecSet(xx_loc, 1.d0, ierr)
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
+      WRITE(*,*) 'local mat coomp ok'
       write(*, *) local_xx1 - local_xx2
       !TEST
 
