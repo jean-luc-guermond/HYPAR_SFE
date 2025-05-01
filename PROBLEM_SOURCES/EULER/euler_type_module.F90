@@ -39,6 +39,8 @@ MODULE euler_type_MODULE
       TYPE(euler_matrices_type) :: matrices
       REAL(KIND = 8) :: dt, time
       INTEGER :: syst_dim = k_dim + 2
+
+      Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost
    CONTAINS
       PROCEDURE, PUBLIC :: init
       PROCEDURE, PUBLIC :: update
@@ -53,13 +55,10 @@ CONTAINS
       TYPE(periodic_type), TARGET, INTENT(IN) :: per
       INTEGER :: erk_sv
       REAL(KIND = 8) :: time_init
+      PROCEDURE(function_template_pressure) :: pressure
       PROCEDURE(function_template_impose_bc) :: impose_bc
-      INTERFACE
-         FUNCTION pressure(un) RESULT(vv)
-            REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
-            REAL(KIND = 8), DIMENSION(SIZE(un, 1)) :: vv
-         END FUNCTION pressure
-      END INTERFACE
+      INTEGER, POINTER, DIMENSION(:) :: ifrom
+
       a%mesh => mesh
       a%communicator = communicator
       a%LA => LA
@@ -71,6 +70,16 @@ CONTAINS
       CALL a%ERK%init(erk_sv)
       CALL a%euler_bc%construct_euler_bc(a%mesh)
       CALL a%matrices%construct(a%communicator, a%mesh, a%LA)
+
+      CALL create_my_ghost(this%mesh, this%LA, ifrom)
+      CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
+           PETSC_DETERMINE, SIZE(ifrom), ifrom, x1vec, ierr)
+
+      CALL VecDuplicate(x1vec, x2vec, ierr)
+      CALL VecDuplicate(x1vec, x3vec, ierr)
+
+      CALL VecGhostGetLocalForm(x2vec, x2_ghost, ierr)
+
    END SUBROUTINE init
 
    SUBROUTINE update(this, un)
@@ -80,7 +89,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
-      INTEGER k
+      INTEGER :: k, comp, ierr
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
@@ -98,7 +107,7 @@ CONTAINS
          CALL VecGhostGetLocalForm(x2vec, x2_ghost, ierr)
          CALL VecGhostUpdateBegin(x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-         CALL extract(x2_ghost, 1, 1, LA, rk)
+         CALL extract(x2_ghost, 1, 1, this%LA, rk)
 
          rk = rk * this%dt / this%matrices%lumped_mass
 
