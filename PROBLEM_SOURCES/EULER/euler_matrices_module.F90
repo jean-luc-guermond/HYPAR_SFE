@@ -87,7 +87,7 @@ CONTAINS
       CALL MatGetValues(this%cij_loc(1, 1), mesh%np, tab, mesh%np, tab, out, ierr)
       WRITE(*, *) 'value ok', rank
       DO k=1, mesh%np
-         IF (rank == 1) write(*,*) rank, k, out(k,:)
+         IF (rank == 0) write(*,*) rank, k, out(k,:)
       END DO
 
       !TEST
