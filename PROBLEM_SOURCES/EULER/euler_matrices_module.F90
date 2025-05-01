@@ -1,6 +1,7 @@
 MODULE euler_matrices_module
 #include "petsc/finclude/petsc.h"
    USE space_dim
+   USE petsc
 
    TYPE euler_matrices_type
       Mat :: mass, dij
