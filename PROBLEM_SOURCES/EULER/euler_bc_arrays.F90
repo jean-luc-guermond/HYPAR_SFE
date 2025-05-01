@@ -1,12 +1,14 @@
 MODULE euler_bc_arrays
-  USE dirichlet_type_module
-  TYPE euler_bc_type 
-      TYPE(dirichlet_bc) :: rho_js_D, ux_js_D, uy_js_D, DIR_js_D, whole_bdy_js_D
-      TYPE(dirichlet_bc) :: udotn_js_D, surf_udotn_js_D
+   USE dirichlet_type_module
+
+   TYPE euler_bc_type
+      TYPE(dirichlet_bc) :: rho_bc, ux_bc, uy_bc, DIR_bc, whole_bdy_bc
+      TYPE(dirichlet_bc) :: udotn_bc, surf_udotn_bc
       REAL(KIND = 8), POINTER, DIMENSION(:, :) :: surf_normal_vtx
       REAL(KIND = 8), POINTER, DIMENSION(:, :) :: DIR_normal_vtx
    CONTAINS
       PROCEDURE, PUBLIC :: construct_euler_bc
+      PROCEDURE, PUBLIC :: impose_bc
    END TYPE euler_bc_type
 CONTAINS
    SUBROUTINE construct_euler_bc(this, mesh)
@@ -24,11 +26,11 @@ CONTAINS
 
       !CALL this%euler_bc%whole_bdy_js_D%set(mesh, "")
 
-      CALL this%rho_js_D%set(mesh, "density")
+      CALL this%rho_bc%set(mesh, "density")
 
-      CALL this%ux_js_D%set(mesh, "ux")
+      CALL this%ux_bc%set(mesh, "ux")
 
-      If (k_dim>1) CALL this%uy_js_D%set(mesh, "uy")
+      If (k_dim>1) CALL this%uy_bc%set(mesh, "uy")
 
       !CALL this%DIR_js_D%set(mesh, "")
 

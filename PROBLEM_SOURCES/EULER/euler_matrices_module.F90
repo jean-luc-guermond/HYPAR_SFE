@@ -21,8 +21,6 @@ CONTAINS
 
    SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
       USE fem_M
-      USE st_matrix
-      USE petsc_tools
 
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
@@ -30,20 +28,6 @@ CONTAINS
       INTEGER :: k, ierr
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
-
-      !TEST
-      Vec :: xx, yy, x_ghost, xx_loc, yy_loc !TEST
-      INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
-      REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
-      INTEGER, DIMENSION(mesh%np) :: tab
-      REAL(KIND = 8), DIMENSION(mesh%np, mesh%np) :: out
-      INTEGER :: rank
-      !===Create ghost structure
-      CALL create_my_ghost(mesh, LA, ifrom)
-      CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
-           PETSC_DETERMINE, SIZE(ifrom), ifrom, xx, ierr)
-      CALL MPI_Comm_rank(communicator, rank, ierr)
-
 
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
@@ -62,35 +46,6 @@ CONTAINS
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
       END DO
-      WRITE(*, *) 'mat cons ok'
-
-      DO k = 1, mesh%np
-         tab(k) = k - 1
-      END DO
-      !TEST
-      CALL VecDuplicate(xx, yy, ierr)
-      CALL array_to_petsc_vec(SIN(mesh%rr(1, :)), xx, mesh, LA, 'insert')
-      CALL MatMult(this%cij(1), xx, yy, ierr)
-      CALL VecGhostGetLocalForm(yy, x_ghost, ierr)
-      CALL VecGhostUpdateBegin(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL VecGhostUpdateEnd(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL extract(x_ghost, 1, 1, LA, local_xx1)
-      WRITE(*, *) 'genera mat coomp ok'
-      CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
-      CALL VecDuplicate(xx_loc, yy_loc, ierr)
-      CALL VecSetValues(xx_loc, mesh%np, tab, SIN(mesh%rr(1, :)), INSERT_VALUES, ierr)
-      CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
-      CALL extract(yy_loc, 1, 1, LA, local_xx2)
-      WRITE(*, *) 'local mat coomp ok'
-      !write(*, *) rank, local_xx1 - local_xx2
-
-      CALL MatGetValues(this%cij_loc(1, 1), mesh%np, tab, mesh%np, tab, out, ierr)
-      WRITE(*, *) 'value ok', rank
-      DO k=1, mesh%np
-         IF (rank == 0) write(*,*) rank, k, out(k,:)
-      END DO
-
-      !TEST
 
    END SUBROUTINE construct_euler_matrices
 
@@ -177,6 +132,8 @@ CONTAINS
             i = k
 
             IF (i > mesh%dom_np) CYCLE !===Verify that at least one point belong to processor
+
+
 
          END DO
 
