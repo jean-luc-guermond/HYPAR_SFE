@@ -41,7 +41,7 @@ CONTAINS
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       CALL construct_cij(mesh, LA, this%cij)
       write(*, *) 'const base mat ok'
-      CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1))
+      CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
 
       CALL MatCreateSubMatrices(this%mass, 1, is, &
            is, MAT_INITIAL_MATRIX, this%test, ierr)
