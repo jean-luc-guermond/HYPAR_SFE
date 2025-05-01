@@ -76,7 +76,7 @@ CONTAINS
       WRITE(*, *) 'genera mat coomp ok'
       CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
       CALL VecDuplicate(xx_loc, yy_loc, ierr)
-      CALL VecSetValues(xx, mesh%np, tab, SIN(mesh%rr(1, :)), INSERT_VALUES, ierr)
+      CALL VecSetValues(xx_loc, mesh%np, tab, SIN(mesh%rr(1, :)), INSERT_VALUES, ierr)
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
       WRITE(*, *) 'local mat coomp ok'
