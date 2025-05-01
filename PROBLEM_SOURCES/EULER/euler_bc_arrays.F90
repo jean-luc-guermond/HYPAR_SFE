@@ -8,7 +8,6 @@ MODULE euler_bc_arrays
       REAL(KIND = 8), POINTER, DIMENSION(:, :) :: DIR_normal_vtx
    CONTAINS
       PROCEDURE, PUBLIC :: construct_euler_bc
-      PROCEDURE, PUBLIC :: impose_bc
    END TYPE euler_bc_type
 CONTAINS
    SUBROUTINE construct_euler_bc(this, mesh)
