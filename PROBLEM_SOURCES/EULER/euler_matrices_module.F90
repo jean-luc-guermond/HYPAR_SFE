@@ -22,6 +22,7 @@ CONTAINS
    SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
       USE fem_M
       USE st_matrix
+      USE petsc_tools
 
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
@@ -34,7 +35,7 @@ CONTAINS
       Vec :: xx, yy, x_ghost, xx_loc, yy_loc !TEST
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
-
+      INTEGER, DIMENSION(mesh%np) :: tab
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
       CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
@@ -58,22 +59,27 @@ CONTAINS
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
       END DO
-      WRITE(*,*) 'mat cons ok'
+      WRITE(*, *) 'mat cons ok'
+
+
+      DO k=1, mesh%np
+         tab(k) = k - 1
+      END DO
       !TEST
       CALL VecDuplicate(xx, yy, ierr)
-      CALL array_to_petsc_vec(SIN(mesh%rr(1,:)), xx, mesh, LA, 'insert')
+      CALL array_to_petsc_vec(SIN(mesh%rr(1, :)), xx, mesh, LA, 'insert')
       CALL MatMult(this%cij(1), xx, yy, ierr)
       CALL VecGhostGetLocalForm(yy, x_ghost, ierr)
       CALL VecGhostUpdateBegin(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL VecGhostUpdateEnd(yy, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL extract(x_ghost, 1, 1, LA, local_xx1)
-      WRITE(*,*) 'genera mat coomp ok'
+      WRITE(*, *) 'genera mat coomp ok'
       CALL VecCreateSeq(PETSC_COMM_SELF, mesh%np, xx_loc, ierr)
       CALL VecDuplicate(xx_loc, yy_loc, ierr)
-      CALL array_to_petsc_vec(SIN(mesh%rr(1,:)), xx_loc, mesh, LA, 'insert')
+      CALL VecSetValues(xx, mesh%np, tab, SIN(mesh%rr(1, :)), INSERT_VALUES, ierr)
       CALL MatMult(this%cij_loc(1, 1), xx_loc, yy_loc, ierr)
       CALL extract(yy_loc, 1, 1, LA, local_xx2)
-      WRITE(*,*) 'local mat coomp ok'
+      WRITE(*, *) 'local mat coomp ok'
       write(*, *) local_xx1 - local_xx2
       write(*, *) local_xx2
       write(*, *) local_xx1
