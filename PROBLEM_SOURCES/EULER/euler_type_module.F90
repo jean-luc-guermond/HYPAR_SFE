@@ -73,12 +73,12 @@ CONTAINS
 
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
       CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
-           PETSC_DETERMINE, SIZE(ifrom), ifrom, x1vec, ierr)
+           PETSC_DETERMINE, SIZE(ifrom), ifrom, this%x1vec, ierr)
 
-      CALL VecDuplicate(x1vec, x2vec, ierr)
-      CALL VecDuplicate(x1vec, x3vec, ierr)
+      CALL VecDuplicate(this%x1vec, this%x2vec, ierr)
+      CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
 
-      CALL VecGhostGetLocalForm(x2vec, x2_ghost, ierr)
+      CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
    END SUBROUTINE init
 
@@ -94,7 +94,7 @@ CONTAINS
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
 
-         CALL VecSet(x2vec, 0.d0, ierr)
+         CALL VecSet(this%x2vec, 0.d0, ierr)
          DO k = 1, k_dim
             !=== set flux_k in x1vec
             CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
