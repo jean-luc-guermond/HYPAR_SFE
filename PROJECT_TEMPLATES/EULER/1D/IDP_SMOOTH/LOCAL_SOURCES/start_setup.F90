@@ -30,8 +30,8 @@ CONTAINS
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per)
 
       !===Start Euler
-      !FIXE ME ERK -21
-      CALL euler%init(communicator, mesh, LA, per, pressure, -21, impose_bc_euler)
+      !FIXE ME ERK -21, time_init too
+      CALL euler%init(communicator, mesh, LA, per, pressure, -21, impose_bc_euler, 0.d0)
 
       !===Read data setup
    END SUBROUTINE start_setup

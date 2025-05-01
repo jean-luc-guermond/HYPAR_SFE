@@ -16,13 +16,22 @@ MODULE euler_type_MODULE
       END FUNCTION function_template_pressure
    END INTERFACE
 
+   ABSTRACT INTERFACE
+      SUBROUTINE function_template_impose_bc(un, euler_bc, mesh, time)
+         REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
+         TYPE(mesh_type) :: mesh
+         TYPE(euler_bc_type) :: euler_bc
+         REAL(KIND = 8) :: time
+      END SUBROUTINE function_template_impose_bc
+   END INTERFACE
+
    TYPE euler_type
       MPI_Comm :: communicator
       TYPE(mesh_type), POINTER :: mesh
       TYPE(petsc_csr_LA), POINTER :: LA
       TYPE(periodic_type), POINTER :: per
       PROCEDURE(function_template_pressure), NOPASS, POINTER :: pressure
-      PROCEDURE(function_template_impose_bc), POINTER :: impose_bc
+      PROCEDURE(function_template_impose_bc), NOPASS, POINTER :: pressure
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
@@ -33,22 +42,16 @@ MODULE euler_type_MODULE
       PROCEDURE, PUBLIC :: update
    END TYPE euler_type
 
-   ABSTRACT INTERFACE
-      FUNCTION function_template_impose_bc(this, un) RESULT(vv)
-         REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
-         TYPE(euler_type) :: this
-         REAL(KIND = 8), DIMENSION(SIZE(un, 1), SIZE(un, 2)) :: vv
-      END FUNCTION function_template_impose_bc
-   END INTERFACE
-
 CONTAINS
-   SUBROUTINE init(a, communicator, mesh, LA, per, pressure, erk_s, impose_bc)
+   SUBROUTINE init(a, communicator, mesh, LA, per, pressure, erk_s, impose_bc, time_init)
       CLASS(euler_type), INTENT(INOUT) :: a
       MPI_Comm, INTENT(IN) :: communicator
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
       TYPE(periodic_type), TARGET, INTENT(IN) :: per
       INTEGER :: erk_sv
+      REAL(KIND = 8) :: time_init
+
       INTERFACE
          FUNCTION pressure(un) RESULT(vv)
             REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
@@ -61,6 +64,8 @@ CONTAINS
       a%per => per
       a%pressure => pressure
       a%impose_bc => impose_bc
+      a%euler_bc%syst_size = a%syst_size
+      a%time = time_init
       CALL a%ERK%init(erk_sv)
       CALL a%euler_bc%construct_euler_bc(a%mesh)
       CALL a%matrices%construct(a%communicator, a%mesh, a%LA)
@@ -95,11 +100,12 @@ CONTAINS
 
          rk = rk * this%dt / this%matrices%lumped_mass
 
+         this%time = this%time + this%dt
+
          un(:, comp) = un(:, comp) + rk
 
+         CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
       END DO
-
-      CALL this%impose_bc(un, this%euler_bc)
 
    END SUBROUTINE update
 

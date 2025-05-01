@@ -6,15 +6,24 @@ MODULE setup
    REAL(KIND = 8) :: x0, x1
 CONTAINS
 
-   SUBROUTINE impose_bc_euler(this, un)
+   SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
-      USE euler_type_MODULE
+      USE def_type_mesh
+      TYPE(mesh_type) :: mesh
+      TYPE(euler_bc_type) :: euler_bc
+      REAL(KIND = 8) :: time
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
-      CLASS(euler_type) :: this
-      REAL(KIND = 8), DIMENSION(SIZE(un, 1), SIZE(un, 2)) :: vv
+      TYPE(euler_bc_type) :: euler_bc
 
-      DO comp = 1, this%syst_size
-         CALL dirichlet_rhs(this%euler_bc%rho_bc%jsd, 0.d0, un(comp, :))
+      DO comp = 1, euler_bc%syst_size
+         SELECT CASE(comp)
+         CASE(1)
+            un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         CASE(2:k_dim + 1)
+            un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         CASE(k_dim + 2)
+            un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         END SELECT
       END DO
 
    END SUBROUTINE impose_bc_euler
