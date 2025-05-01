@@ -36,7 +36,7 @@ CONTAINS
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       REAL(KIND = 8), DIMENSION(mesh%np) :: local_xx1, local_xx2
       INTEGER, DIMENSION(mesh%np) :: tab
-      INTEGER, DIMENSION(mesh%np, mesh%np) :: out
+      REAL(KIND = 8), DIMENSION(mesh%np, mesh%np) :: out
       INTEGER :: rank
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
