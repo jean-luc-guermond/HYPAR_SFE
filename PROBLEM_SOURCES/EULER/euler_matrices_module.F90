@@ -23,6 +23,7 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k
+      MPI_Comm       :: communicator
 
       !===Mat allocations
       CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
