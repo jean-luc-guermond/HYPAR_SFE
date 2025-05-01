@@ -1,4 +1,4 @@
-MODULE def_of_gamma 
+MODULE def_of_gamma
   REAL(KIND=8), PUBLIC :: gamma_ 
 CONTAINS
   SUBROUTINE set_gamma_for_riemann_solver(gamma)

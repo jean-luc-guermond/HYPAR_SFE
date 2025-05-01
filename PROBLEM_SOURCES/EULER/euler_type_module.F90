@@ -5,6 +5,7 @@ MODULE euler_type_MODULE
    USE def_type_periodic
    USE euler_bc_arrays
    USE Butcher_tableau
+   USE euler_matrices_module
    IMPLICIT NONE
    ABSTRACT INTERFACE
       FUNCTION function_template(un) RESULT(vv)
