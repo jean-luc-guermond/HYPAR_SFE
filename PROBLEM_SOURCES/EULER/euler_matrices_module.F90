@@ -60,6 +60,7 @@ CONTAINS
       END DO
       WRITE(*,*) 'mat cons ok'
       !TEST
+      CALL VecDuplicate(xx, yy, ierr)
       CALL VecSet(xx, 1.d0, ierr)
       CALL MatMult(this%cij(1), xx, yy, ierr)
       CALL VecGhostGetLocalForm(yy, x_ghost, ierr)
