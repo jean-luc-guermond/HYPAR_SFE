@@ -22,7 +22,7 @@ CONTAINS
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      INTEGER :: k
+      INTEGER :: k, ierr
       MPI_Comm       :: communicator
 
       !===Mat allocations
@@ -35,8 +35,8 @@ CONTAINS
 
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
-      CALL construct_lumped_mass(mesh, LA, mass, this%lumped_mass)
-      CALL construct_cij(mesh, this%cij)
+      CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
+      CALL construct_cij(mesh, LA, this%cij)
 
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, LA%loc_to_glob(1, :) - 1, &
@@ -52,6 +52,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       Vec :: vec_one, xx, x_ghost
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
+      INTEGER :: ierr
 
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
@@ -61,10 +62,10 @@ CONTAINS
 
       CALL VecSet(vec_one, 1.d0, ierr)
       CALL MatMult(mass, vec_one, xx, ierr)
-      CALL VecGhostGetLocalForm(xx, xghost, ierr)
+      CALL VecGhostGetLocalForm(xx, x_ghost, ierr)
       CALL VecGhostUpdateBegin(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL VecGhostUpdateEnd(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL extract(xghost, 1, 1, LA, lumped_mass)
+      CALL extract(x_ghost, 1, 1, LA, lumped_mass)
 
    END SUBROUTINE construct_lumped_mass
 
@@ -77,7 +78,7 @@ CONTAINS
       Mat, DIMENSION(:) :: cij
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
-      INTEGER :: m, ni, nj, l
+      INTEGER :: m, ni, nj, l, k
 
       DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
@@ -106,12 +107,12 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-      INTEGER :: m, ni, nj, e, nw, n, j, k
+      INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
 
       nw = mesh%gauss%n_w
 
       DO m = 1, mesh%me
-         IF (MINVAL(mesh%jj(:, m))>dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
+         IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
 
          DO n = 1, nw
             IF (mesh%neigh(n, m) < m .AND. mesh%neigh(n, m) > 0) CYCLE !==cycle if neighbour is a cell already done
