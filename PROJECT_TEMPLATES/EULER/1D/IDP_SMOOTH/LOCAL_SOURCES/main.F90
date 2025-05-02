@@ -15,7 +15,7 @@ PROGRAM prog
 
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
 
-   euler%dt = 1.d-2 / real(SUM(euler%mesh%domnp))
+   euler%dt = 5.d-2 / real(SUM(euler%mesh%domnp))
 
    DO n = 1, 2000
       CALL euler%update(un)
