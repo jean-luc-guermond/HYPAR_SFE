@@ -4,6 +4,7 @@
 MODULE def_type_mesh
    USE dyn_line_type
    USE def_type_periodic
+   USE space_dim
    IMPLICIT NONE
 
    TYPE aij_type
@@ -101,7 +102,7 @@ MODULE def_type_mesh
       PROCEDURE :: jj_glob
       PROCEDURE :: jce_loc
       PROCEDURE :: attr_e
-
+      PROCEDURE :: side_edge
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -139,6 +140,21 @@ CONTAINS
       INTEGER :: n, m, out
       out = this%jce(n, m) - this%disedge(this%rank + 1) + 1
    END FUNCTION jce_loc
+
+   FUNCTION side_edge(this, n, m) RESULT(out)
+      CLASS(mesh_type) :: this
+      INTEGER :: n, m
+      LOGICAL :: out
+      SELECT CASE(k_dim)
+      CASE(1)
+         out = this%neigh(1, m) == 0 .or. this%neigh(2, m) == 0
+      CASE(2)
+         out = this%neigh(n, m) == 0
+      CASE DEFAULT
+         WRITE(*, *) 'space dimension is not implemented for this k_dim in side_edge in mesh_type'
+      END SELECT
+
+   END FUNCTION side_edge
 
 
    FUNCTION jj_glob(this, n, m) RESULT(out)

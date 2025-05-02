@@ -142,12 +142,13 @@ CONTAINS
       TYPE(petsc_csr_LA), POINTER :: LA
       REAL(KIND = 8), DIMENSION(:, :) :: un
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-      INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
+      INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
       REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: pstar
+      LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
 
       CALL MatZeroEntries(this%matrices%dij, ierr)
 
@@ -156,12 +157,17 @@ CONTAINS
       mesh => this%mesh
       LA => this%LA
 
+      virgin_edge = .true.
+
       DO m = 1, mesh%me
          IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
 
          DO n = 1, nw
-            IF (0 < mesh%neigh(n, m) .AND. mesh%neigh(n, m) < m) CYCLE
-            IF (mesh%disp(mesh%rank + 1) <= mesh%jce(n, m) .AND. mesh%jce(n, m) < mesh%disp(mesh%rank + 2)) THEN
+            IF (mesh%attr_e(mesh%jce(n, m))) THEN
+               edge = mesh%jce_loc(n, m)
+               IF (.not. virgin_edge(edge)) CYCLE
+               virgin_edge(edge) = .false.
+
                ni = MOD(n, nw) + 1
                nj = MOD(n + 1, nw) + 1
                i = mesh%jj(ni, m)
@@ -190,7 +196,7 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
-               IF (mesh%neigh(n, m) == 0) THEN !=== if on the boundary, switch i for j
+               IF (mesh%side_edge(n, m) == 0) THEN !=== if on the boundary, switch i for j
 
                   DO k = 1, k_dim
                      CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)

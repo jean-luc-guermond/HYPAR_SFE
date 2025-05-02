@@ -118,14 +118,16 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j
       LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
-      INTEGER :: k, m, n, ni, nj, ierr, nw
+      INTEGER :: k, m, n, ni, nj, ierr, nw, edge
 
       nw = mesh%gauss%n_w
       virgin_edge = .true.
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
-               IF (.not. virgin_edge(mesh%jce_loc(n, m))) CYCLE
+               edge = mesh%jce_loc(n, m)
+               IF (.not. virgin_edge(edge)) CYCLE
+               virgin_edge(edge) = .false.
 
                ni = MOD(n, nw) + 1
                nj = MOD(n + 1, nw) + 1
