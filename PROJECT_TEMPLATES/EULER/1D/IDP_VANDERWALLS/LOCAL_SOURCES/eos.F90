@@ -8,7 +8,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
       vv = pressure_vdw(rho, e)
-      write(*,*) 'hi'
    END FUNCTION pressure
 END MODULE eos
   
