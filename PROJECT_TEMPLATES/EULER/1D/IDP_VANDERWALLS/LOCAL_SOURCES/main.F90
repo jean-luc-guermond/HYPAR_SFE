@@ -17,7 +17,7 @@ PROGRAM prog
 
    euler%cfl = 0.1
 
-   DO WHILE (euler%time < 0.1 )
+   DO WHILE (euler%time < 0.01 )
       CALL euler%update(un)
    END DO
 
