@@ -198,6 +198,7 @@ CONTAINS
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
                !TEST
                lambda_max = MAXVAL(abs(u) + sqrt(1.4 * ie))
+               norm_c = .5d0
                !TEST
                dij_c = MAXVAL(lambda_max) * norm_c
 
