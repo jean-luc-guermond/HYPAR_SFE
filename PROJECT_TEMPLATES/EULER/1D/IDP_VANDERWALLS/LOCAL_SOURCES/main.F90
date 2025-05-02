@@ -14,6 +14,8 @@ PROGRAM prog
    CALL init(un, 0.d0, euler%mesh%rr)
 
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), un(:,2)/un(:,1), 'initvt' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), un(:,3), 'initE' // trim(adjustl(car)) // '.plt')
 
    euler%cfl = 0.1
 
