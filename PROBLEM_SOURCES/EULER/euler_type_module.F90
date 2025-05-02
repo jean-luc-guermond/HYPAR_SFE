@@ -42,7 +42,7 @@ MODULE euler_type_MODULE
 
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost
    CONTAINS
-      PROCEDURE, PUBLIC :: init
+      PROCEDURE, PRIVATE :: init
       PROCEDURE, PUBLIC :: update
    END TYPE euler_type
 
