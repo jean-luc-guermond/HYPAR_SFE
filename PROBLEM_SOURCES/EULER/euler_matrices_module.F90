@@ -98,7 +98,7 @@ CONTAINS
             DO ni = 1, mesh%gauss%n_w
                DO nj = 1, mesh%gauss%n_w
                   l = l + 1
-                  vv_rowise(l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
+                  vv_rowise(l) = SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
                ENDDO
             ENDDO
             CALL MatSetValues(cij(k), mesh%gauss%n_w, idx, mesh%gauss%n_w, idx, vv_rowise, ADD_VALUES, ierr)
