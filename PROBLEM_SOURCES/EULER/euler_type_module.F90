@@ -109,10 +109,12 @@ CONTAINS
       REAL(KIND = 8) :: dt_max_loc, dt_max_glob
       INTEGER :: k, comp, ierr
 
+      !===compute dij
+      CALL this%compute_dij(un)
+
       CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
       CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
-      write(*,*) dij_diag
-      stop
+
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / dij_diag
 
       dt_max_loc = MAXVAL(dij_diag)
@@ -137,8 +139,7 @@ CONTAINS
 
          !=== set un(comp) in x1vec
          CALL array_to_petsc_vec(un(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
-         !===compute dij
-         CALL this%compute_dij(un)
+
          !=== add dij un(comp)to x3vec in x2vec
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
 
