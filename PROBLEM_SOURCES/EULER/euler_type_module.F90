@@ -111,6 +111,8 @@ CONTAINS
 
       CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
       CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
+      write(*,*) dij_diag
+      stop
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / dij_diag
 
       dt_max_loc = MAXVAL(dij_diag)
