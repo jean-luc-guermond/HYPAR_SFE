@@ -125,6 +125,7 @@ CONTAINS
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
+               write(*,*) mesh%jce_loc(n, m)
                IF (.not. virgin_edge(mesh%jce_loc(n, m))) CYCLE
 
                ni = MOD(n, nw) + 1
