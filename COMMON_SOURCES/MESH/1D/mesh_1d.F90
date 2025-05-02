@@ -96,7 +96,15 @@ CONTAINS
       DO i = 1, mesh%medge
          mesh%jce(1, i) = i
       END DO
-
+      mesh%disp(1) = 1
+      mesh%disp(2) = mesh%dom_np + 1
+      mesh%discell(1) = 1
+      mesh%discell(2) = mesh%dom_me + 1
+      mesh%disedge(1) = 1
+      mesh%disedge(2) = mesh%medge + 1
+      mesh%domnp(1) = mesh%dom_np
+      mesh%domcell(1) = mesh%dom_me
+      mesh%domedge(1) = mesh%medge
       IF (mesh_data%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
       ELSE
