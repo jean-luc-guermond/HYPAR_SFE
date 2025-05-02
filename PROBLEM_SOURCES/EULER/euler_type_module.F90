@@ -100,12 +100,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       INTEGER :: k, comp, ierr
 
-      !TEST
- !     CALL VecSet(this%x1vec, 1.d0, ierr)
- !     CALL MatMult(this%matrices%dij, )
-
-      !test
-
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
 
@@ -202,10 +196,7 @@ CONTAINS
                CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
-               !TEST
-               lambda_max = MAXVAL(abs(u) + sqrt(1.4 * ie))
-               norm_c = .5d0
-               !TEST
+
                dij_c = MAXVAL(lambda_max) * norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
@@ -223,9 +214,6 @@ CONTAINS
 
                   CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
-                  !TEST
-                  lambda_max = MAXVAL(abs(u) + sqrt(1.4 * ie))
-                  !TEST
                   dij_c = MAX(dij_c, MAXVAL(lambda_max) * norm_c)
 
                END IF
