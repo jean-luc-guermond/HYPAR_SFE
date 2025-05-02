@@ -88,6 +88,12 @@ CONTAINS
          pl = 2
          pr = 2
       END SELECT
+      WRITE(*, *) avdw, bvdw, gamma_vdw
+      WRITE(*, *) 'rhol', rhol, 'rhor', rhor
+      write(*, *) 'vl', ul, 'vr', ur
+      write(*, *) 'pl', pl, 'pr', pr
+      WRITE (*, *) 'cl', SQRT(gamma_vdw * (pl + avdw * rhol**2) / (rhol * (1 - bvdw * rhol)) - 2 * avdw * rhol)
+      WRITE (*, *) 'cR', SQRT(gamma_vdw * (pr + avdw * rhor**2) / (rhor * (1 - bvdw * rhor)) - 2 * avdw * rhor)
 
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)
@@ -149,8 +155,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = (press_anal(time, rr) + avdw*rho_anal(time,rr)**2)*(1-bvdw*rho_anal(time,rr))/(gamma_vdw-1.d0) &
-         - avdw*rho_anal(time,rr)**2 + rho_anal(time,rr)*(vit_anal(1,time,rr)**2)/2
+      vv = (press_anal(time, rr) + avdw * rho_anal(time, rr)**2) * (1 - bvdw * rho_anal(time, rr)) / (gamma_vdw - 1.d0) &
+           - avdw * rho_anal(time, rr)**2 + rho_anal(time, rr) * (vit_anal(1, time, rr)**2) / 2
    END FUNCTION E_anal
 
    FUNCTION mt_anal(comp, time, rr) RESULT(vv)
