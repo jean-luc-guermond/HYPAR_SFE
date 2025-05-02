@@ -106,7 +106,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dij_diag
-      REAL(KIND = 8) :: dt_max_loc, dt_max_glob
+      REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: k, comp, ierr
 
       !===compute dij
@@ -117,14 +117,13 @@ CONTAINS
 
 
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
-      dt_max_loc = MAXVAL(dij_diag)
-      write(*, *) dt_max_loc
-      CALL MPI_ALLREDUCE(dt_max_loc, dt_max_glob, 1, MPI_DOUBLE_PRECISION, MPI_MAX, PETSC_COMM_WORLD, ierr)
-      this%dt = dt_max_glob
+      dt_min_loc = MINVAL(dij_diag)
+
+      CALL MPI_ALLREDUCE(dt_min_loc, dt_max_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
+      this%dt = dt_min_glob
 
       this%time = this%time + this%dt
       write(*, *) this%time, this%dt
-      stop
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
