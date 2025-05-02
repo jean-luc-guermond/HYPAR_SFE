@@ -255,6 +255,13 @@ CONTAINS
          mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
       END DO
 
+      CALL MPI_ALLGATHER(mesh_loc%medge, 1, MPI_INTEGER, mesh_loc%domedge, 1, &
+           MPI_INTEGER, PETSC_COMM_WORLD, ierr)
+      mesh_loc%disedge(1) = 1
+      DO n = 1, nb_proc
+         mesh_loc%disedge(n + 1) = mesh_loc%disedge(n) + mesh_loc%domedge(n)
+      END DO
+
    END SUBROUTINE extract_mesh_1d
 
 END MODULE mesh_distribution_1d
