@@ -15,9 +15,9 @@ PROGRAM prog
 
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
 
-   euler%dt = 0.5d0 / euler%mesh%np
+   euler%dt = 0.2d0 / euler%mesh%np
 
-   DO n = 1, 10
+   DO n = 1, 100
       CALL euler%update(un)
    END DO
 
