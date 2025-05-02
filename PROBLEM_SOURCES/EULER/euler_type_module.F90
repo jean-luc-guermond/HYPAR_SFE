@@ -119,11 +119,11 @@ CONTAINS
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
       dt_min_loc = MINVAL(dij_diag)
 
-      CALL MPI_ALLREDUCE(dt_min_loc, dt_max_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
       this%dt = dt_min_glob
 
       this%time = this%time + this%dt
-      write(*, *) this%time, this%dt
+      IF (this%mesh%rank) write(*, *) this%time, this%dt
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
