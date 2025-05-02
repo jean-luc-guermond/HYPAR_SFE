@@ -107,11 +107,16 @@ CONTAINS
          DO k = 1, k_dim
             !=== set flux_k in x1vec
             CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
-            !=== compute sum_j cij_k * fluxj_k in x3vec
-            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x3vec, ierr)
-            !=== construct sum_k sum_j cij_k flux_k into x2vec
-            CALL VecAXPY(this%x2vec, 1.d0, this%x3vec, ierr)
+            !=== compute sum_j cij_k * fluxj_k in x2vec
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+            !=== construct sum_k sum_j cij_k flux_k into x3vec
+            CALL VecAXPY(this%x3vec, 1.d0, this%x2vec, ierr)
          END DO
+
+         !===compute dij
+         CALL this%compute_dij(un)
+         !=== add dij flux to x3vec in x2vec
+         CALL MatMultAdd(dij, this%x1vec, this%x3vec, this%x2vec, ierr)
 
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -150,7 +155,6 @@ CONTAINS
       LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
 
       CALL MatZeroEntries(this%matrices%dij, ierr)
-
 
       mesh => this%mesh
       LA => this%LA
@@ -217,10 +221,10 @@ CONTAINS
                idx = LA%loc_to_glob(1, i) - 1
                jdx = LA%loc_to_glob(1, j) - 1
 
-               CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, INSERT_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, INSERT_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, INSERT_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, INSERT_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, ADD_VALUES, ierr)
             END IF
 
          END DO
