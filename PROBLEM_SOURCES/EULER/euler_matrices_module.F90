@@ -134,16 +134,16 @@ CONTAINS
 
                norm = 0.d0
                DO k = 1, k_dim
-                  CALL MatGetValues(this%cij_loc(1, k), 1, i, 1, j, cij_c(:, k), ierr)
+                  CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
                   norm = norm + cij_c(1, k)**2
                END DO
                norm = SQRT(norm)
 
-               CALL MatSetValues(this%cij_norm_loc, 1, i, 1, j, norm, ADD_VALUES, ierr)
+               CALL MatSetValues(this%cij_norm_loc, 1, i - 1, 1, j - 1, norm, ADD_VALUES, ierr)
 
                DO k = 1, k_dim
                   nij_c = cij_c(1, k) / norm
-                  CALL MatSetValues(this%nij_loc(k), 1, i, 1, j, nij_c, ADD_VALUES, ierr)
+                  CALL MatSetValues(this%nij_loc(k), 1, i - 1, 1, j - 1, nij_c, ADD_VALUES, ierr)
                END DO
             END IF
          END DO

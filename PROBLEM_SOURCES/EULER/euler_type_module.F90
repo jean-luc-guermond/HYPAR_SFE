@@ -170,7 +170,7 @@ CONTAINS
                j_t = j
 
                DO k = 1, k_dim
-                  CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t, 1, j_t, nij_c(:, k), ierr)
+                  CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
                END DO
 
                rho(1) = un(i, 1)
@@ -186,14 +186,14 @@ CONTAINS
 
                CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
-               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t, 1, j_t, norm_c, ierr)
+               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
                IF (mesh%neigh(n, m) == 0) THEN !=== if on the boundary, switch i for j
 
                   DO k = 1, k_dim
-                     CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t, 1, i_t, nij_c(:, k), ierr)
+                     CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
                   END DO
 
                   u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
