@@ -1,4 +1,5 @@
 MODULE eos
+   USE vdw
    IMPLICIT NONE
    REAL(KIND = 8) :: gamma !FIX ME<===MUST DISAPEAR
 CONTAINS
@@ -6,7 +7,7 @@ CONTAINS
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      vv = rho * e * (gamma - 1)
+      vv = pressure_vdw(rho, e)
    END FUNCTION pressure
 END MODULE eos
   
