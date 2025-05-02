@@ -119,7 +119,7 @@ CONTAINS
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
       dt_max_loc = MAXVAL(dij_diag)
       write(*, *) dt_max_loc
-      CALL MPI_ALLREDUCE(dt_max_loc, dt_max_glob, 1, MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE(dt_max_loc, dt_max_glob, 1, MPI_DOUBLE_PRECISION, MPI_MAX, PETSC_COMM_WORLD, ierr)
       this%dt = dt_max_glob
 
       this%time = this%time + this%dt
