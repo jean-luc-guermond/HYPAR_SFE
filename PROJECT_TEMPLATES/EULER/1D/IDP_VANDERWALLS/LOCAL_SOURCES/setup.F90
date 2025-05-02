@@ -40,6 +40,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
+      REAL(KIND = 8) :: cl, cr, rho_plus
+      REAL(KIND = 8) :: in_state(2), in_data(3), out_state(4)
       SELECT CASE(VdW_test_case)
       CASE(0) !===Convergence test Section 6.1, SISC Vol. 44, No. 1, pp. A444-A470
          rho_plus = 0.35d0
@@ -114,6 +116,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
+      INTEGER :: n
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
          IF (rr(1, n)<x0) THEN
