@@ -106,8 +106,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = press_anal(rr) / (gamma - 1.d0) &
-           + rho_anal(rr) * (vit_anal(1, rr)**2) / 2
+      vv = press_anal(time, rr) / (gamma - 1.d0) &
+           + rho_anal(time, rr) * (vit_anal(1, time,  rr)**2) / 2
    END FUNCTION E_anal
 
    FUNCTION mt_anal(comp, time, rr) RESULT(vv)
@@ -116,7 +116,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-    vv = rho_anal(rr)*vit_anal(comp,rr)
+      vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
    END FUNCTION mt_anal
 
 
