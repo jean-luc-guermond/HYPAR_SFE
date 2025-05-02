@@ -1,6 +1,7 @@
 MODULE setup
    USE space_dim
    USE eos
+   USE vdw
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
    REAL(KIND = 8) :: x0, x1
@@ -182,32 +183,4 @@ CONTAINS
       END SELECT
    END FUNCTION sol_anal
 
-   SUBROUTINE initialize_vdw(rhop, in_state, in_data, out_state)
-      IMPLICIT NONE
-      REAL(KIND = 8) :: rhop
-      REAL(KIND = 8), DIMENSION(:) :: in_state, in_data, out_state
-      rho_plus = rhop
-      avdw = in_data(1)
-      bvdw = in_data(2)
-      gamma_vdw = in_data(3)
-      rhoL = in_state(1)
-      rhoR = in_state(2)
-      rho_minus = rhominus(rho_plus)
-      p_minus = p_pm(rho_minus)
-      p_plus = p_pm(rho_plus)
-      SL = (p_minus + avdw * rho_minus**2) * (1 / rho_minus - bvdw)**(gamma_vdw)
-      SR = (p_plus + avdw * rho_plus**2) * (1 / rho_plus - bvdw)**(gamma_vdw)
-      pL = SL * (rhoL / (1 - bvdw * rhoL))**gamma_vdw - avdw * rhoL**2
-      pR = SR * (rhoR / (1 - bvdw * rhoR))**gamma_vdw - avdw * rhoR**2
-      v_minus = -c(rho_minus, SL)
-      v_plus = -c(rho_plus, SR)
-      VL = vZ(v_minus, rho_minus, in_state(1), SL)
-      VR = vZ(v_plus, rho_plus, in_state(2), SR)
-      xL = vL + c(rhoL, SL)
-      xR = vR + c(rhoR, SR)
-      out_state(1) = vL
-      out_state(2) = vR
-      out_state(3) = pL
-      out_state(4) = pR
-   END SUBROUTINE initialize_vdw
 END MODULE setup
