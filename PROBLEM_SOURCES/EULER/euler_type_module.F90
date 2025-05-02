@@ -48,6 +48,7 @@ MODULE euler_type_MODULE
 
 CONTAINS
    SUBROUTINE init_euler(this, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
+      USE st_matrix
       CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
