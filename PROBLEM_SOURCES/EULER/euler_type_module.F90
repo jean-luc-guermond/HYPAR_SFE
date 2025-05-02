@@ -37,7 +37,7 @@ MODULE euler_type_MODULE
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
-      REAL(KIND = 8) :: dt, time, in_tol
+      REAL(KIND = 8) :: dt, time, in_tol, CFL
       LOGICAL :: no_iter
       INTEGER :: syst_dim = k_dim + 2
 
@@ -119,7 +119,7 @@ CONTAINS
       dt_min_loc = MINVAL(dij_diag) / 2.d0
 
       CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
-      this%dt = dt_min_glob
+      this%dt = this%CFL * dt_min_glob
       !this%dt = 2.d-1 / real(SUM(this%mesh%domnp))
       this%time = this%time + this%dt
       IF (this%mesh%rank == 0) write(*, *) this%time, this%dt, dt_min_glob
