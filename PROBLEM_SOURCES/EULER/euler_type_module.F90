@@ -85,6 +85,7 @@ CONTAINS
    SUBROUTINE update(this, un)
       USE petsc_tools
       USE euler_flux
+      USE st_matrix
       CLASS(euler_type) :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
