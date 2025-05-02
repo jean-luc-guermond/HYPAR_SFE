@@ -23,7 +23,7 @@ PROGRAM prog
 
    t0 = user_time()
    i = 0
-   DO WHILE (euler%time < 5. )
+   DO WHILE (euler%time < .1 )
       CALL euler%update(un)
       i = i + 1
    END DO
