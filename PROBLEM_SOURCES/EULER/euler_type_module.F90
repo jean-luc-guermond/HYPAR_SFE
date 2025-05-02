@@ -141,7 +141,6 @@ CONTAINS
       TYPE(mesh_type), POINTER :: mesh
       TYPE(petsc_csr_LA), POINTER :: LA
       REAL(KIND = 8), DIMENSION(:, :) :: un
-      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
@@ -152,12 +151,12 @@ CONTAINS
 
       CALL MatZeroEntries(this%matrices%dij, ierr)
 
-      nw = mesh%gauss%n_w
 
       mesh => this%mesh
       LA => this%LA
 
       virgin_edge = .true.
+      nw = mesh%gauss%n_w
 
       DO m = 1, mesh%me
          IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
