@@ -125,7 +125,6 @@ CONTAINS
 
       this%time = this%time + this%dt
       IF (this%mesh%rank == 0) write(*, *) this%time, this%dt
-      stop
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
