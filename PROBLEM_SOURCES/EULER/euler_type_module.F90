@@ -148,7 +148,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: pstar
-      LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
+      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
 
       CALL MatZeroEntries(this%matrices%dij, ierr)
 
@@ -196,7 +196,7 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
-               IF (mesh%side_edge(n, m) == 0) THEN !=== if on the boundary, switch i for j
+               IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
                   DO k = 1, k_dim
                      CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
