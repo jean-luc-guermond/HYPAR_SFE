@@ -5,7 +5,7 @@ MODULE setup
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
    REAL(KIND = 8) :: x0, x1
-   INTEGER :: VdW_test_case = 0
+   INTEGER :: VdW_test_case = 1
    REAL(KIND = 8) :: rhol, pl, ul
    REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
