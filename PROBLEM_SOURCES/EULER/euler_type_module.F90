@@ -10,9 +10,9 @@ MODULE euler_type_MODULE
    IMPLICIT NONE
 
    ABSTRACT INTERFACE
-      FUNCTION function_template_pressure(un) RESULT(vv)
-         REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
-         REAL(KIND = 8), DIMENSION(SIZE(un, 1)) :: vv
+      FUNCTION function_template_pressure(rho, ie) RESULT(vv)
+         REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
+         REAL(KIND = 8), DIMENSION(SIZE(rho, 1)) :: vv
       END FUNCTION function_template_pressure
    END INTERFACE
 
@@ -72,8 +72,8 @@ CONTAINS
       this%euler_bc%syst_dim = this%syst_dim
       this%time = time_init
 
-      in_tol = 1.d-2
-      no_iter = .true.
+      this%in_tol = 1.d-2
+      this%no_iter = .true.
 
       CALL this%ERK%init(erk_sv)
       CALL this%euler_bc%construct_euler_bc(this%mesh)
@@ -145,7 +145,7 @@ CONTAINS
       INTEGER, DIMENSION(1) :: i_t, j_t, norm_c, dij_c, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-      REAL(KIND = 8) :: p_star
+      REAL(KIND = 8) :: pstar
 
       CALL MatZeroEntries(this%matrices%dij, ierr)
 
@@ -177,12 +177,12 @@ CONTAINS
                u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
                u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
-               ie(1) = un(i, k_dim + 2) / rhol - 0.5d0 * u(1) * u(1)
-               ie(2) = un(j, k_dim + 2) / rhor - 0.5d0 * u(2) * u(2)
+               ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
+               ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
 
                p = this%pressure(rho, ie)
 
-               CALL lambda_arbitrary_eos(rho, u, ie, p, in_tol, no_iter, lambda_max, pstar)
+               CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t, 1, j_t, norm_c, ierr)
 
