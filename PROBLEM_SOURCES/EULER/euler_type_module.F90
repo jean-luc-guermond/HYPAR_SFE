@@ -220,7 +220,8 @@ CONTAINS
 
                CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, INSERT_VALUES, ierr)
                CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, INSERT_VALUES, ierr)
-
+               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, INSERT_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, INSERT_VALUES, ierr)
             END IF
 
          END DO
