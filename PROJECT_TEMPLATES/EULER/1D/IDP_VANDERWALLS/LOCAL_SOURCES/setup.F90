@@ -5,7 +5,7 @@ MODULE setup
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
    REAL(KIND = 8) :: x0, x1
-   INTEGER :: VdW_test_case = 1
+   INTEGER :: VdW_test_case = 0
    REAL(KIND = 8) :: rhol, pl, ul
    REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
@@ -149,8 +149,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = press_anal(time, rr) / (gamma - 1.d0) &
-           + rho_anal(time, rr) * (vit_anal(1, time, rr)**2) / 2
+      vv = (press_anal(time, rr) + avdw*rho_anal(time,rr)**2)*(1-bvdw*rho_anal(time,rr))/(gamma_vdw-1.d0) &
+         - avdw*rho_anal(time,rr)**2 + rho_anal(time,rr)*(vit_anal(1,time,rr)**2)/2
    END FUNCTION E_anal
 
    FUNCTION mt_anal(comp, time, rr) RESULT(vv)
