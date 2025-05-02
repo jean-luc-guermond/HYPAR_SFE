@@ -6,7 +6,6 @@ MODULE setup
    PRIVATE
    REAL(KIND = 8) :: x0, x1
    INTEGER :: VdW_test_case = 0
-   REAL(KIND = 8) :: avdw, bvdw, gamma_vdw
    REAL(KIND = 8) :: rhol, pl, ul
    REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
