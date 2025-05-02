@@ -49,7 +49,7 @@ CONTAINS
       END DO
       CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc, ierr)
 
-      CALL construct_loc_nij(mesh)
+      CALL this%construct_loc_nij(mesh)
 
    END SUBROUTINE construct_euler_matrices
 
@@ -115,7 +115,7 @@ CONTAINS
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
-      REAL(KIND = 8), DIMENSION(1) :: norm, nij_c
+      REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j, ierr
       INTEGER :: k, m, n, ni, nj, nw
 
@@ -134,7 +134,7 @@ CONTAINS
 
                norm = 0.d0
                DO k = 1, k_dim
-                  CALL MatGetValues(this%cij_loc(k), 1, i, 1, j, cij_c(:, k), ierr)
+                  CALL MatGetValues(this%cij_loc(1, k), 1, i, 1, j, cij_c(:, k), ierr)
                   norm = norm + cij_c(1, k)**2
                END DO
                norm = SQRT(norm)
