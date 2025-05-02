@@ -137,7 +137,7 @@ CONTAINS
    FUNCTION jce_loc(this, n, m)
       CLASS(mesh_type) :: this
       INTEGER :: n, m, out
-      out = this%jce(n, m) - this%dispedge(this%rank) + 1
+      out = this%jce(n, m) - this%disedge(this%rank) + 1
 
       RETURN(out)
 
@@ -159,7 +159,7 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER :: e
       LOGICAL :: out
-      out = this%disp(this%rank + 1) <= e .AND. e < this%disp(mesh%rank + 2)
+      out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(mesh%rank + 2)
 
       RETURN(out)
 
