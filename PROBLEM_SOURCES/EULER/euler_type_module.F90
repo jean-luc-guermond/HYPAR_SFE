@@ -145,6 +145,7 @@ CONTAINS
          rk = rk * this%dt / this%matrices%lumped_mass
 
          this%time = this%time + this%dt
+         write(*,*) this%time, this%dt
 
          un(:, comp) = un(:, comp) + rk
 
