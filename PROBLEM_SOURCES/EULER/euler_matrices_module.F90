@@ -118,7 +118,9 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j
       LOGICAL, DIMENSION(mesh%medge) :: virgin_edge = .true.
-      INTEGER :: k, m, n, ni, nj, ierr
+      INTEGER :: k, m, n, ni, nj, ierr, nw
+
+      nw =  mesh%gauss%n_w
 
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
