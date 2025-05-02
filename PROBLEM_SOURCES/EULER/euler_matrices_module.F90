@@ -45,11 +45,11 @@ CONTAINS
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
-         CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k))
+         CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k), ierr)
       END DO
-      CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc)
+      CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc, ierr)
 
-      CALL construct_loc_nij(mesh, this%nij_loc, this%cij_norm_loc)
+      CALL construct_loc_nij(mesh)
 
    END SUBROUTINE construct_euler_matrices
 
@@ -98,7 +98,7 @@ CONTAINS
             DO ni = 1, mesh%gauss%n_w
                DO nj = 1, mesh%gauss%n_w
                   l = l + 1
-                     vv_rowise(l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
+                  vv_rowise(l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
                ENDDO
             ENDDO
             CALL MatSetValues(cij(k), mesh%gauss%n_w, idx, mesh%gauss%n_w, idx, vv_rowise, ADD_VALUES, ierr)
@@ -116,7 +116,8 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
       REAL(KIND = 8), DIMENSION(1) :: norm, nij_c
-      INTEGER, DIMENSION(1) :: i, j
+      INTEGER, DIMENSION(1) :: i, j, ierr
+      INTEGER :: k, m, n, ni, nj, nw
 
       nw = mesh%gauss%n_w
 
@@ -149,8 +150,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE construct_loc_nij
-
-
 
 
 END MODULE euler_matrices_module
