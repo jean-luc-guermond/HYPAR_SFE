@@ -110,7 +110,7 @@ CONTAINS
             !=== compute sum_j cij_k * fluxj_k in x2vec
             CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
             !=== construct sum_k sum_j cij_k flux_k into x3vec
-            CALL VecAXPY(this%x3vec, -1.d0, this%x3vec, ierr)
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
          END DO
 
          !=== set un(comp) in x1vec
