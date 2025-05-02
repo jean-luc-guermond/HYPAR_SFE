@@ -24,13 +24,14 @@ CONTAINS
       INTEGER, OPTIONAL :: opt_fe
       INTEGER, DIMENSION(1) :: list_dom = 1
       INTEGER, DIMENSION(0) :: list_inter
-      INTEGER :: n, nb_proc, ierr
+      INTEGER :: n, nb_proc, ierr, rank
       LOGICAL :: edge_stab, per_bool
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
       CALL read_mesh_data('data')
       CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
+      CALL MPI_Comm_rank(communicator, rank, ierr)
 
       IF (PRESENT(opt_per)) THEN
          per_bool = opt_per
@@ -48,6 +49,10 @@ CONTAINS
          edge_stab = opt_edge_stab
       END IF
 
+
+      !=== FIXME mesh%rank to be tranfered throught refinement_iso_grid_distributed, create_iso_grid_distributed, copy_mesh
+      mesh_glob%rank = -1
+
       SELECT CASE(k_dim)
       CASE(2)
          IF (per_bool) THEN
@@ -55,9 +60,9 @@ CONTAINS
             CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
             write(*, *) 'load done'
-            write(*,*) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
+            write(*, *) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
             CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
-            write(*,*) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
+            write(*, *) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
             write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
 
@@ -77,16 +82,17 @@ CONTAINS
             !      END IF
 
             !===create finite elements polynome on mesh
-            write(*,*) 'iso start'
+            write(*, *) 'iso start'
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
-            write(*,*) 'iso done'
+            write(*, *) 'iso done'
             CALL free_mesh(mesh)
             CALL copy_mesh(mesh_r, mesh)
             CALL free_mesh(mesh_r)
 
+            mesh%rank = rank  !=== petsc convention
             !===gauss points on mesh
             CALL create_gauss_points_2d(mesh, mesh_data%type_fe)
-            write(*,*) 'gauss points done'
+            write(*, *) 'gauss points done'
 
          END IF
 
@@ -96,6 +102,7 @@ CONTAINS
          CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_per)
          CALL free_mesh(mesh_glob)
          CALL GAUSS_POINT_1d(mesh)
+         mesh%rank = rank
 
       CASE DEFAULT
          write(*, *) ' BUG in construct_mesh, k_dim not correct'

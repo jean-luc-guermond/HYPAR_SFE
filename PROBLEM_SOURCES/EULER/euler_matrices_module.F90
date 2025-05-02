@@ -8,20 +8,20 @@ MODULE euler_matrices_module
 
    TYPE euler_matrices_type
       Mat :: mass, dij
-      Mat, DIMENSION(k_dim) :: cij
+      Mat, DIMENSION(k_dim) :: cij, nij_loc
       Mat, DIMENSION(1, k_dim) :: cij_loc
-      Mat, DIMENSION(1) :: test
+      Mat :: cij_norm_loc
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
-      PROCEDURE, PUBLIC :: compute_dij
+      PROCEDURE, PRIVATE :: construct_loc_nij
    END TYPE euler_matrices_type
 
 CONTAINS
 
    SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
       USE fem_M
-
+      IMPLICIT NONE
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
@@ -45,12 +45,17 @@ CONTAINS
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
+         CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k))
       END DO
+      CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%norm_nij_loc)
+
+      CALL construct_loc_nij(mesh, this%nij_loc, this%cij_norm_loc)
 
    END SUBROUTINE construct_euler_matrices
 
    SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
       USE st_matrix
+      IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       Mat, INTENT(IN) :: mass
@@ -75,13 +80,13 @@ CONTAINS
    END SUBROUTINE construct_lumped_mass
 
 
-   SUBROUTINE construct_cij(mesh, LA, cij)
+   SUBROUTINE construct_cij(mesh, LA, cij, nij)
       USE def_type_mesh
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       Mat, DIMENSION(:) :: cij
-      REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
+      REAL(KIND = 8), DIMENSION(k_dim, mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise, normvv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
 
@@ -93,7 +98,9 @@ CONTAINS
             DO ni = 1, mesh%gauss%n_w
                DO nj = 1, mesh%gauss%n_w
                   l = l + 1
-                  vv_rowise(l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
+                  DO k = 1, k_dim
+                     vv_rowise(k, l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
+                  END DO
                ENDDO
             ENDDO
             CALL MatSetValues(cij(k), mesh%gauss%n_w, idx, mesh%gauss%n_w, idx, vv_rowise, ADD_VALUES, ierr)
@@ -101,18 +108,17 @@ CONTAINS
          CALL MatAssemblyBegin(cij(k), MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (cij(k), MAT_FINAL_ASSEMBLY, ierr)
       END DO
+
    END SUBROUTINE construct_cij
 
-   SUBROUTINE compute_dij(this, mesh, LA)
-      USE space_dim
-      USE petsc
-      USE my_util
+   SUBROUTINE construct_loc_nij(this, mesh)
       USE def_type_mesh
+      IMPLICIT NONE
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
-      TYPE(petsc_csr_LA), INTENT(IN) :: LA
-      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-      INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
+      REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
+      REAL(KIND = 8), DIMENSION(1) :: norm, nij_c
+      INTEGER, DIMENSION(1) :: i, j
 
       nw = mesh%gauss%n_w
 
@@ -120,25 +126,33 @@ CONTAINS
          IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
 
          DO n = 1, nw
-            IF (mesh%neigh(n, m) < m .AND. mesh%neigh(n, m) > 0) CYCLE !==cycle if neighbour is a cell already done
+            IF (0 < mesh%neigh(n, m) .AND. mesh%neigh(n, m) < m) CYCLE
+            IF (mesh%disp(mesh%rank + 1) <= mesh%jce(n, m) .AND. mesh%jce(n, m) < mesh%disp(mesh%rank + 2)) THEN
+               ni = MOD(n, nw) + 1
+               nj = MOD(n + 1, nw) + 1
+               i = mesh%jj(ni, m)
+               j = mesh%jj(nj, m)
 
-            ni = MOD(n, nw) + 1
-            nj = MOD(n + 1, nw) + 1
-            i = mesh%jj(ni, m)
-            j = mesh%jj(nj, m)
+               norm = 0.d0
+               DO k = 1, k_dim
+                  CALL MatGetValues(this%cij_loc(k), 1, i, 1, j, cij_c(:, k), ierr)
+                  norm = norm + cij_c(1, k)**2
+               END DO
+               norm = SQRT(norm)
 
-            k = MIN(i, j)
-            j = MAX(i, j)
-            i = k
+               CALL MatSetValues(this%cij_norm_loc, 1, i, 1, j, norm, ADD_VALUES, ierr)
 
-            IF (i > mesh%dom_np) CYCLE !===Verify that at least one point belong to processor
-
-
-
+               DO k = 1, k_dim
+                  nij_c = cij_c(1, k) / norm
+                  CALL MatSetValues(this%nij_loc(k), 1, i, 1, j, nij_c, ADD_VALUES, ierr)
+               END DO
+            END IF
          END DO
-
       END DO
 
-   END SUBROUTINE compute_dij
+   END SUBROUTINE construct_loc_nij
+
+
+
 
 END MODULE euler_matrices_module

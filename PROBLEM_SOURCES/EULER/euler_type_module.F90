@@ -37,13 +37,16 @@ MODULE euler_type_MODULE
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
-      REAL(KIND = 8) :: dt, time
+      REAL(KIND = 8) :: dt, time, in_tol
+      LOGICAL :: no_iter
       INTEGER :: syst_dim = k_dim + 2
 
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost
    CONTAINS
       PROCEDURE, PUBLIC :: init => init_euler
       PROCEDURE, PUBLIC :: update
+      PROCEDURE, PRIVATE :: compute_dij
+
    END TYPE euler_type
 
 CONTAINS
@@ -68,6 +71,10 @@ CONTAINS
       this%impose_bc => impose_bc
       this%euler_bc%syst_dim = this%syst_dim
       this%time = time_init
+
+      in_tol = 1.d-2
+      no_iter = .true.
+
       CALL this%ERK%init(erk_sv)
       CALL this%euler_bc%construct_euler_bc(this%mesh)
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
@@ -121,6 +128,101 @@ CONTAINS
       END DO
 
    END SUBROUTINE update
+
+
+   SUBROUTINE compute_dij(this, un)
+      USE space_dim
+      USE petsc
+      USE my_util
+      USE def_type_mesh
+      IMPLICIT NONE
+      CLASS(euler_type) :: this
+      TYPE(mesh_type), POINTER :: mesh
+      TYPE(petsc_csr_LA), POINTER :: LA
+      REAL(KIND = 8), DIMENSION(:, :) :: un
+      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
+      INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
+      INTEGER, DIMENSION(1) :: i_t, j_t, norm_c, dij_c, idx
+      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
+      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
+      REAL(KIND = 8) :: p_star
+
+      CALL MatZeroEntries(this%matrices%dij, ierr)
+
+      nw = mesh%gauss%n_w
+
+      mesh => this%mesh
+      LA => this%LA
+
+      DO m = 1, mesh%me
+         IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
+
+         DO n = 1, nw
+            IF (0 < mesh%neigh(n, m) .AND. mesh%neigh(n, m) < m) CYCLE
+            IF (mesh%disp(mesh%rank + 1) <= mesh%jce(n, m) .AND. mesh%jce(n, m) < mesh%disp(mesh%rank + 2)) THEN
+               ni = MOD(n, nw) + 1
+               nj = MOD(n + 1, nw) + 1
+               i = mesh%jj(ni, m)
+               j = mesh%jj(nj, m)
+               i_t = i
+               j_t = j
+
+               DO k = 1, k_dim
+                  CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t, 1, j_t, nij_c(:, k), ierr)
+               END DO
+
+               rho(1) = un(i, 1)
+               rho(2) = un(j, 1)
+
+               u(1) = SUM(un(i, 2:1 + k_dim) * nij(1, :)) / rhol
+               u(2) = SUM(un(j, 2:1 + k_dim) * nij(1, :)) / rhor
+
+               ie(1) = un(i, k_dim + 2) / rhol - 0.5d0 * ul * ul
+               ie(2) = un(j, k_dim + 2) / rhor - 0.5d0 * ur * ur
+
+               p = this%pressure(rho, ie)
+
+               CALL lambda_arbitrary_eos(rho, u, ie, p, in_tol, no_iter, lambda_max, pstar)
+
+               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t, 1, j_t, norm_c, ierr)
+
+               dij_c = MAXVAL(lambda_max) * norm_c
+
+               IF (mesh%neigh(n, m) == 0) !=== if on the boundary, switch i for j
+
+                  DO k = 1, k_dim
+                     CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t, 1, i_t, nij_c(:, k), ierr)
+                  END DO
+
+                  u(1) = SUM(un(i, 2:1 + k_dim) * nij(1, :)) / rhol
+                  u(2) = SUM(un(j, 2:1 + k_dim) * nij(1, :)) / rhor
+
+                  rho = (/rho(2), rho(1)/)
+                  ie = (/ie(2), ie(1)/)
+                  p = (/p(2), p(1)/)
+
+                  CALL lambda_arbitrary_eos(rho, u, ie, p, in_tol, no_iter, lambda_max, pstar)
+
+                  dij_c = MAX(dij_c, MAXVAL(lambda_max) * norm_c)
+
+               END IF
+
+               idx = LA%loc_to_glob(1, i) - 1
+               jdx = LA%loc_to_glob(1, j) - 1
+
+               CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, INSERT_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, INSERT_VALUES, ierr)
+
+            END IF
+
+         END DO
+
+      END DO
+
+      CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
+
+   END SUBROUTINE compute_dij
 
 
 END MODULE euler_type_MODULE

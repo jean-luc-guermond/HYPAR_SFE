@@ -90,7 +90,7 @@ MODULE def_type_mesh
       ! dom_me and dom_mes are obsolete structures.
       ! dom_np is the number of nodes owned by the processor: dom_np .LE. mesh%np
       !==End parallel structure
-      INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int
+      INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int, rank
       LOGICAL :: edge_stab ! edge stab, yes/no, (JLG April 2009)
       TYPE(gauss_type) :: gauss
       TYPE(periodic_type) :: periodic
