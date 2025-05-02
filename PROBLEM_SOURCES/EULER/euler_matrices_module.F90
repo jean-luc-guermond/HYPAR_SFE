@@ -151,6 +151,14 @@ CONTAINS
          END DO
       END DO
 
+      DO k = 1, k_dim
+         CALL MatAssemblyBegin(this%nij_loc(k), MAT_FINAL_ASSEMBLY, ierr)
+         CALL MatAssemblyEnd  (this%nij_loc(k), MAT_FINAL_ASSEMBLY, ierr)
+      END DO
+
+      CALL MatAssemblyBegin(this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyEnd  (this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
+
    END SUBROUTINE construct_loc_nij
 
 
