@@ -122,9 +122,10 @@ CONTAINS
 
       CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
       this%dt = dt_min_glob
+            IF (this%mesh%rank == 0) write(*, *) this%time, this%dt
+
       this%dt = 2.d-1 / real(SUM(this%mesh%domnp))
       this%time = this%time + this%dt
-      IF (this%mesh%rank == 0) write(*, *) this%time, this%dt
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
