@@ -80,7 +80,7 @@ CONTAINS
    END SUBROUTINE construct_lumped_mass
 
 
-   SUBROUTINE construct_cij(mesh, LA, cij, nij)
+   SUBROUTINE construct_cij(mesh, LA, cij)
       USE def_type_mesh
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
