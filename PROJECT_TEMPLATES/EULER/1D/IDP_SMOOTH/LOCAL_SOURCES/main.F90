@@ -17,7 +17,7 @@ PROGRAM prog
 
    euler%dt = 0.5d0 / euler%mesh%np
 
-   DO n = 1, 1
+   DO n = 1, 10
       CALL euler%update(un)
    END DO
 
