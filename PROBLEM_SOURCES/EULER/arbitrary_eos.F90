@@ -4,7 +4,7 @@ MODULE arbitrary_eos_lambda_module
 
    PUBLIC :: lambda_arbitrary_eos, init_lambda_arbitrary_eos !===Main function
    PUBLIC :: rhostar, ustar, phi  !===Optional functions. Can be removed
-   REAL(KIND = 8), PUBLIC :: b_covolume = 0.d0
+   REAL(KIND = 8), PUBLIC :: b_covolume = 1.d0
    PRIVATE
    INTEGER, PARAMETER :: NUMBER = KIND(1.d0)
    REAL(KIND = NUMBER), PARAMETER :: zero = 0
