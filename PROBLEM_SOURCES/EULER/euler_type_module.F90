@@ -100,10 +100,16 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       INTEGER :: k, comp, ierr
 
+      !TEST
+ !     CALL VecSet(this%x1vec, 1.d0, ierr)
+ !     CALL MatMult(this%matrices%dij, )
+
+      !test
+
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
 
-         CALL VecSet(this%x2vec, 0.d0, ierr)
+         CALL VecSet(this%x3vec, 0.d0, ierr)
          DO k = 1, k_dim
             !=== set flux_k in x1vec
             CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
