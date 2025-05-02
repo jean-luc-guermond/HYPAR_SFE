@@ -148,11 +148,11 @@ CONTAINS
    END FUNCTION jj_glob
 
 
-   FUNCTION attrib_e(this, e) RESULT(out)
+   FUNCTION attr_e(this, e) RESULT(out)
       CLASS(mesh_type) :: this
       INTEGER :: e
       LOGICAL :: out
-      out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(mesh%rank + 2)
-   END FUNCTION attrib_e
+      out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(this%rank + 2)
+   END FUNCTION attr_e
 
 END MODULE def_type_mesh
