@@ -89,7 +89,7 @@ CONTAINS
 
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
-      CALL VecCreateSeq(this%communicator, this%mesh%dom_np, this%vec_loc, ierr)
+      CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
       ALLOCATE(this%tab(this%mesh%dom_np))
       DO n = 1, this%mesh%dom_np
          this%tab(n) = n - 1
