@@ -215,7 +215,7 @@ CONTAINS
                p = this%pressure(rho, ie)
 
                CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
-
+write(*,*) b_covolume
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                dij_c = MAXVAL(lambda_max) * norm_c
