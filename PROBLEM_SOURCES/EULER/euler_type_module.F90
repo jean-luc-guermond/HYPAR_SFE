@@ -129,7 +129,7 @@ CONTAINS
 
          this%time = this%time + this%dt
 
-         un(:, comp) = un(:, comp) + rk
+         un(:, comp) = un(:, comp) - rk
 
          CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
       END DO
