@@ -40,7 +40,6 @@ CONTAINS
       END IF
 
       mesh_loc%mi = 0
-      mesh_loc%medge = 0
       mesh_loc%medges = 0
       mesh_loc%mes_extra = 0
       mesh_loc%mes_int = 0
@@ -57,7 +56,7 @@ CONTAINS
          END IF
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start + 1
-
+         mesh_loc%medge = mesh_loc%me
          mesh_loc%mextra = 1
       ELSE
          np_start = (rank - 1) * (mesh_glob%np / nb_procs) + 1
@@ -67,7 +66,7 @@ CONTAINS
          me_start = np_start - 1
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start + 1
-
+         mesh_loc%medge = mesh_loc%me
          mesh_loc%mextra = 0
       END IF
 
@@ -113,7 +112,7 @@ CONTAINS
       ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh_loc%mes), mesh_loc%iis(0, 0))
       ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
            mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
-      ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(0, 0))
+      ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(1, mesh_loc%medge))
       ALLOCATE(mesh_loc%jees(0), mesh_loc%jecs(0))
       ALLOCATE(mesh_loc%jji(0, 0, 0), mesh_loc%jjsi(0, 0), mesh_loc%j_s(0))
       ALLOCATE(mesh_loc%rr(1, mesh_loc%np), mesh_loc%rrs_extra(1, 2, 0))
@@ -129,8 +128,13 @@ CONTAINS
       DO n = 1, mesh_loc%dom_np
          mesh_loc%loc_to_glob(n) = np_start - 1 + n
       END DO
+      DO n = 1, mesh_loc%medge
+         mesh_loc%jce(1, n) = me_start - 1 + n
+      END DO
+
       IF (per_bool) THEN
          mesh_loc%loc_to_glob = mesh_loc%loc_to_glob - 1
+         mesh_loc%jce = mesh_loc%jce - 1
       END IF
 
       IF (rank == 1) THEN
