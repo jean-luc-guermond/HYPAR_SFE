@@ -40,7 +40,7 @@ CONTAINS
   FUNCTION pressure_vdw(rho, e) RESULT(vv)
     IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:),       INTENT(IN) :: rho, e
-    REAL(KIND=8), DIMENSION(SIZE(un,2))            :: vv
+    REAL(KIND=8), DIMENSION(SIZE(rho))            :: vv
     vv = (gamma_vdw-1.d0)*rho*e &
          + avdw*rho**2/(1-bvdw*rho) - avdw*rho**2
   END FUNCTION pressure_vdw
