@@ -89,9 +89,9 @@ CONTAINS
          pr = 2
       END SELECT
 
-      un(1, :) = rho_anal(time, rr)
-      un(2, :) = mt_anal(1, time, rr)
-      un(3, :) = E_anal(time, rr)
+      un(:, 1) = rho_anal(time, rr)
+      un(:, 2) = mt_anal(1, time, rr)
+      un(:, 3) = E_anal(time, rr)
    END SUBROUTINE init
 
    FUNCTION rho_anal(time, rr) RESULT(vv)
