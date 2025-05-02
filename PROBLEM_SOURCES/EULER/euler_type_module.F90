@@ -165,7 +165,7 @@ CONTAINS
       DO m = 1, mesh%me
          IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
 
-         DO n = 1, nw
+         DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
                edge = mesh%jce_loc(n, m)
                IF (.not. virgin_edge(edge)) CYCLE
