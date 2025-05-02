@@ -117,11 +117,11 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
       REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j
-      LOGICAL, DIMENSION(mesh%medge) :: virgin_edge = .true.
+      LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
       INTEGER :: k, m, n, ni, nj, ierr, nw
 
-      nw =  mesh%gauss%n_w
-
+      nw = mesh%gauss%n_w
+      virgin_edge = .true.
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
