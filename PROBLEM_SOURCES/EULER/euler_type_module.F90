@@ -142,7 +142,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :) :: un
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
-      INTEGER, DIMENSION(1) :: i_t, j_t, norm_c, dij_c, idx
+      INTEGER, DIMENSION(1) :: i_t, j_t, norm_c, dij_c, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: p_star
@@ -174,8 +174,8 @@ CONTAINS
                rho(1) = un(i, 1)
                rho(2) = un(j, 1)
 
-               u(1) = SUM(un(i, 2:1 + k_dim) * nij(1, :)) / rhol
-               u(2) = SUM(un(j, 2:1 + k_dim) * nij(1, :)) / rhor
+               u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rhol
+               u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rhor
 
                ie(1) = un(i, k_dim + 2) / rhol - 0.5d0 * ul * ul
                ie(2) = un(j, k_dim + 2) / rhor - 0.5d0 * ur * ur
@@ -188,20 +188,20 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
-               IF (mesh%neigh(n, m) == 0) !=== if on the boundary, switch i for j
+               IF (mesh%neigh(n, m) == 0) THEN !=== if on the boundary, switch i for j
 
                   DO k = 1, k_dim
                      CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t, 1, i_t, nij_c(:, k), ierr)
                   END DO
 
-                  u(1) = SUM(un(i, 2:1 + k_dim) * nij(1, :)) / rhol
-                  u(2) = SUM(un(j, 2:1 + k_dim) * nij(1, :)) / rhor
+                  u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rhol
+                  u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rhor
 
                   rho = (/rho(2), rho(1)/)
                   ie = (/ie(2), ie(1)/)
                   p = (/p(2), p(1)/)
 
-                  CALL lambda_arbitrary_eos(rho, u, ie, p, in_tol, no_iter, lambda_max, pstar)
+                  CALL lambda_arbitrary_eos(rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
                   dij_c = MAX(dij_c, MAXVAL(lambda_max) * norm_c)
 
