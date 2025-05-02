@@ -20,7 +20,7 @@ CONTAINS
        DO k = 1, k_dim
           vv(:,k) = un(:,k+1)*u
        END DO
-       vv(:,comp) = vv(:,comp) !+ pressure(un)
+       vv(:,comp - 1) = vv(:,comp-1) + pressure(un)
     CASE(k_dim+2)
        H = pressure(un) + un(:,comp)
        DO k = 1, k_dim
