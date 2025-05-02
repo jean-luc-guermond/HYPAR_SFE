@@ -27,7 +27,7 @@ PROGRAM prog
       CALL euler%update(un)
       i = i + 1
    END DO
-   write(*,*)  'th', (user_time() - t0)/SUM(euler%mesh%domnp)/i
+   write(*,*)  'th', i/(user_time() - t0)/SUM(euler%mesh%domnp)
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
    CALL plot_1d(euler%mesh%rr(1, :), un(:,2), 'mt' // trim(adjustl(car)) // '.plt')
 END PROGRAM prog
