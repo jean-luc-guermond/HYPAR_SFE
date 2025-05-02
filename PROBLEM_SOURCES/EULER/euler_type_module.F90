@@ -135,6 +135,7 @@ CONTAINS
       USE petsc
       USE my_util
       USE def_type_mesh
+      USE arbitrary_eos_lambda_module
       IMPLICIT NONE
       CLASS(euler_type) :: this
       TYPE(mesh_type), POINTER :: mesh
