@@ -2,10 +2,12 @@ PROGRAM prog
 #include "petsc/finclude/petsc.h"
    USE start_setup_MODULE
    USE sub_plot
+   USE my_util
    IMPLICIT NONE
    REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
    CHARACTER(5) :: car
-   INTEGER :: n
+   REAL(KIND = 8) :: t0
+   INTEGER :: n, i
 
    CALL start_setup
 
@@ -19,10 +21,13 @@ PROGRAM prog
 
    euler%cfl = 0.5
 
+   t0 = user_time()
+   i = 0
    DO WHILE (euler%time < 5. )
       CALL euler%update(un)
+      i = i + 1
    END DO
-
+   write(*,*)  'th', (user_time() - t0)/SUM(euler%mesh%domnp)/i
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
    CALL plot_1d(euler%mesh%rr(1, :), un(:,2), 'mt' // trim(adjustl(car)) // '.plt')
 END PROGRAM prog
