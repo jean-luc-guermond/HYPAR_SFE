@@ -13,13 +13,13 @@ PROGRAM prog
    ALLOCATE(un(mesh%np, 3))
    CALL init(un, 0.d0, euler%mesh%rr)
 
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), un(:, 1), 'initrho' // trim(adjustl(car)) // '.plt')
 
    euler%dt = 2.d-2 / real(SUM(euler%mesh%domnp))
 
-   DO n = 1, int(0.25/euler%dt)
+   DO WHILE (euler%time < 0.25 )
       CALL euler%update(un)
    END DO
 
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), un(:, 1), 'rho' // trim(adjustl(car)) // '.plt')
 END PROGRAM prog
