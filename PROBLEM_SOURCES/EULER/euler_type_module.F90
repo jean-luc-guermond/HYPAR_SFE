@@ -89,10 +89,10 @@ CONTAINS
 
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
-      CALL VecCreateSeq(this%communicator, this%mesh%dom_np, this%vec_loc)
+      CALL VecCreateSeq(this%communicator, this%mesh%dom_np, this%vec_loc, ierr)
       ALLOCATE(this%tab(this%mesh%dom_np))
       DO n = 1, this%mesh%dom_np
-         this5tab(n) = n - 1
+         this%tab(n) = n - 1
       END DO
 
    END SUBROUTINE init_euler
@@ -110,7 +110,7 @@ CONTAINS
       INTEGER :: k, comp, ierr
 
       CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
-      CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag)
+      CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / dij_diag
 
       dt_max_loc = MAXVAL(dij_diag)
