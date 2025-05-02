@@ -116,7 +116,7 @@ CONTAINS
       CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
       write(*, *) dij_diag
 
-      dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / dij_diag
+      dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
       dt_max_loc = MAXVAL(dij_diag)
       CALL MPI_ALLREDUCE(dt_max_loc, dt_max_glob, 1, MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
       this%dt = dt_max_glob
