@@ -90,9 +90,9 @@ CONTAINS
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
       CALL VecCreateSeq(this%communicator, this%mesh%dom_np, this%vec_loc)
-      ALLOCATE(tab(this%mesh%dom_np))
+      ALLOCATE(this%tab(this%mesh%dom_np))
       DO n = 1, this%mesh%dom_np
-         tab(n) = n - 1
+         this5tab(n) = n - 1
       END DO
 
    END SUBROUTINE init_euler
