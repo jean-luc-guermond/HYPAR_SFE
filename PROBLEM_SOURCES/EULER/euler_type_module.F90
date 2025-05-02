@@ -117,6 +117,9 @@ CONTAINS
       CALL MPI_ALLREDUCE(dt_max_loc, dt_max_glob, 1, MPI_INTEGER, MPI_MAX, PETSC_COMM_WORLD, ierr)
       this%dt = dt_max_glob
 
+      this%time = this%time + this%dt
+      write(*, *) this%time, this%dt
+
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
 
@@ -143,9 +146,6 @@ CONTAINS
          CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
          rk = rk * this%dt / this%matrices%lumped_mass
-
-         this%time = this%time + this%dt
-         write(*,*) this%time, this%dt
 
          un(:, comp) = un(:, comp) + rk
 
