@@ -122,7 +122,7 @@ CONTAINS
       this%dt = this%CFL * dt_min_glob
       !this%dt = 2.d-1 / real(SUM(this%mesh%domnp))
       this%time = this%time + this%dt
-      IF (this%mesh%rank == 0) write(*, *) this%time, this%dt, dt_min_glob
+      !IF (this%mesh%rank == 0) write(*, *) this%time, this%dt, dt_min_glob
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
