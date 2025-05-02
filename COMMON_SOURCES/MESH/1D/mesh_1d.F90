@@ -70,7 +70,7 @@ CONTAINS
       mesh%isolated_interfaces(2, 1) = 2
 
       mesh%mi = 0
-      mesh%medge = 0
+      mesh%medge = mesh%me
       mesh%medges = 0
       mesh%mes_extra = 0
       mesh%mes_int = 0
@@ -82,7 +82,7 @@ CONTAINS
       ALLOCATE(mesh%iis(0, 0))
       ALLOCATE(mesh%jj_extra(2, mesh%mextra), mesh%jce_extra(0, mesh%medge), &
            mesh%jjs_extra(0, mesh%mes_extra))
-      ALLOCATE(mesh%jjs_int(0, 0), mesh%jcc_extra(mesh%mextra), mesh%jce(0, 0))
+      ALLOCATE(mesh%jjs_int(0, 0), mesh%jcc_extra(mesh%mextra))
       ALLOCATE(mesh%jees(0), mesh%jecs(0))
       ALLOCATE(mesh%jji(0, 0, 0), mesh%jjsi(0, 0), mesh%j_s(0))
       ALLOCATE(mesh%rrs_extra(1, 2, 0))
@@ -92,6 +92,10 @@ CONTAINS
       ALLOCATE(mesh%disp(nb_procs + 1), mesh%disedge(nb_procs + 1), mesh%discell(nb_procs + 1))
       ALLOCATE(mesh%domnp(nb_procs), mesh%domedge(nb_procs), mesh%domcell(nb_procs))
 
+      ALLOCATE(mesh%jce(1, mesh%medge))
+      DO i = 1, mesh%medge
+         mesh%jce(1, i) = i
+      END DO
 
       IF (mesh_data%type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
