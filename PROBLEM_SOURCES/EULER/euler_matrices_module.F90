@@ -121,8 +121,8 @@ CONTAINS
       INTEGER :: k, m, n, ni, nj, ierr
 
       DO m = 1, mesh%me
-         DO n = 1, mesh%n_e
-            IF (mesh%attrib_e(mesh%jce(n, m))) THEN
+         DO n = 1, mesh%gauss%n_e
+            IF (mesh%attr_e(mesh%jce(n, m))) THEN
                IF (.not. virgin_edge(mesh%jce_loc(n, m))) CYCLE
 
                ni = MOD(n, nw) + 1
