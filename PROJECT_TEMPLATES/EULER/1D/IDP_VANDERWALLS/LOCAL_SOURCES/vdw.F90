@@ -35,13 +35,6 @@ CONTAINS
     out_state(2) = vR
     out_state(3) = pL
     out_state(4) = pR
-    WRITE(*,*) 'avdw, bvdw, gamma_vdw', avdw, bvdw, gamma_vdw
-    WRITE(*,*) 'rhominus, SL, SR', rho_minus, SL, SR
-    WRITE(*,*) 'p_minus, p_plus, v_minus, v_plus', p_minus, p_plus, v_minus, v_plus
-    WRITE(*,*) 'XL, XR', XL, XR
-    WRITE(*,*) 'rhoL, rhoR', rhoL, rhoR
-    WRITE(*,*) 'vL, vR', VL, VR
-    WRITE(*,*) 'pL, pR', pL, pR
   END SUBROUTINE initialize_vdw
 
   FUNCTION pressure_vdw(un) RESULT(vv)
