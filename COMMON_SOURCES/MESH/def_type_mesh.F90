@@ -134,35 +134,25 @@ MODULE def_type_mesh
 
 CONTAINS
 
-   FUNCTION jce_loc(this, n, m)
+   FUNCTION jce_loc(this, n, m) RESULT(out)
       CLASS(mesh_type) :: this
       INTEGER :: n, m, out
       out = this%jce(n, m) - this%disedge(this%rank + 1) + 1
-
-      RETURN(out)
-
    END FUNCTION jce_loc
 
 
-
-   FUNCTION jj_glob(this, n, m)
+   FUNCTION jj_glob(this, n, m) RESULT(out)
       CLASS(mesh_type) :: this
       INTEGER :: n, m, out
       out = this%loc_to_glob(this%jj(n, m))
-
-      RETURN(out)
-
    END FUNCTION jj_glob
 
 
-   FUNCTION attrib_e(this, e)
+   FUNCTION attrib_e(this, e) RESULT(out)
       CLASS(mesh_type) :: this
       INTEGER :: e
       LOGICAL :: out
       out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(mesh%rank + 2)
-
-      RETURN(out)
-
    END FUNCTION attrib_e
 
 END MODULE def_type_mesh
