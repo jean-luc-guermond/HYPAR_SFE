@@ -123,7 +123,7 @@ CONTAINS
       this%dt = dt_min_glob
 
       this%time = this%time + this%dt
-      IF (this%mesh%rank) write(*, *) this%time, this%dt
+      IF (this%mesh%rank == 0) write(*, *) this%time, this%dt
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
