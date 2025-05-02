@@ -33,12 +33,14 @@ CONTAINS
    SUBROUTINE lambda_arbitrary_eos(in_rho, in_u, in_e, in_p, in_tol, no_iter, &
         lambda_max, pstar)
       IMPLICIT NONE
-      REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_rhor, in_u, in_p
+      REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_u, in_p
+      REAL(KIND = 8) :: in_tol
       LOGICAL, INTENT(IN) :: no_iter
       REAL(KIND = 8), INTENT(OUT) :: pstar
       REAL(KIND = 8), DIMENSION(2), INTENT(OUT) :: lambda_max
       REAL(KIND = NUMBER) :: p1, phi1, phi11, p2, phi2, phi22, phi12, phi112, phi221
       LOGICAL :: check
+      INTEGER :: k
       !===Initialization
       rhol = in_rho(1)
       ul = in_u(1)
@@ -294,7 +296,8 @@ CONTAINS
          vv = rhoz / (b_covolume * rhoz + (1 - b_covolume * rhoz) * (pz / pstar)**(1 / gammaz))
       ELSE
          vv = rhoz * (pstar / pz + (gammaz - 1) / (gammaz + 1)) / &
-              (((gammaz - 1 + 2 * b_covolume * rhoz) * pstar) / ((gammaz + 1) * pz) + (gammaz + 1 - 2 * b_covolume * rhoz) / (gammaz + 1))
+              (((gammaz - 1 + 2 * b_covolume * rhoz) * pstar) / ((gammaz + 1) * pz) &
+                   + (gammaz + 1 - 2 * b_covolume * rhoz) / (gammaz + 1))
       END IF
    END FUNCTION rhostar
 
