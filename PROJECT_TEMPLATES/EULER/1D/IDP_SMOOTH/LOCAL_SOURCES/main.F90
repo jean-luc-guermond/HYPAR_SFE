@@ -17,7 +17,7 @@ PROGRAM prog
 
    euler%dt = 1.d-2 / real(SUM(euler%mesh%domnp))
 
-   DO n = 1, 1000
+   DO n = 1, 2000
       CALL euler%update(un)
    END DO
 
