@@ -42,12 +42,12 @@ MODULE euler_type_MODULE
 
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost
    CONTAINS
-      PROCEDURE, PRIVATE :: init
+      PROCEDURE, PUBLIC :: init => init_euler
       PROCEDURE, PUBLIC :: update
    END TYPE euler_type
 
 CONTAINS
-   SUBROUTINE init(this, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
+   SUBROUTINE init_euler(this, communicator, mesh, LA, per, pressure, erk_sv, impose_bc, time_init)
       CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
@@ -80,7 +80,7 @@ CONTAINS
 
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
-   END SUBROUTINE init
+   END SUBROUTINE init_euler
 
    SUBROUTINE update(this, un)
       USE petsc_tools
