@@ -4,7 +4,7 @@ MODULE euler_flux
   PUBLIC :: flux
 CONTAINS
     FUNCTION flux(comp,un) RESULT(vv)
-    IMPLICIT NONE 
+    IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:,:),       INTENT(IN) :: un
     INTEGER,                            INTENT(IN) :: comp
     REAL(KIND=8), DIMENSION(SIZE(un,1),k_dim)      :: vv
@@ -20,8 +20,8 @@ CONTAINS
        DO k = 1, k_dim
           vv(:,k) = un(:,k+1)*u
        END DO
-       vv(:,comp) = vv(:,comp) + pressure(un)   
-    CASE(k_dim+2) 
+       vv(:,comp) = vv(:,comp) !+ pressure(un)
+    CASE(k_dim+2)
        H = pressure(un) + un(:,comp)
        DO k = 1, k_dim
           vv(:,k) = (un(:,k+1)/un(:,1))*H
