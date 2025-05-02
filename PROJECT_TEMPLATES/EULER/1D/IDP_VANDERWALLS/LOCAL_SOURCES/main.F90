@@ -17,9 +17,10 @@ PROGRAM prog
 
    euler%cfl = 0.1
 
-   DO WHILE (euler%time < 0.01 )
+   DO WHILE (euler%time < 0.5 )
       CALL euler%update(un)
    END DO
 
    CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), un(:,2), 'mt' // trim(adjustl(car)) // '.plt')
 END PROGRAM prog
