@@ -174,11 +174,11 @@ CONTAINS
                rho(1) = un(i, 1)
                rho(2) = un(j, 1)
 
-               u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rhol
-               u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rhor
+               u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
+               u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
-               ie(1) = un(i, k_dim + 2) / rhol - 0.5d0 * ul * ul
-               ie(2) = un(j, k_dim + 2) / rhor - 0.5d0 * ur * ur
+               ie(1) = un(i, k_dim + 2) / rhol - 0.5d0 * u(1) * u(1)
+               ie(2) = un(j, k_dim + 2) / rhor - 0.5d0 * u(2) * u(2)
 
                p = this%pressure(rho, ie)
 
@@ -194,8 +194,8 @@ CONTAINS
                      CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t, 1, i_t, nij_c(:, k), ierr)
                   END DO
 
-                  u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rhol
-                  u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rhor
+                  u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
+                  u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
                   rho = (/rho(2), rho(1)/)
                   ie = (/ie(2), ie(1)/)
