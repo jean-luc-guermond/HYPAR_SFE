@@ -123,6 +123,7 @@ CONTAINS
 
       this%time = this%time + this%dt
       write(*, *) this%time, this%dt
+      stop
 
       DO comp = 1, this%syst_dim
          ff = flux(comp, un)
