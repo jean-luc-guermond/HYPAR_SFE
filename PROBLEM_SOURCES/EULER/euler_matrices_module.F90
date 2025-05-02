@@ -47,7 +47,7 @@ CONTAINS
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
          CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k))
       END DO
-      CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%norm_nij_loc)
+      CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc)
 
       CALL construct_loc_nij(mesh, this%nij_loc, this%cij_norm_loc)
 
@@ -86,7 +86,7 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       Mat, DIMENSION(:) :: cij
-      REAL(KIND = 8), DIMENSION(k_dim, mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise, normvv_rowise
+      REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
 
@@ -98,9 +98,7 @@ CONTAINS
             DO ni = 1, mesh%gauss%n_w
                DO nj = 1, mesh%gauss%n_w
                   l = l + 1
-                  DO k = 1, k_dim
-                     vv_rowise(k, l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
-                  END DO
+                     vv_rowise(l) = -SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%ww(ni, :) * mesh%gauss%rj(:, m))
                ENDDO
             ENDDO
             CALL MatSetValues(cij(k), mesh%gauss%n_w, idx, mesh%gauss%n_w, idx, vv_rowise, ADD_VALUES, ierr)
