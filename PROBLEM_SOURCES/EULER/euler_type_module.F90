@@ -116,7 +116,7 @@ CONTAINS
          !===compute dij
          CALL this%compute_dij(un)
          !=== add dij flux to x3vec in x2vec
-         CALL MatMultAdd(dij, this%x1vec, this%x3vec, this%x2vec, ierr)
+         CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
 
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
