@@ -121,6 +121,7 @@ CONTAINS
       mesh%gauss%l_G = 2
       mesh%gauss%n_ws = 1
       mesh%gauss%l_Gs = 0
+      mesh%gauss%n_e = 1
       ALLOCATE(mesh%gauss%ww(mesh%gauss%n_w, mesh%gauss%l_G))
       ALLOCATE(mesh%gauss%dw(k_dim, mesh%gauss%n_w, mesh%gauss%l_G, mesh%me))
       ALLOCATE(mesh%gauss%rj(mesh%gauss%l_G, mesh%me))

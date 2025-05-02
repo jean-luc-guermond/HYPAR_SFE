@@ -10,7 +10,6 @@ MODULE def_type_mesh
       INTEGER, POINTER, DIMENSION(:) :: ia, ja
    END TYPE aij_type
 
-
    TYPE petsc_csr_LA
       INTEGER, DIMENSION(:), POINTER :: ia, ja
       INTEGER, DIMENSION(:, :), POINTER :: loc_to_glob
@@ -31,7 +30,7 @@ MODULE def_type_mesh
    !------------------------------------------------------------------------------
 
    TYPE gauss_type
-      INTEGER :: k_d, n_w, l_G, n_ws, l_Gs
+      INTEGER :: k_d, n_w, l_G, n_ws, l_Gs, n_e
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: ww   !Shape functions on cells
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: wws  !Shape function at boundary or DG interface
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: wwsi !Interface shape function (JLG, June 4 2012)
@@ -98,6 +97,11 @@ MODULE def_type_mesh
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hloc_gauss ! local mesh size (JLG+LC January, 21, 2015)
       REAL(KIND = 8) :: global_diameter !diameter of domain (LC 2017/01/27)
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hm !local meshsize in azimuth (JLG April 7, 2017)
+   CONTAINS
+      PROCEDURE :: jj_glob
+      PROCEDURE :: jce_loc
+      PROCEDURE :: attr_e
+
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -127,5 +131,38 @@ MODULE def_type_mesh
       INTEGER, POINTER, DIMENSION(:, :) :: jjs1_extra ! list of slave node on interface elements on extra cells
       INTEGER, POINTER, DIMENSION(:, :) :: jjs2_extra ! list of master nodes on interface elements on extra cells
    END TYPE interface_type
+
+CONTAINS
+
+   FUNCTION jce_loc(this, n, m)
+      CLASS(mesh_type) :: this
+      INTEGER :: n, m, out
+      out = this%jce(n, m) - this%dispedge(this%rank) + 1
+
+      RETURN(out)
+
+   END FUNCTION jce_loc
+
+
+
+   FUNCTION jj_glob(this, n, m)
+      CLASS(mesh_type) :: this
+      INTEGER :: n, m, out
+      out = this%loc_to_glob(this%jj(n, m))
+
+      RETURN(out)
+
+   END FUNCTION jj_glob
+
+
+   FUNCTION attrib_e(this, e)
+      CLASS(mesh_type) :: this
+      INTEGER :: e
+      LOGICAL :: out
+      out = this%disp(this%rank + 1) <= e .AND. e < this%disp(mesh%rank + 2)
+
+      RETURN(out)
+
+   END FUNCTION attrib_e
 
 END MODULE def_type_mesh

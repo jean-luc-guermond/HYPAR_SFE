@@ -117,16 +117,14 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
       REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j
-      INTEGER :: k, m, n, ni, nj, nw, ierr
-
-      nw = mesh%gauss%n_w
+      LOGICAL, DIMENSION(mesh%medge) :: virgin_edge = .true.
+      INTEGER :: k, m, n, ni, nj, ierr
 
       DO m = 1, mesh%me
-         IF (MINVAL(mesh%jj(:, m))>mesh%dom_np) CALL error_petsc('Cell with no vertices own by processor. Fix mesh distribution.')
+         DO n = 1, mesh%n_e
+            IF (mesh%attrib_e(mesh%jce(n, m))) THEN
+               IF (.not. virgin_edge(mesh%jce_loc(n, m))) CYCLE
 
-         DO n = 1, nw
-            IF (0 < mesh%neigh(n, m) .AND. mesh%neigh(n, m) < m) CYCLE
-            IF (mesh%disp(mesh%rank + 1) <= mesh%jce(n, m) .AND. mesh%jce(n, m) < mesh%disp(mesh%rank + 2)) THEN
                ni = MOD(n, nw) + 1
                nj = MOD(n + 1, nw) + 1
                i = mesh%jj(ni, m)
