@@ -15,8 +15,6 @@ PROGRAM prog
 
    CALL plot_1d(euler%mesh%rr(1, :), un(:, 1), 'initrho' // trim(adjustl(car)) // '.plt')
 
-   euler%dt = 2.d-2 / real(SUM(euler%mesh%domnp))
-
    DO WHILE (euler%time < 0.25 )
       CALL euler%update(un)
    END DO
