@@ -12,12 +12,12 @@ PROGRAM prog
    WRITE(car, '(I5)') rank
    ALLOCATE(un(mesh%np, 3))
    CALL init(un, 0.d0, euler%mesh%rr)
-
+CALL plot_1d(euler%mesh%rr(1, :), euler%pressure(un), 'initrho' // trim(adjustl(car)) // '.plt')
    euler%dt = 0.5d0 / euler%mesh%np
 
    DO n = 1, 100
       CALL euler%update(un)
    END DO
 
-   CALL plot_1d(euler%mesh%rr(1, :), euler%pressure(un), 'p' // trim(adjustl(car)) // '.plt')
+   CALL plot_1d(euler%mesh%rr(1, :), euler%pressure(un), 'rho' // trim(adjustl(car)) // '.plt')
 END PROGRAM prog
