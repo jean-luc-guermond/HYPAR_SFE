@@ -142,8 +142,9 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :) :: un
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       INTEGER :: m, ni, nj, e, nw, n, i, j, k, ierr
-      INTEGER, DIMENSION(1) :: i_t, j_t, norm_c, dij_c, idx, jdx
+      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
+      REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: pstar
 
