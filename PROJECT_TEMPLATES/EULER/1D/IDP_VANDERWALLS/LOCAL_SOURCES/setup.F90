@@ -6,6 +6,9 @@ MODULE setup
    REAL(KIND = 8) :: x0, x1
    INTEGER :: VdW_test_case = 0
    REAL(KIND = 8) :: avdw, bvdw, gamma_vdw
+   REAL(KIND = 8) :: rhol, pl, ul
+   REAL(KIND = 8) :: rhor, pr, ur
+   REAL(KIND = 8) :: long
 CONTAINS
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
@@ -127,6 +130,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
+      INTEGER :: n
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
          IF (rr(1, n)<x0) THEN
