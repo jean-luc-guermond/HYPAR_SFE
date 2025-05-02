@@ -115,10 +115,8 @@ CONTAINS
       CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
       CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
 
-
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
-      dt_min_loc = MINVAL(dij_diag)
-
+      dt_min_loc = MINVAL(dij_diag) / 2.d0
 
       CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
       this%dt = dt_min_glob
