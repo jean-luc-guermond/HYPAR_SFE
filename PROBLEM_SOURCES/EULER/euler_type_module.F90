@@ -113,9 +113,11 @@ CONTAINS
             CALL VecAXPY(this%x3vec, 1.d0, this%x2vec, ierr)
          END DO
 
+         !=== set un(comp) in x1vec
+         CALL array_to_petsc_vec(un(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
          !===compute dij
          CALL this%compute_dij(un)
-         !=== add dij flux to x3vec in x2vec
+         !=== add dij un(comp)to x3vec in x2vec
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
 
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
