@@ -26,7 +26,12 @@ CONTAINS
          END DO
          vv(:, comp - 1) = vv(:, comp - 1) + pressure(un(:, 1), ie)
       CASE(k_dim + 2)
-         H = pressure(un) + un(:, comp)
+         ie = un(:, k_dim + 2) / un(:, 1)
+         DO k = 1, k_dim
+            ie = ie - 0.5d0 * (un(:, k + 1) / un(:, 1))**2
+         END DO
+
+         H = un(:, comp) + pressure(un(:, 1), ie)
          DO k = 1, k_dim
             vv(:, k) = (un(:, k + 1) / un(:, 1)) * H
          END DO
