@@ -4,7 +4,7 @@ MODULE arbitrary_eos_lambda_module
 
    PUBLIC :: lambda_arbitrary_eos, init_lambda_arbitrary_eos !===Main function
    PUBLIC :: rhostar, ustar, phi  !===Optional functions. Can be removed
-   REAL(KIND = 8), PUBLIC :: b_covolume = 1.d0
+   REAL(KIND = 8), PRIVATE :: b_covolume = 0.d0
    PRIVATE
    INTEGER, PARAMETER :: NUMBER = KIND(1.d0)
    REAL(KIND = NUMBER), PARAMETER :: zero = 0
@@ -30,106 +30,108 @@ CONTAINS
       b_covolume = b_cov
    END SUBROUTINE init_lambda_arbitrary_eos
 
-   SUBROUTINE lambda_arbitrary_eos(in_rho, in_u, in_e, in_p, in_tol, no_iter, &
+   SUBROUTINE lambda_arbitrary_eos(eos_param, in_rho, in_u, in_e, in_p, in_tol, no_iter, &
         lambda_max, pstar)
-      IMPLICIT NONE
-      REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_u, in_p
-      REAL(KIND = 8) :: in_tol
-      LOGICAL, INTENT(IN) :: no_iter
-      REAL(KIND = 8), INTENT(OUT) :: pstar
-      REAL(KIND = 8), DIMENSION(2), INTENT(OUT) :: lambda_max
-      REAL(KIND = NUMBER) :: p1, phi1, phi11, p2, phi2, phi22, phi12, phi112, phi221
-      LOGICAL :: check
-      INTEGER :: k
-      !===Initialization
-      rhol = in_rho(1)
-      ul = in_u(1)
-      pl = in_p(1)
-      el = in_e(1)
-      rhor = in_rho(2)
-      ur = in_u(2)
-      pr = in_p(2)
-      er = in_e(2)
-      k = 0
-      CALL init(rhol, el, pl, gammal, al, alphal, capAl, capBl, capCl, expol)
-      CALL init(rhor, er, pr, gammar, ar, alphar, capAr, capBr, capCr, expor)
-      IF (pl.LE.pr) THEN
-         p_min = pl
-         rho_min = rhol
-         gamma_min = gammal
-         gamma_min_index = 'l'
-         alpha_min = alphal
-         capA_min = capAl
-         capB_min = capBl
-         p_max = pr
-         rho_max = rhor
-         gamma_max = gammar
-         alpha_max = alphar
-         capC_max = capCr
-      ELSE
-         p_min = pr
-         rho_min = rhor
-         gamma_min = gammar
-         gamma_min_index = 'r'
-         alpha_min = alphar
-         capA_min = capAr
-         capB_min = capBr
-         p_max = pl
-         rho_max = rhol
-         gamma_max = gammal
-         alpha_max = alphal
-         capC_max = capCl
-      END IF
-      IF (gammal.LE.gammar) THEN
-         gamma_lm = gammal
-         gamma_lm_index = 'l'
-         gamma_uM = gammar
-      ELSE
-         gamma_lm = gammar
-         gamma_lm_index = 'r'
-         gamma_uM = gammal
-      END IF
-      expo_lm = (gamma_lm - 1) / (2 * gamma_lm)
-      expo_uM = (gamma_uM - 1) / (2 * gamma_uM)
-      expo_max = (gamma_max - 1) / (2 * gamma_max)
-      numerator = alphal + alphar - ur + ul
-      vacuum = capCl + capCr + ul - ur
-      phi_pmin = capC_max * ((p_min / p_max)**expo_max - 1) + ur - ul
-      phi_pmax = (p_max - p_min) * SQRT(capA_min / (p_max + capB_min)) + ur - ul
+     IMPLICIT NONE
+     REAL(KIND = 8), DIMENSION(:) :: eos_param !=== 1:b_covolume; 2:etc 
+     REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_u, in_p
+     REAL(KIND = 8) :: in_tol
+     LOGICAL, INTENT(IN) :: no_iter
+     REAL(KIND = 8), INTENT(OUT) :: pstar
+     REAL(KIND = 8), DIMENSION(2), INTENT(OUT) :: lambda_max
+     REAL(KIND = NUMBER) :: p1, phi1, phi11, p2, phi2, phi22, phi12, phi112, phi221
+     LOGICAL :: check
+     INTEGER :: k
+     b_covolume=eos_param(1)
+     !===Initialization
+     rhol = in_rho(1)
+     ul = in_u(1)
+     pl = in_p(1)
+     el = in_e(1)
+     rhor = in_rho(2)
+     ur = in_u(2)
+     pr = in_p(2)
+     er = in_e(2)
+     k = 0
+     CALL init(rhol, el, pl, gammal, al, alphal, capAl, capBl, capCl, expol)
+     CALL init(rhor, er, pr, gammar, ar, alphar, capAr, capBr, capCr, expor)
+     IF (pl.LE.pr) THEN
+        p_min = pl
+        rho_min = rhol
+        gamma_min = gammal
+        gamma_min_index = 'l'
+        alpha_min = alphal
+        capA_min = capAl
+        capB_min = capBl
+        p_max = pr
+        rho_max = rhor
+        gamma_max = gammar
+        alpha_max = alphar
+        capC_max = capCr
+     ELSE
+        p_min = pr
+        rho_min = rhor
+        gamma_min = gammar
+        gamma_min_index = 'r'
+        alpha_min = alphar
+        capA_min = capAr
+        capB_min = capBr
+        p_max = pl
+        rho_max = rhol
+        gamma_max = gammal
+        alpha_max = alphal
+        capC_max = capCl
+     END IF
+     IF (gammal.LE.gammar) THEN
+        gamma_lm = gammal
+        gamma_lm_index = 'l'
+        gamma_uM = gammar
+     ELSE
+        gamma_lm = gammar
+        gamma_lm_index = 'r'
+        gamma_uM = gammal
+     END IF
+     expo_lm = (gamma_lm - 1) / (2 * gamma_lm)
+     expo_uM = (gamma_uM - 1) / (2 * gamma_uM)
+     expo_max = (gamma_max - 1) / (2 * gamma_max)
+     numerator = alphal + alphar - ur + ul
+     vacuum = capCl + capCr + ul - ur
+     phi_pmin = capC_max * ((p_min / p_max)**expo_max - 1) + ur - ul
+     phi_pmax = (p_max - p_min) * SQRT(capA_min / (p_max + capB_min)) + ur - ul
 
-      !===Initialize p1 and p2
-      CALL initialize_p1_p2(p1, p2)
+     !===Initialize p1 and p2
+     CALL initialize_p1_p2(p1, p2)
 
-      IF (no_iter) THEN
-         pstar = p2
-         CALL no_iter_update_lambda(ul, pl, al, gammal, ur, pr, ar, gammar, p2, lambda_max(1), lambda_max(2))
-      ELSE
-         !===Iterations
-         p1 = MAX(p1, p2 - phi(p2) / phi_prime(p2))
-         DO WHILE(.TRUE.)
-            CALL update_lambda(ul, pl, al, gammal, ur, pr, ar, gammar, p1, p2, in_tol, &
-                 lambda_max(1), lambda_max(2), check)
-            pstar = p2
-            IF (check) RETURN
-            phi1 = phi(p1)
-            phi11 = phi_prime(p1)
-            phi2 = phi(p2)
-            phi22 = phi_prime(p2)
-            IF (phi1>zero) THEN
-               lambda_max(1) = lambdaz(ul, pl, al, gammal, p1, -1)
-               lambda_max(2) = lambdaz(ur, pr, ar, gammar, p1, 1)
-               pstar = p1
-               RETURN
-            END IF
-            IF (phi2<zero) RETURN
-            phi12 = (phi2 - phi1) / (p2 - p1)
-            phi112 = (phi12 - phi11) / (p2 - p1)
-            phi221 = (phi22 - phi12) / (p2 - p1)
-            p1 = p1 - 2 * phi1 / (phi11 + SQRT(phi11**2 - 4 * phi1 * phi112))
-            p2 = p2 - 2 * phi2 / (phi22 + SQRT(phi22**2 - 4 * phi2 * phi221))
-            k = k + 1
-         END DO
-      END IF
+     IF (no_iter) THEN
+        pstar = p2
+        CALL no_iter_update_lambda(ul, pl, al, gammal, ur, pr, ar, gammar, p2, lambda_max(1), lambda_max(2))
+     ELSE
+        !===Iterations
+        p1 = MAX(p1, p2 - phi(p2) / phi_prime(p2))
+        DO WHILE(.TRUE.)
+           CALL update_lambda(ul, pl, al, gammal, ur, pr, ar, gammar, p1, p2, in_tol, &
+                lambda_max(1), lambda_max(2), check)
+           pstar = p2
+           IF (check) RETURN
+           phi1 = phi(p1)
+           phi11 = phi_prime(p1)
+           phi2 = phi(p2)
+           phi22 = phi_prime(p2)
+           IF (phi1>zero) THEN
+              lambda_max(1) = lambdaz(ul, pl, al, gammal, p1, -1)
+              lambda_max(2) = lambdaz(ur, pr, ar, gammar, p1, 1)
+              pstar = p1
+              RETURN
+           END IF
+           IF (phi2<zero) RETURN
+           phi12 = (phi2 - phi1) / (p2 - p1)
+           phi112 = (phi12 - phi11) / (p2 - p1)
+           phi221 = (phi22 - phi12) / (p2 - p1)
+           p1 = p1 - 2 * phi1 / (phi11 + SQRT(phi11**2 - 4 * phi1 * phi112))
+           p2 = p2 - 2 * phi2 / (phi22 + SQRT(phi22**2 - 4 * phi2 * phi221))
+           k = k + 1
+        END DO
+     END IF
    END SUBROUTINE lambda_arbitrary_eos
 
    SUBROUTINE init(rho, e, p, gamma, a, alpha, capA, capB, capC, expo)
