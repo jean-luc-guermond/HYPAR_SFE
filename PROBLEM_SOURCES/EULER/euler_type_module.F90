@@ -343,7 +343,7 @@ CONTAINS
 
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
-      CALL periodic_matrix_petsc(this%per, this%LA, this%matrices%dij)
+      !CALL periodic_matrix_petsc(this%per, this%LA, this%matrices%dij)
 
    END SUBROUTINE compute_dij
 
