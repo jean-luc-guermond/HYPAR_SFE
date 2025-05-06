@@ -82,9 +82,9 @@ CONTAINS
       !===Parameters for lambda_arbitrary_eos
       this%in_tol = 1.d-2
       this%no_iter = .true.
-      this%eos_param(1) = 0.d0 !===b_covolume
+      !this%eos_param(1) = 0.d0 !===b_covolume
       !===CFL number
-      this%CFL = 0.5d0
+      !this%CFL = 0.5d0
 
       CALL this%read_euler_data
 
@@ -129,7 +129,6 @@ CONTAINS
          CALL default_data(rank, in_unit, argument, '0.5d0')
          this%CFL = 0.5d0
       END IF
-
 
       !===b_covolume
       argument = '===' // trim(adjustl(this%name)) // ': b_covolume ?==='
@@ -194,12 +193,21 @@ CONTAINS
             CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
          END DO
 
+         !TEST these line in euler_matrix_miodule.f90 must be commented
+         !==DO k = 1, k_dim
+         !==CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
+         !==END DO
+         !==and must be replaced here by
+         !CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
+         !TEST
          !=== set un(comp) in x1vec
          CALL array_to_petsc_vec(un(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
 
          !=== add dij un(comp)to x3vec in x2vec
+         !TEST
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
-
+         !TEST
+         
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)

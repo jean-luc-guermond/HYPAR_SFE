@@ -52,9 +52,11 @@ CONTAINS
 
       CALL construct_cij(mesh, LA, this%cij)
 
-      DO k = 1, k_dim
-         CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
-      END DO
+      !TEST
+      !DO k = 1, k_dim
+      !   CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
+      !END DO
+      !TEST
 
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim

@@ -5,20 +5,20 @@ PROGRAM prog
   USE sub_plot
   IMPLICIT NONE
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
-  CHARACTER(5) :: car
-  INTEGER :: n
+  CHARACTER(5) :: char
+
   CALL start_setup
 
-  WRITE(car, '(I5)') euler%mesh%rank
   ALLOCATE(un(mesh%np, euler%syst_dim ))
   CALL init(un, 0.d0, euler%mesh%rr)
 
-  CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
+  WRITE(char, '(I5)') euler%mesh%rank
+  CALL plot_1d(euler%mesh%rr(1,1: mesh%dom_np), un(1:mesh%dom_np,1), 'initrho' // trim(adjustl(char)) // '.plt')
 
   DO WHILE(euler%time < setup_data%final_time)
-     IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
      CALL euler%update(un)
+     IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
   END DO
 
-  CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
+  CALL plot_1d(euler%mesh%rr(1, 1:mesh%dom_np), un(1:mesh%dom_np,1), 'rho' // trim(adjustl(char)) // '.plt')
 END PROGRAM prog
