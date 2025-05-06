@@ -3,7 +3,7 @@
 !
 MODULE character_strings
 
-  PUBLIC :: last_c_leng, last_of_string, start_of_string
+  PUBLIC :: last_c_leng, last_of_string, start_of_string, default_data
 
 CONTAINS
 
@@ -138,5 +138,19 @@ CONTAINS
 
   END SUBROUTINE find_string
   !========================================================================
+
+  SUBROUTINE default_data(rank, in_unit, argument, char)
+    IMPLICIT NONE
+    INTEGER :: rank, in_unit
+    CHARACTER(*), INTENT(IN) :: argument, char
+    IF (rank==0) WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found. Set to ' // TRIM(ADJUSTL(char)) // &
+         ' by default and added to data file.'
+    CLOSE(in_unit)
+    OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position = 'append')
+    IF (rank==0) THEN
+       WRITE(in_unit, '(g0)') TRIM(ADJUSTL(argument))
+       WRITE(in_unit, '(g0)') TRIM(ADJUSTL(char))
+    END IF
+  END SUBROUTINE default_data
 
 END MODULE character_strings
