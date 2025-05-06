@@ -87,6 +87,7 @@ CONTAINS
          READ (in_unit, *) setup_data%if_restart
       ELSE
          CALL default_data(rank, in_unit, argument, '.F.')
+         setup_data%if_restart = .False.
       END IF
 
       !===Checkpointing
@@ -96,6 +97,7 @@ CONTAINS
          READ (in_unit, *) setup_data%checkpointing_freq
       ELSE
          CALL default_data(rank, in_unit, argument, '1.d20')
+         setup_data%checkpointing_freq = 1.d20
       END IF
 
       !===Checkpointing
@@ -105,6 +107,7 @@ CONTAINS
          READ (in_unit, *) setup_data%final_time
       ELSE
          CALL default_data(rank, in_unit, argument, '0.1d0')
+          setup_data%final_time = 0.1d0
       END IF
 
       !===Regression test
@@ -117,20 +120,6 @@ CONTAINS
 
       CLOSE(in_unit)
    END SUBROUTINE read_setup_data
-
-   SUBROUTINE default_data(rank, in_unit, argument, char)
-      IMPLICIT NONE
-      INTEGER :: rank, in_unit
-      CHARACTER(*), INTENT(IN) :: argument, char
-      IF (rank==0) WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found. Set to ' // TRIM(ADJUSTL(char)) // &
-           ' by default and added to data file.'
-      CLOSE(in_unit)
-      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position = 'append')
-      IF (rank==0) THEN
-         WRITE(in_unit, '(g0)') TRIM(ADJUSTL(argument))
-         WRITE(in_unit, '(g0)') TRIM(ADJUSTL(char))
-      END IF
-   END SUBROUTINE default_data
 
 
 END MODULE start_setup_MODULE

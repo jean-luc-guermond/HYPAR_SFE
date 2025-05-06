@@ -112,52 +112,42 @@ CONTAINS
     USE character_strings
     IMPLICIT NONE
     CLASS(euler_type), INTENT(INOUT) :: this
+    CHARACTER(LEN = 100) :: argument
     INTEGER, PARAMETER :: in_unit = 21
+    INTEGER :: rank
     LOGICAL :: test
+    rank = this%mesh%rank
     OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
 
-    CALL find_string(in_unit, '===CFL ?===', test)
+    !===CFL
+    argument = '===CFL ?==='
+    CALL find_string(in_unit, argument, test)
     IF (test) THEN
        READ (21, *) this%CFL
     ELSE
+       CALL default_data(rank, in_unit, argument, '0.5d0')
        this%CFL = 0.5d0
-       IF (this%mesh%rank==0) WRITE(*,*)  '===CFL ?=== not found. Set to 0.5 by default and added to data file.'
-       CLOSE(in_unit)
-       OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position='append')
-       IF (this%mesh%rank==0) THEN
-          WRITE(in_unit,'(g0)') '===CFL ?==='
-          WRITE(in_unit,'(g0)') '0.5d0'
-       END IF
     END IF
 
-    CALL find_string(in_unit, '==='// trim(adjustl(this%name)) //': b_covolume ?===', test)
+
+    !===b_covolume
+    argument = '==='// trim(adjustl(this%name)) //': b_covolume ?==='
+    CALL find_string(in_unit, argument, test)
     IF (test) THEN
        READ (21, *) this%eos_param(1)
     ELSE
+       CALL default_data(rank, in_unit, argument, '0.d0')
        this%eos_param(1) = 0.d0
-       IF (this%mesh%rank==0) WRITE(*,*)  '==='// trim(adjustl(this%name)) //': b_covolume ?=== &
-            not found. Set to 0 by default and added to data file.'
-       CLOSE(in_unit)
-       OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position='append')
-       IF (this%mesh%rank==0) THEN
-          WRITE(in_unit,'(g0)') '==='// trim(adjustl(this%name)) //': b_covolume ?==='
-          WRITE(in_unit,'(g0)') '0.d0'
-       END IF
     END IF
 
-    CALL find_string(in_unit, '==='// trim(adjustl(this%name)) //': ERK ?===', test)
+    !===ERK
+    argument = '==='// trim(adjustl(this%name)) //': ERK ?==='
+    CALL find_string(in_unit, argument, test)
     IF (test) THEN
        READ (21, *) this%erk_sv
     ELSE
+       CALL default_data(rank, in_unit, argument, '-21')
        this%erk_sv=-21
-       IF (this%mesh%rank==0) WRITE(*,*)  '==='// trim(adjustl(this%name)) //': ERK ?=== &
-            not found. Set to -21 by default and added to data file.'
-       CLOSE(in_unit)
-       OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position='append')
-       IF (this%mesh%rank==0) THEN
-          WRITE(in_unit,'(g0)') '==='// trim(adjustl(this%name)) //': ERK ?==='
-          WRITE(in_unit,'(g0)') '-21'
-       END IF
     END IF
     CLOSE(in_unit)
   END SUBROUTINE read_euler_data
