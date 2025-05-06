@@ -5,6 +5,8 @@ MODULE euler_matrices_module
    USE def_type_mesh
    USE space_dim
    USE solver_petsc
+   USE def_type_periodic
+   USE compute_periodic
 
    TYPE euler_matrices_type
       Mat :: mass, dij
@@ -19,13 +21,14 @@ MODULE euler_matrices_module
 
 CONTAINS
 
-   SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
+   SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA, opt_per)
       USE fem_M
       IMPLICIT NONE
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      INTEGER :: k, ierr
+      type(periodic_type) :: opt_per
+      INTEGER :: k, ierr, n
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 
@@ -39,8 +42,19 @@ CONTAINS
 
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
+      CALL periodic_matrix_petsc(opt_per, LA, this%mass)
+
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
+      DO k = 1, opt_per%n_bord
+         this%lumped_mass(opt_per%list(k)%DIL) = this%lumped_mass(opt_per%perlist(k)%DIL)
+      END DO
+      write(*,*)  this%lumped_mass
+
       CALL construct_cij(mesh, LA, this%cij)
+
+      DO k = 1, k_dim
+         CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
+      END DO
 
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim
@@ -122,6 +136,7 @@ CONTAINS
 
       nw = mesh%gauss%n_w
       virgin_edge = .true.
+      write(*, *) mesh%me, SIZE(mesh%jce, 2)
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN

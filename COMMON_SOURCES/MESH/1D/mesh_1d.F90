@@ -80,7 +80,7 @@ CONTAINS
       mesh%mextra = 0
 
       ALLOCATE(mesh%iis(0, 0))
-      ALLOCATE(mesh%jj_extra(2, mesh%mextra), mesh%jce_extra(0, mesh%medge), &
+      ALLOCATE(mesh%jj_extra(2, mesh%mextra), mesh%jce_extra(0, mesh%mextra), &
            mesh%jjs_extra(0, mesh%mes_extra))
       ALLOCATE(mesh%jjs_int(0, 0), mesh%jcc_extra(mesh%mextra))
       ALLOCATE(mesh%jees(0), mesh%jecs(0))
@@ -92,8 +92,8 @@ CONTAINS
       ALLOCATE(mesh%disp(nb_procs + 1), mesh%disedge(nb_procs + 1), mesh%discell(nb_procs + 1))
       ALLOCATE(mesh%domnp(nb_procs), mesh%domedge(nb_procs), mesh%domcell(nb_procs))
 
-      ALLOCATE(mesh%jce(1, mesh%medge))
-      DO i = 1, mesh%medge
+      ALLOCATE(mesh%jce(1, mesh%me))
+      DO i = 1, mesh%me
          mesh%jce(1, i) = i
       END DO
       mesh%disp(1) = 1

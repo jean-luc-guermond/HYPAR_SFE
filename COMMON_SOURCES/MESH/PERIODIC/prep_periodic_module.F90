@@ -69,7 +69,7 @@ CONTAINS
                list_dom(nx) = list_loc(i)
                perlist_dom(nx) = perlist_loc(i)
             ELSE IF (MIN(list_loc(i), perlist_loc(i)) .LE. mesh%dom_np) THEN
-               WRITE(*, *) 'BUG in prep_periodic_scal'
+               WRITE(*, *) 'BUG in prep_periodic_scal, one of the boundary point is not attributed the same processor.'
                STOP
             END IF
          END DO

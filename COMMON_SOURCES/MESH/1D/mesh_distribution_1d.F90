@@ -19,7 +19,7 @@ CONTAINS
       CALL MPI_Comm_rank(communicator, rank, ierr)
       CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
       rank = rank + 1
-
+      write(*,*) rank, nb_procs
       IF (PRESENT(opt_per)) THEN
          per_bool = opt_per
          IF (periodic_data%nb_periodic_pairs == 0) THEN
@@ -28,7 +28,6 @@ CONTAINS
       ELSE
          per_bool = .false.
       END IF
-
       IF  (nb_procs == 1) THEN
          IF (per_bool) THEN
             mesh_glob%nis = 0
@@ -44,7 +43,6 @@ CONTAINS
       mesh_loc%mes_extra = 0
       mesh_loc%mes_int = 0
       mesh_loc%edge_stab = mesh_glob%edge_stab
-
       IF (rank < nb_procs) THEN
          np_start = (rank - 1) * (mesh_glob%np / nb_procs) + 1
          np_end = rank * (mesh_glob%np / nb_procs)
@@ -110,9 +108,9 @@ CONTAINS
       mesh_loc%dom_mes = mesh_loc%mes
 
       ALLOCATE(mesh_loc%jj(2, mesh_loc%me), mesh_loc%jjs(1, mesh_loc%mes), mesh_loc%iis(0, 0))
-      ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%medge), &
+      ALLOCATE(mesh_loc%jj_extra(2, mesh_loc%mextra), mesh_loc%jce_extra(0, mesh_loc%mextra), &
            mesh_loc%jjs_extra(0, mesh_loc%mes_extra))
-      ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(1, mesh_loc%medge))
+      ALLOCATE(mesh_loc%jjs_int(0, 0), mesh_loc%jcc_extra(mesh_loc%mextra), mesh_loc%jce(1, mesh_loc%me))
       ALLOCATE(mesh_loc%jees(0), mesh_loc%jecs(0))
       ALLOCATE(mesh_loc%jji(0, 0, 0), mesh_loc%jjsi(0, 0), mesh_loc%j_s(0))
       ALLOCATE(mesh_loc%rr(1, mesh_loc%np), mesh_loc%rrs_extra(1, 2, 0))
@@ -128,7 +126,7 @@ CONTAINS
       DO n = 1, mesh_loc%dom_np
          mesh_loc%loc_to_glob(n) = np_start - 1 + n
       END DO
-      DO n = 1, mesh_loc%medge
+      DO n = 1, mesh_loc%me
          mesh_loc%jce(1, n) = me_start - 1 + n
       END DO
 

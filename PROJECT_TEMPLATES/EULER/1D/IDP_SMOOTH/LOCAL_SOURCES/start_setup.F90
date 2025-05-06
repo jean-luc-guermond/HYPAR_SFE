@@ -19,6 +19,7 @@ MODULE start_setup_MODULE
    TYPE(petsc_csr_LA), PRIVATE :: LA
    TYPE(euler_type), PUBLIC :: euler
    TYPE(setup_data_type), PUBLIC :: setup_data
+   TYPE(periodic_type), PUBLIC :: per
    PUBLIC :: start_setup
    PRIVATE
 
@@ -30,9 +31,9 @@ CONTAINS
       USE st_matrix
       USE prep_periodic_module
       USE setup
+      USE input_periodic_data
       IMPLICIT NONE
       PetscErrorCode :: ierr
-      TYPE(periodic_type) :: per
       REAL(KIND = 8) :: init_time = 0.d0
       CHARACTER(100) :: name = 'Euler 1'
       INTEGER :: ier, rank
@@ -42,8 +43,10 @@ CONTAINS
       communicator = PETSC_COMM_WORLD
       CALL MPI_Comm_rank(communicator, rank, ierr)
       !===Construct mesh
-      CALL get_mesh(communicator, mesh)
+      CALL read_periodic_data('data')
+      CALL get_mesh(communicator, mesh, opt_per = .true.)
       CALL prep_periodic(mesh, per)
+
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per)
       !===Read
