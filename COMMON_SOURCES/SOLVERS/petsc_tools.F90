@@ -26,6 +26,9 @@ CONTAINS
       CASE DEFAULT
          CALL error_petsc('Wrong option in array_to_petsc_vec for operation.')
       END SELECT
+
+      CALL VecAssemblyBegin(xx, ierr)
+      CALL VecAssemblyEnd(xx, ierr)
    END SUBROUTINE array_to_petsc_vec
 
 END MODULE petsc_tools
