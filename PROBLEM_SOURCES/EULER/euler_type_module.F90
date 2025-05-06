@@ -210,9 +210,7 @@ CONTAINS
          un(:, comp) = un(:, comp) + rk
 
          DO k = 1, this%per%n_bord
-            DO n = 1, SIZE(this%per%list(k)%DIL)
-               un(this%per%list(k)%DIL(n), comp) = un(this%per%perlist(k)%DIL(n), comp)
-            END DO
+               un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
          END DO
 
          CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)

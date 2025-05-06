@@ -28,7 +28,7 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       type(periodic_type) :: opt_per
-      INTEGER :: k, ierr, n
+      INTEGER :: k, ierr
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 
