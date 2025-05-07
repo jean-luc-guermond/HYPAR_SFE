@@ -34,10 +34,10 @@ PROGRAM test_matrix
   PetscErrorCode :: ierr
  
   !===Start PETSC and MPI (mandatory)=============================================
-  communicator = PETSC_COMM_WORLD
 
   CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
   CALL MPI_Comm_rank(communicator, rank, ierr)
+  communicator = PETSC_COMM_WORLD
 
   my_par%it_max = 5000
   my_par%rel_tol = 1.d-10
@@ -47,9 +47,11 @@ PROGRAM test_matrix
   my_par%precond = 'MUMPS'
 
   !===User reads their own data=================================================
-
+  write(*,*) 'a'
   CALL get_mesh(communicator, mesh, opt_per = .true.)
+  write(*,*) 'b', mesh%nis, mesh%isolated_jjs
   CALL prep_periodic(mesh, per)
+  write(*,*) 'c'
   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per)
   CALL dir%set(mesh, "a")
 

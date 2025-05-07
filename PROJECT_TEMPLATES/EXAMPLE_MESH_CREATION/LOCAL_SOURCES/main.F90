@@ -28,10 +28,11 @@ PROGRAM test_matrix
    PetscErrorCode :: ierr
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
-   communicator = PETSC_COMM_WORLD
 
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
    CALL MPI_Comm_rank(communicator, rank, ierr)
+   communicator = PETSC_COMM_WORLD
+
    !CALL create_cart_comm(k_dim, comm_cart, comm_one_d, coord_cart)
 
    my_par%it_max = 5000
@@ -47,7 +48,6 @@ PROGRAM test_matrix
    CALL prep_periodic(mesh, opt_per)
    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
    CALL dir%set(mesh, "a")
-
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
