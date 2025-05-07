@@ -144,6 +144,7 @@ CONTAINS
          ALLOCATE(mesh%neighs(mesh%mes))
          mesh%neighs = mesh_p1%neighs
          ALLOCATE(mesh%sides_extra(mesh%mes_extra))
+         write(*,*) mesh%mes_extra, mesh_p1%mes_extra, mesh_p1%sides_extra
          mesh%sides_extra = mesh_p1%sides_extra
          ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
          mesh%neighs_extra = mesh_p1%neighs_extra

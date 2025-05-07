@@ -1,5 +1,5 @@
 MODULE two_dim_metis_distribution
-   !#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petsc.h"
    USE petsc
    PUBLIC :: reorder_mesh
    PRIVATE
@@ -8,127 +8,669 @@ MODULE two_dim_metis_distribution
    INTEGER :: METIS_NOPTIONS = 40, METIS_OPTION_NUMBERING = 18
    !!$ Dummy for metis...
 CONTAINS
-   SUBROUTINE reorder_mesh(communicator, nb_proc, mesh, mesh_loc, list_of_interfaces)
+   SUBROUTINE part_mesh(nb_proc, list_dom, mesh, list_of_interfaces, part, my_periodic)
       USE def_type_mesh
       USE my_util
       USE sub_plot
+      USE prep_periodic
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh, mesh_loc
-      INTEGER, DIMENSION(2) :: me_loc, mes_loc, np_loc
-      INTEGER, DIMENSION(:), POINTER, OPTIONAL :: list_of_interfaces
-      INTEGER, DIMENSION(mesh%me + 1) :: xind
-      INTEGER, DIMENSION(mesh%me) :: vwgt, vsize, old_m_to_new, cellnum
-      REAL(KIND = 8), DIMENSION(mesh%me) :: plot
+      TYPE(mesh_type) :: mesh
       INTEGER, DIMENSION(mesh%me) :: part
-      LOGICAL, DIMENSION(mesh%np) :: virgin
-      INTEGER, DIMENSION(mesh%np) :: old_j_to_new
-      LOGICAL, DIMENSION(mesh%medge) :: virginss
-      INTEGER, DIMENSION(mesh%medge) :: old_edge_to_new
-      INTEGER, DIMENSION(mesh%mes) :: old_ms_to_new, parts
-      INTEGER, DIMENSION(2, mesh%mes) :: inter_news
-      INTEGER, DIMENSION(SIZE(mesh%jjs, 1)) :: i_loc
+      INTEGER, DIMENSION(:) :: list_of_interfaces
+      INTEGER, DIMENSION(:) :: list_dom
+      TYPE(periodic_data), OPTIONAL :: my_periodic
+
       LOGICAL, DIMENSION(mesh%mes) :: virgins
-      REAL(KIND = 8), DIMENSION(mesh%np) :: r_old_j_to_new
+      INTEGER, DIMENSION(3, mesh%me) :: neigh_new
       INTEGER, DIMENSION(5) :: opts
-      INTEGER, DIMENSION(:), ALLOCATABLE :: xadj, adjwgt, nblmt_per_proc, start, displ
-      INTEGER, DIMENSION(:, :), ALLOCATABLE :: inter
-      INTEGER :: dim, nb_neigh, edge, m, ms, n, nb, numflag, p, wgtflag, new_dof, j, &
-           news, ns, nws, msop, nsop, proc, iop, ncon, k
-      LOGICAL :: test = .FALSE.
-      !REAL(KIND=8), DIMENSION(:), ALLOCATABLE  :: tpwgts !Up to petsc.3.7.7
-      !REAL(KIND=8), DIMENSION(1)               :: ubvec !Up to petsc.3.7.7
-      REAL(KIND = 4), DIMENSION(:), ALLOCATABLE :: tpwgts !(JLG, Feb 20, 2019) Up from petsc.3.8.4,
-      REAL(KIND = 4), DIMENSION(1) :: ubvec  !petsc peoples changed metis types
+      INTEGER, DIMENSION(SIZE(mesh%jjs, 1)) :: i_loc
+      INTEGER, DIMENSION(:), ALLOCATABLE :: xadj_conc, xadj_u, xadj_T, xadj_h, xadj_phi
+      INTEGER, DIMENSION(:), ALLOCATABLE :: list_u, list_T, list_h
+      INTEGER, DIMENSION(:), ALLOCATABLE :: xind_conc, xind_u, xind_T, xind_h, xind_phi
+      INTEGER, DIMENSION(:), ALLOCATABLE :: vwgt, adjwgt
+      INTEGER, DIMENSION(:), ALLOCATABLE :: conc2glob, u2glob, T2glob, h2glob, phi2glob
+      INTEGER, DIMENSION(:), ALLOCATABLE :: part_conc, part_u, part_T, part_h, part_phi
+      INTEGER, DIMENSION(1) :: jm_loc
+      INTEGER, DIMENSION(mesh%np, 3) :: per_pts
+      INTEGER, DIMENSION(mesh%me) :: glob2loc
+      INTEGER, DIMENSION(mesh%np) :: indicator
+      INTEGER, DIMENSION(3) :: j_loc
+      INTEGER :: nb_neigh, edge, m, ms, n, nb, numflag, p, wgtflag, j, &
+           ns, nws, msop, nsop, proc, iop, mop, s2, k, me_conc, me_u, me_T, me_h, me_phi, idm
+      REAL(KIND = 8) :: err
+      LOGICAL :: test
+      !===(JLG) Feb 20, 2019. Petsc developpers decide to use REAL(KIND=4) to interface with metis
+      !REAL(KIND=8), DIMENSION(:), ALLOCATABLE  :: tpwgts
+      !REAL(KIND=8), DIMENSION(1)               :: ubvec
+      REAL(KIND = 4), DIMENSION(:), ALLOCATABLE :: tpwgts
+      REAL(KIND = 4), DIMENSION(1) :: ubvec
+      REAL(KIND = 4) :: one_K4 = 1.0
+      !===(JLG)Feb 20, 2019.
       INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
-      CHARACTER(len = 4) :: tit
-      !LOGICAL, SAVE :: once = .true.
-
-#include "petsc/finclude/petsc.h"
+      PetscMPIInt    :: nb_proc
+      !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
       PetscErrorCode :: ierr
-      PetscMPIInt    :: rank, nb_proc
-      MPI_Comm       :: communicator
-      CALL MPI_Comm_rank(communicator, rank, ierr)
-      !CALL MPI_Comm_size(PETSC_COMM_WORLD,nb_proc,ierr)
-
-      ALLOCATE(mesh_loc%disp(nb_proc + 1), mesh_loc%domnp(nb_proc))
-      ALLOCATE(mesh_loc%discell(nb_proc + 1), mesh_loc%domcell(nb_proc))
-      ALLOCATE(mesh_loc%disedge(nb_proc + 1), mesh_loc%domedge(nb_proc))
-      !IF (once) THEN
-      !   ALLOCATE(part(mesh%me))
-      !END IF
-
+      PetscMPIInt    :: rank
+!      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+!      !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
+!
 !      IF (nb_proc==1) THEN
-!         me_loc = (/ 1, mesh%me /)
-!         mes_loc = (/ 1, mesh%mes /)
-!         np_loc = (/ 1, mesh%np /)
-!         !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc)
-!         CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
+!         part = 1
 !         RETURN
 !      END IF
+!      glob2loc = 0
 !
-!      ! Create the connectivity array based on neigh
-!      nb_neigh = SIZE(mesh%neigh, 1)
-!      xind(1) = 1
+!      !===Create list_u = list_u_in \ list_conc
+!      nb = 0
+!      DO j = 1, SIZE(list_u_in)
+!         IF (MINVAL(ABS(list_u_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!      END DO
+!      ALLOCATE(list_u(nb))
+!      nb = 0
+!      DO j = 1, SIZE(list_u_in)
+!         IF (MINVAL(ABS(list_u_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!         list_u(nb) = list_u_in(j)
+!      END DO
+!      !==Done with list_u
+!
+!      !===Create list_T = list_T_in \ list_u_in
+!      nb = 0
+!      DO j = 1, SIZE(list_T_in)
+!         IF (MINVAL(ABS(list_T_in(j) - list_u_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_T_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!      END DO
+!      ALLOCATE(list_T(nb))
+!      nb = 0
+!      DO j = 1, SIZE(list_T_in)
+!         IF (MINVAL(ABS(list_T_in(j) - list_u_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_T_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!         list_T(nb) = list_T_in(j)
+!      END DO
+!      !==Done with list_T
+!
+!      !===Create list_h = list_h_in \ list_T_in
+!      nb = 0
+!      DO j = 1, SIZE(list_h_in)
+!         IF (MINVAL(ABS(list_h_in(j) - list_T_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_h_in(j) - list_u_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_h_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!      END DO
+!      ALLOCATE(list_h(nb))
+!      nb = 0
+!      DO j = 1, SIZE(list_h_in)
+!         IF (MINVAL(ABS(list_h_in(j) - list_T_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_h_in(j) - list_u_in))==0) CYCLE
+!         IF (MINVAL(ABS(list_h_in(j) - list_conc))==0) CYCLE
+!         nb = nb + 1
+!         list_h(nb) = list_h_in(j)
+!      END DO
+!      !==Done with list_h
+!
+!      !===Create neigh_new for interfaces
+!      nws = SIZE(mesh%jjs, 1)
+!      neigh_new = mesh%neigh
+!      IF (SIZE(list_of_interfaces)/=0) THEN
+!         virgins = .TRUE.
+!         DO ms = 1, mesh%mes
+!            IF (.NOT.virgins(ms)) CYCLE
+!            IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
+!            i_loc = mesh%jjs(:, ms)
+!            DO msop = 1, mesh%mes
+!               IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
+!               IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
+!               DO ns = 1, nws
+!                  test = .FALSE.
+!                  DO nsop = 1, nws
+!                     iop = mesh%jjs(nsop, msop)
+!                     IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
+!                        test = .TRUE.
+!                        EXIT
+!                     END IF
+!                  END DO
+!                  IF (.NOT.test) THEN
+!                     EXIT !==This msop does not coincide with ms
+!                  END IF
+!               END DO
+!               IF (test) EXIT
+!            END DO
+!            IF (.NOT.test) THEN
+!               CALL error_Petsc('BUG in part_mesh_M_T_H_phi, .NOT.test ')
+!            END IF
+!            DO n = 1, 3
+!               IF (neigh_new(n, mesh%neighs(msop))==0) THEN
+!                  neigh_new(n, mesh%neighs(msop)) = mesh%neighs(ms)
+!               END IF
+!               IF (neigh_new(n, mesh%neighs(ms))==0) THEN
+!                  neigh_new(n, mesh%neighs(ms)) = mesh%neighs(msop)
+!               END IF
+!            END DO
+!            virgins(ms) = .FALSE.
+!            virgins(msop) = .FALSE.
+!         END DO
+!      END IF
+!      !===End Create neigh_new for interfaces
+!
+!      !===Create neigh_new for periodic faces
+!      IF (PRESENT(my_periodic)) THEN
+!         IF (my_periodic%nb_periodic_pairs/=0) THEN
+!            DO ms = 1, mesh%mes
+!               m = mesh%neighs(ms)
+!               IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) == 0) THEN
+!                  jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
+!                  s2 = my_periodic%list_periodic(2, jm_loc(1))
+!                  test = .FALSE.
+!                  DO msop = 1, mesh%mes
+!                     IF (mesh%sides(msop) /= s2) CYCLE
+!
+!                     err = 0.d0
+!                     DO ns = 1, SIZE(my_periodic%vect_e, 1)
+!                        err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+!                             + my_periodic%vect_e(ns, jm_loc(1))))
+!                     END DO
+!
+!                     IF (err .LE. epsilon) THEN
+!                        test = .TRUE.
+!                        EXIT
+!                     END IF
+!                  END DO
+!                  IF (.NOT.test) THEN
+!                     CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+!                  END IF
+!                  mop = mesh%neighs(msop)
+!                  DO n = 1, 3
+!                     IF (neigh_new(n, m) == 0) THEN
+!                        neigh_new(n, m) = mop
+!                     END IF
+!                     IF (neigh_new(n, mop) == 0) THEN
+!                        neigh_new(n, mop) = m
+!                     END IF
+!                  END DO
+!               END IF
+!            END DO
+!         END IF
+!      END IF
+!      !===End Create neigh_new for periodic faces
+!
+!      !===Create glob2loc and conc2glob, u2glob, T2glob, h2glob, phi2glob
+!      me_conc = 0
+!      me_u = 0
+!      me_T = 0
+!      me_h = 0
+!      me_phi = 0
 !      DO m = 1, mesh%me
+!         idm = mesh%i_d(m)
+!         IF (MINVAL(ABS(idm - list_conc))==0) THEN
+!            me_conc = me_conc + 1
+!         ELSE IF (MINVAL(ABS(idm - list_u))==0) THEN
+!            me_u = me_u + 1
+!         ELSE IF (MINVAL(ABS(idm - list_T))==0) THEN
+!            me_T = me_T + 1
+!         ELSE IF (MINVAL(ABS(idm - list_h))==0) THEN
+!            me_h = me_h + 1
+!         ELSE IF (MINVAL(ABS(idm - list_phi))==0) THEN
+!            me_phi = me_phi + 1
+!         ELSE
+!            CALL error_Petsc('BUG in part_mesh_M_T_H_phi : element not in the mesh')
+!         END IF
+!      END DO
+!      ALLOCATE(conc2glob(me_conc), u2glob(me_u), T2glob(me_T), h2glob(me_h), phi2glob(me_phi))
+!      me_conc = 0
+!      me_u = 0
+!      me_T = 0
+!      me_h = 0
+!      me_phi = 0
+!      DO m = 1, mesh%me
+!         idm = mesh%i_d(m)
+!         IF (MINVAL(ABS(idm - list_conc))==0) THEN
+!            me_conc = me_conc + 1
+!            conc2glob(me_conc) = m
+!            glob2loc(m) = me_conc
+!         ELSE IF (MINVAL(ABS(idm - list_u))==0) THEN
+!            me_u = me_u + 1
+!            u2glob(me_u) = m
+!            glob2loc(m) = me_u
+!         ELSE IF (MINVAL(ABS(idm - list_T))==0) THEN
+!            me_T = me_T + 1
+!            T2glob(me_T) = m
+!            glob2loc(m) = me_T
+!         ELSE IF (MINVAL(ABS(idm - list_h))==0) THEN
+!            me_h = me_h + 1
+!            h2glob(me_h) = m
+!            glob2loc(m) = me_h
+!         ELSE IF (MINVAL(ABS(idm - list_phi))==0) THEN
+!            me_phi = me_phi + 1
+!            phi2glob(me_phi) = m
+!            glob2loc(m) = me_phi
+!         ELSE
+!            CALL error_Petsc('BUG in part_mesh_M_T_H_phi: element not in the mesh')
+!         END IF
+!      END DO
+!      !===End Create glob2loc and u2glob, T2glob, h2glob, phi2glob, conc2glob
+!
+!      !===Create the connectivity arrays Xind and Xadj based on neigh (for Metis)
+!      nb_neigh = SIZE(mesh%neigh, 1)
+!      ALLOCATE(xind_conc(me_conc + 1), xind_u(me_u + 1), xind_T(me_T + 1), xind_h(me_h + 1), xind_phi(me_phi + 1))
+!      xind_conc(1) = 1
+!      DO k = 1, me_conc
+!         m = conc2glob(k)
 !         nb = 0
 !         DO n = 1, nb_neigh
-!            IF (mesh%neigh(n, m)==0) CYCLE
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_conc))/=0) CYCLE
 !            nb = nb + 1
 !         END DO
-!         xind(m + 1) = xind(m) + nb
+!         xind_conc(k + 1) = xind_conc(k) + nb
 !      END DO
-!      ALLOCATE(xadj(xind(mesh%me + 1) - 1))
-!      p = 0
-!      DO m = 1, mesh%me
+!      xind_u(1) = 1
+!      DO k = 1, me_u
+!         m = u2glob(k)
+!         nb = 0
 !         DO n = 1, nb_neigh
-!            IF (mesh%neigh(n, m)==0) CYCLE
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_u))/=0) CYCLE
+!            nb = nb + 1
+!         END DO
+!         xind_u(k + 1) = xind_u(k) + nb
+!      END DO
+!      xind_T(1) = 1
+!      DO k = 1, me_T
+!         m = T2glob(k)
+!         nb = 0
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_T))/=0) CYCLE
+!            nb = nb + 1
+!         END DO
+!         xind_T(k + 1) = xind_T(k) + nb
+!      END DO
+!      xind_h(1) = 1
+!      DO k = 1, me_h
+!         m = h2glob(k)
+!         nb = 0
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_h))/=0) CYCLE
+!            nb = nb + 1
+!         END DO
+!         xind_h(k + 1) = xind_h(k) + nb
+!      END DO
+!      xind_phi(1) = 1
+!      DO k = 1, me_phi
+!         m = phi2glob(k)
+!         nb = 0
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_phi))/=0) CYCLE
+!            nb = nb + 1
+!         END DO
+!         xind_phi(k + 1) = xind_phi(k) + nb
+!      END DO
+!
+!      ALLOCATE(xadj_conc(xind_conc(me_conc + 1) - 1))
+!      ALLOCATE(xadj_u(xind_u(me_u + 1) - 1))
+!      ALLOCATE(xadj_T(xind_T(me_T + 1) - 1))
+!      ALLOCATE(xadj_h(xind_h(me_h + 1) - 1))
+!      ALLOCATE(xadj_phi(xind_phi(me_phi + 1) - 1))
+!      p = 0
+!      DO k = 1, me_conc
+!         m = conc2glob(k)
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_conc))/=0) CYCLE
 !            p = p + 1
-!            xadj(p) = mesh%neigh(n, m)
+!            xadj_conc(p) = glob2loc(mop)
 !         END DO
 !      END DO
-!      IF (p/=xind(mesh%me + 1) - 1) THEN
-!         CALL error_Petsc('BUG, p/=xind(mesh%me+1)-1')
+!      IF (p/=xind_conc(me_conc + 1) - 1) THEN
+!         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, p/=xind_conc(me_conc+1)-1')
 !      END IF
-!      ! End create the connectivity array based on neigh
+!      p = 0
+!      DO k = 1, me_u
+!         m = u2glob(k)
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_u))/=0) CYCLE
+!            p = p + 1
+!            xadj_u(p) = glob2loc(mop)
+!         END DO
+!      END DO
+!      IF (p/=xind_u(me_u + 1) - 1) THEN
+!         CALL error_Petsc('BUG in  part_mesh_M_T_H_phi, p/=xind_u(me_u+1)-1')
+!      END IF
+!      p = 0
+!      DO k = 1, me_T
+!         m = T2glob(k)
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_T))/=0) CYCLE
+!            p = p + 1
+!            xadj_T(p) = glob2loc(mop)
+!         END DO
+!      END DO
+!      IF (p/=xind_T(me_T + 1) - 1) THEN
+!         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, p/=xind_T(me_T+1)-1')
+!      END IF
+!      p = 0
+!      DO k = 1, me_h
+!         m = h2glob(k)
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_h))/=0) CYCLE
+!            p = p + 1
+!            xadj_h(p) = glob2loc(mop)
+!         END DO
+!      END DO
+!      IF (p/=xind_h(me_h + 1) - 1) THEN
+!         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, p/=xind_h(me_h+1)-1')
+!      END IF
+!      p = 0
+!      DO k = 1, me_phi
+!         m = phi2glob(k)
+!         DO n = 1, nb_neigh
+!            mop = neigh_new(n, m)
+!            IF (mop==0) CYCLE
+!            IF (MINVAL(ABS(mesh%i_d(mop) - list_phi))/=0) CYCLE
+!            p = p + 1
+!            xadj_phi(p) = glob2loc(mop)
+!         END DO
+!      END DO
+!      IF (p/=xind_phi(me_phi + 1) - 1) THEN
+!         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, p/=xind_phi(me_phi+1)-1')
+!      END IF
+!      !===End Create the connectivity arrays Xind and Xadj based on neigh (for Metis)
 !
-!      ALLOCATE(adjwgt(SIZE(xadj)))
+!      !===Create partitions
 !      opts = 0
-!      adjwgt = 1
-!      numflag = 1 ! Fortran numbering of processors
+!      numflag = 1
 !      wgtflag = 2
-!      vwgt = 1
-!      vsize = 1
-!      ncon = 1
 !      ALLOCATE(tpwgts(nb_proc))
-!      tpwgts = 1.d0 / nb_proc
+!      tpwgts = one_K4 / nb_proc
 !      CALL METIS_SetDefaultOptions(metis_opt)
 !      metis_opt(METIS_OPTION_NUMBERING) = 1
 !      ubvec = 1.01
-!      !IF (once) THEN
-!      CALL METIS_PartGraphRecursive(mesh%me, ncon, xind(1:), xadj(1:), vwgt(1:), vsize(1:), adjwgt(1:), &
-!           nb_proc, tpwgts(1:), ubvec(1:), metis_opt(1:), edge, part(1:))
-!      !   once = .false.
-!      !END IF
-!
-!      IF (rank==0) THEN
-!         WRITE(tit, '(i4)') SIZE(mesh%jj, 1)
-!         plot = 0.d0
-!         do m = 1, mesh%me
-!            if (part(m) == 150) then
-!               plot(m) = 1.d0
-!            else if (part(m) == 152)  then
-!               plot(m) = 2.d0
-!            else if (part(m) == 153)  then
-!               plot(m) = 3.d0
-!            end if
-!         end do
-!         CALL plot_const_p1_label(mesh%jj, mesh%rr, plot, 'dd' // tit // '.plt')
+!      IF (me_conc /= 0) THEN
+!         IF (ALLOCATED(vwgt)) THEN
+!            DEALLOCATE(vwgt, adjwgt)
+!         END IF
+!         ALLOCATE(vwgt(me_conc), adjwgt(SIZE(xadj_conc)), part_conc(me_conc))
+!         vwgt = 1
+!         adjwgt = 1
+!         CALL METIS_PartGraphRecursive(me_conc, 1, xind_conc, xadj_conc, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+!              ubvec, metis_opt, edge, part_conc)
 !      END IF
+!      IF (me_u /= 0) THEN
+!         ALLOCATE(vwgt(me_u), adjwgt(SIZE(xadj_u)), part_u(me_u))
+!         vwgt = 1
+!         adjwgt = 1
+!         CALL METIS_PartGraphRecursive(me_u, 1, xind_u, xadj_u, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+!              ubvec, metis_opt, edge, part_u)
+!      END IF
+!      IF (me_T /= 0) THEN
+!         IF (ALLOCATED(vwgt)) THEN
+!            DEALLOCATE(vwgt, adjwgt)
+!         END IF
+!         ALLOCATE(vwgt(me_T), adjwgt(SIZE(xadj_T)), part_T(me_T))
+!         vwgt = 1
+!         adjwgt = 1
+!         CALL METIS_PartGraphRecursive(me_T, 1, xind_T, xadj_T, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+!              ubvec, metis_opt, edge, part_T)
+!      END IF
+!      IF (me_h /= 0) THEN
+!         IF (ALLOCATED(vwgt)) THEN
+!            DEALLOCATE(vwgt, adjwgt)
+!         END IF
+!         ALLOCATE(vwgt(me_h), adjwgt(SIZE(xadj_h)), part_h(me_h))
+!         vwgt = 1
+!         adjwgt = 1
+!         CALL METIS_PartGraphRecursive(me_h, 1, xind_h, xadj_h, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+!              ubvec, metis_opt, edge, part_h)
+!      END IF
+!      IF (me_phi /= 0) THEN
+!         IF (ALLOCATED(vwgt)) THEN
+!            DEALLOCATE(vwgt, adjwgt)
+!         END IF
+!         ALLOCATE(vwgt(me_phi), adjwgt(SIZE(xadj_phi)), part_phi(me_phi))
+!         vwgt = 1
+!         adjwgt = 1
+!         CALL METIS_PartGraphRecursive(me_phi, 1, xind_phi, xadj_phi, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+!              ubvec, metis_opt, edge, part_phi)
+!      END IF
+!      !===End Create partitions
+!
+!      !===Create global partition 'part'
+!      part = -1
+!      IF (me_conc/=0) THEN
+!         part(conc2glob(:)) = part_conc
+!      END IF
+!      IF (me_u/=0) THEN
+!         part(u2glob(:)) = part_u
+!      END IF
+!      IF (me_T/=0) THEN
+!         part(T2glob(:)) = part_T
+!      END IF
+!      IF (me_h/=0) THEN
+!         part(h2glob(:)) = part_h
+!      END IF
+!      IF (me_phi/=0) THEN
+!         part(phi2glob(:)) = part_phi
+!      END IF
+!      IF (MINVAL(part)==-1) THEN
+!         CALL error_Petsc('BUG in part_mesh_mhd_bis, MINVAL(part) == -1')
+!      END IF
+!      !===End Create global partition 'part'
+!
+!      !===Create parts and modify part
+!      !===Search on the boundary whether ms is on a cut.
+!      IF (SIZE(mesh%jj, 1)/=3) THEN
+!         write(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
+!         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)/=3')
+!      END IF
+!      indicator = -1
+!      nws = SIZE(mesh%jjs, 1)
+!      IF (SIZE(list_of_interfaces)/=0) THEN
+!         virgins = .TRUE.
+!         DO ms = 1, mesh%mes
+!            IF (.NOT.virgins(ms)) CYCLE
+!            IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
+!            i_loc = mesh%jjs(:, ms)
+!            DO msop = 1, mesh%mes
+!               IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
+!               IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
+!               DO ns = 1, nws
+!                  test = .FALSE.
+!                  DO nsop = 1, nws
+!                     iop = mesh%jjs(nsop, msop)
+!                     IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
+!                        test = .TRUE.
+!                        EXIT
+!                     END IF
+!                  END DO
+!                  IF (.NOT.test) THEN
+!                     EXIT !==This msop does not coincide with ms
+!                  END IF
+!               END DO
+!               IF (test) EXIT
+!            END DO
+!            IF (.NOT.test) THEN
+!               CALL error_Petsc('BUG in part_mesh_M_T_H_phi, .NOT.test ')
+!            END IF
+!            IF (part(mesh%neighs(ms)) == part(mesh%neighs(msop))) CYCLE !==ms is an internal cut
+!            proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
+!            part(mesh%neighs(ms)) = proc !make sure interface are internal
+!            part(mesh%neighs(msop)) = proc !make sure interface are internal
+!            virgins(ms) = .FALSE.
+!            virgins(msop) = .FALSE.
+!            indicator(mesh%jjs(:, ms)) = proc
+!            indicator(mesh%jjs(:, msop)) = proc
+!         END DO
+!      END IF
+!      !===Fix the partition so that all the cells having one vertex on an
+!      !===interface belong to the same processor as those sharing this vertices and
+!      !===having two vertices on the interface (JLG + DCQ July 22 2015)
+!      DO m = 1, mesh%me
+!         j_loc = mesh%jj(:, m)
+!         n = MAXVAL(indicator(j_loc))
+!         IF (n == -1) CYCLE
+!         IF (indicator(j_loc(1)) * indicator(j_loc(2)) * indicator(j_loc(3))<0) CYCLE
+!         part(m) = n
+!      END DO
+!      !===End create parts and modify part
+!
+!      !===Move the two elements with one periodic face on same processor
+!      IF (PRESENT(my_periodic)) THEN
+!         IF (my_periodic%nb_periodic_pairs/=0) THEN
+!            DO j = 1, mesh%np
+!               per_pts(j, 1) = j
+!            END DO
+!            per_pts(:, 2:3) = 0
+!            DO ms = 1, mesh%mes
+!               m = mesh%neighs(ms)
+!               IF ((MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /=0) .AND. &
+!                    (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(2, :))) /=0)) CYCLE
+!               DO ns = 1, SIZE(mesh%jjs, 1)
+!                  j = mesh%jjs(ns, ms)
+!                  per_pts(j, 2) = m
+!                  DO msop = 1, mesh%mes
+!                     IF (MINVAL(ABS(mesh%sides(msop) - my_periodic%list_periodic(:, :))) /=0) CYCLE
+!                     IF (msop == ms) CYCLE
+!                     DO nsop = 1, SIZE(mesh%jjs, 1)
+!                        IF (mesh%jjs(nsop, msop)==j) THEN
+!                           per_pts(j, 3) = mesh%neighs(msop)
+!                        END IF
+!                     END DO
+!                  END DO
+!               END DO
+!            END DO
+!            CALL reassign_per_pts(mesh, part, per_pts)
+!            DO ms = 1, mesh%mes
+!               m = mesh%neighs(ms)
+!               IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /= 0) CYCLE
+!               jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
+!               s2 = my_periodic%list_periodic(2, jm_loc(1))
+!               test = .FALSE.
+!               DO msop = 1, mesh%mes
+!                  IF (mesh%sides(msop) /= s2) CYCLE
+!                  err = 0.d0
+!                  DO ns = 1, SIZE(my_periodic%vect_e, 1)
+!                     err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+!                          + my_periodic%vect_e(ns, jm_loc(1))))
+!                  END DO
+!                  IF (err .LE. epsilon) THEN
+!                     test = .TRUE.
+!                     EXIT
+!                  END IF
+!               END DO
+!               IF (.NOT.test) THEN
+!                  CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+!               END IF
+!               IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
+!                  proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
+!                  part(mesh%neighs(ms)) = proc !make sure interface are internal
+!                  part(mesh%neighs(msop)) = proc !make sure interface are internal
+!               END IF
+!            END DO
+!         END IF
+!      END IF
+!      !===End Move the two elements with one periodic face on same processor
+!
+!      !!$ WARNING, FL 1/2/13 : TO BE ADDED IF NEEDED
+!      !================================================
+!      IF (rank==0) THEN
+!         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
+!      END IF
+!      !================================================
+!      !!$ WARNING, FL 1/2/13 : TO BE ADDED IF NEEDED
+!
+!      DEALLOCATE(vwgt, adjwgt)
+!      IF (ALLOCATED(xadj_conc)) DEALLOCATE(xadj_conc)
+!      IF (ALLOCATED(xadj_u)) DEALLOCATE(xadj_u)
+!      IF (ALLOCATED(xadj_T)) DEALLOCATE(xadj_T)
+!      IF (ALLOCATED(xadj_h)) DEALLOCATE(xadj_h)
+!      IF (ALLOCATED(xadj_phi)) DEALLOCATE(xadj_phi)
+!      IF (ALLOCATED(list_T)) DEALLOCATE(list_T)
+!      IF (ALLOCATED(list_h)) DEALLOCATE(list_h)
+!      IF (ALLOCATED(list_u)) DEALLOCATE(list_u)
+!      IF (ALLOCATED(xind_conc)) DEALLOCATE(xind_conc)
+!      IF (ALLOCATED(xind_u)) DEALLOCATE(xind_u)
+!      IF (ALLOCATED(xind_T)) DEALLOCATE(xind_T)
+!      IF (ALLOCATED(xind_h)) DEALLOCATE(xind_h)
+!      IF (ALLOCATED(xind_phi)) DEALLOCATE(xind_phi)
+!      IF (ALLOCATED(conc2glob)) DEALLOCATE(conc2glob)
+!      IF (ALLOCATED(u2glob)) DEALLOCATE(u2glob)
+!      IF (ALLOCATED(T2glob)) DEALLOCATE(T2glob)
+!      IF (ALLOCATED(h2glob)) DEALLOCATE(h2glob)
+!      IF (ALLOCATED(phi2glob)) DEALLOCATE(phi2glob)
+!      IF (ALLOCATED(part_conc)) DEALLOCATE(part_conc)
+!      IF (ALLOCATED(part_u)) DEALLOCATE(part_u)
+!      IF (ALLOCATED(part_T)) DEALLOCATE(part_T)
+!      IF (ALLOCATED(part_h)) DEALLOCATE(part_h)
+!      IF (ALLOCATED(part_phi)) DEALLOCATE(part_phi)
+
+      DEALLOCATE(tpwgts)
+
+   END SUBROUTINE part_mesh
+
+   SUBROUTINE extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh_loc)
+      USE def_type_mesh
+      USE my_util
+      IMPLICIT NONE
+      TYPE(mesh_type) :: mesh_glob, mesh, mesh_loc
+      INTEGER, DIMENSION(:) :: part, list_dom
+      INTEGER, DIMENSION(mesh_glob%me) :: bat
+      INTEGER, DIMENSION(mesh_glob%np) :: i_old_to_new
+      INTEGER, DIMENSION(mesh_glob%medge) :: old_edge_to_new
+      INTEGER, DIMENSION(mesh_glob%mes) :: parts
+      INTEGER, DIMENSION(nb_proc) :: nblmt_per_proc, start, displ
+      INTEGER, DIMENSION(2) :: np_loc, me_loc, mes_loc
+      INTEGER, DIMENSION(:), ALLOCATABLE :: list_m, tab, tabs
+      INTEGER :: nb_proc, ms, i, index, m, mop, n, j
+      PetscErrorCode :: ierr
+      PetscMPIInt    :: rank
+      MPI_Comm       :: communicator
+      CALL MPI_Comm_rank(communicator, rank, ierr)
+
+!      ALLOCATE(mesh_loc%disp(nb_proc + 1), mesh_loc%domnp(nb_proc))
+!      ALLOCATE(mesh_loc%discell(nb_proc + 1), mesh_loc%domcell(nb_proc))
+!      ALLOCATE(mesh_loc%disedge(nb_proc + 1), mesh_loc%domedge(nb_proc))
+!
+!      ! Create parts
+!      parts = part(mesh_glob%neighs)
+!      ! End create parts
+!
+!      ! Create list_m
+!      i = 0
+!      DO m = 1, mesh_glob%me
+!         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(m)))/=0) CYCLE
+!         i = i + 1
+!      END DO
+!      mesh%me = i
+!      ALLOCATE (list_m(mesh%me))
+!      i = 0
+!      DO m = 1, mesh_glob%me
+!         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(m)))/=0) CYCLE
+!         i = i + 1
+!         list_m(i) = m
+!      END DO
+!      !End create list_m
 !
 !      ! Count elements on processors
-!      ALLOCATE(nblmt_per_proc(nb_proc), start(nb_proc), displ(nb_proc))
 !      nblmt_per_proc = 0
-!      DO m = 1, mesh%me
+!      DO i = 1, mesh%me
+!         m = list_m(i)
 !         nblmt_per_proc(part(m)) = nblmt_per_proc(part(m)) + 1
 !      END DO
 !      start(1) = 0
@@ -141,200 +683,102 @@ CONTAINS
 !      ! End count elements on processors
 !
 !      ! Re-order elements
-!      DO m = 1, mesh%me
+!      ALLOCATE(tab(mesh%me))
+!      bat = 0
+!      DO i = 1, mesh%me
+!         m = list_m(i)
 !         start(part(m)) = start(part(m)) + 1
-!         old_m_to_new(m) = start(part(m))
+!         tab(start(part(m))) = m
+!         bat(m) = start(part(m))
 !      END DO
 !      ! Re-order elements
 !
-!
-!      !==Search on the boundary whether ms is on a cut.
-!      nws = SIZE(mesh%jjs, 1)
-!      news = 0
-!      inter_news = 0
-!      parts = part(mesh%neighs)
-!      IF (PRESENT(list_of_interfaces)) THEN !==There is an interface
-!         IF (SIZE(list_of_interfaces)/=0) THEN
-!            virgins = .TRUE.
-!            news = 0
-!            DO ms = 1, mesh%mes
-!               IF (.NOT.virgins(ms)) CYCLE
-!               IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
-!               i_loc = mesh%jjs(:, ms)
-!               DO msop = 1, mesh%mes
-!                  IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
-!                  IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
-!                  DO ns = 1, nws
-!                     test = .FALSE.
-!                     DO nsop = 1, nws
-!                        iop = mesh%jjs(nsop, msop)
-!                        IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
-!                           test = .TRUE.
-!                           EXIT
-!                        END IF
-!                     END DO
-!                     IF (.NOT.test) THEN
-!                        EXIT !==This msop does not coincide with ms
-!                     END IF
-!                  END DO
-!                  IF (test) EXIT
-!               END DO
-!               IF (.NOT.test) THEN
-!                  CALL error_Petsc('BUG in create_local_mesh, .NOT.test ')
-!               END IF
-!               IF (part(mesh%neighs(ms)) == part(mesh%neighs(msop))) CYCLE !==ms is an internal cut
-!               proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-!               parts(ms) = proc
-!               parts(msop) = proc
-!               virgins(ms) = .FALSE.
-!               virgins(msop) = .FALSE.
-!               IF (proc /= rank + 1) CYCLE !==ms and msop do not touch the current proc
-!               news = news + 1
-!               inter_news(1, news) = ms
-!               inter_news(2, news) = msop
-!            END DO
-!         END IF
-!      END IF
-!
-!
-!      ! Re-order jj
-!      ALLOCATE(inter(SIZE(mesh%jj, 1), mesh%me))
+!      ! Create mesh%jj
+!      mesh%gauss%n_w = SIZE(mesh_glob%jj, 1)
+!      ALLOCATE(mesh%jj(SIZE(mesh_glob%jj, 1), mesh%me))
+!      i_old_to_new = 0
+!      index = 0
 !      DO m = 1, mesh%me
-!         inter(:, old_m_to_new(m)) = mesh%jj(:, m)
-!      END DO
-!      mesh%jj = inter
-!
-!      virgin = .TRUE.
-!      new_dof = 0
-!      DO k = 1, nb_proc
-!         DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-!            DO n = 1, 3
-!               j = mesh%jj(n, m)
-!               IF (.NOT.virgin(j)) CYCLE
-!               new_dof = new_dof + 1
-!               virgin(j) = .FALSE.
-!               old_j_to_new(j) = new_dof
-!            END DO
-!         END DO
-!
-!         IF (SIZE(mesh%jj, 1) == 6) THEn
-!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-!               DO n = 4, 6
-!                  j = mesh%jj(n, m)
-!                  IF (.NOT.virgin(j)) CYCLE
-!                  new_dof = new_dof + 1
-!                  virgin(j) = .FALSE.
-!                  old_j_to_new(j) = new_dof
-!               END DO
-!            END DO
-!         END IF
-!         IF (SIZE(mesh%jj, 1) == 10) THEn
-!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-!               DO n = 4, 9
-!                  j = mesh%jj(n, m)
-!                  IF (.NOT.virgin(j)) CYCLE
-!                  new_dof = new_dof + 1
-!                  virgin(j) = .FALSE.
-!                  old_j_to_new(j) = new_dof
-!               END DO
-!            END DO
-!            DO m = displ(k) + 1, displ(k) + nblmt_per_proc(k)
-!               j = mesh%jj(10, m)
-!               IF (.NOT.virgin(j)) CYCLE
-!               new_dof = new_dof + 1
-!               virgin(j) = .FALSE.
-!               old_j_to_new(j) = new_dof
-!            END DO
-!         END IF
-!      END DO
-!
-!      DO m = 1, mesh%me
-!         inter(:, m) = old_j_to_new(mesh%jj(:, m))
-!      END DO
-!      mesh%jj = inter
-!      DEALLOCATE(inter)
-!
-!      IF (rank == 0) THEN
-!         np_loc(1) = 1
-!      ELSE
-!         np_loc(1) = MAXVAL(mesh%jj(:, displ(rank) + 1:displ(rank) + nblmt_per_proc(rank))) + 1
-!      END IF
-!      np_loc(2) = MAXVAL(mesh%jj(:, me_loc(1):me_loc(2)))
-!      ! End re-order jj
-!
-!      ! Re-order edge
-!      ALLOCATE(inter(SIZE(mesh%jce, 1), mesh%me))
-!      DO m = 1, mesh%me
-!         inter(:, old_m_to_new(m)) = mesh%jce(:, m)
-!      END DO
-!      mesh%jce = inter
-!
-!      virginss = .TRUE.
-!      new_dof = 0
-!      DO m = 1, mesh%me
-!         DO n = 1, SIZE(mesh%jce, 1)
-!            j = mesh%jce(n, m)
-!            IF (.NOT.virginss(j)) CYCLE
-!            new_dof = new_dof + 1
-!            virginss(j) = .FALSE.
-!            old_edge_to_new(j) = new_dof
-!         END DO
-!      END DO
-!
-!      DO m = 1, mesh%me
-!         inter(:, m) = old_edge_to_new(mesh%jce(:, m))
-!      END DO
-!
-!      mesh%jce = inter
-!      DEALLOCATE(inter)
-!      ! End re-order edge
-!
-!      ! Re-order rr
-!      DO  n = 1, SIZE(mesh%rr, 1)
-!         r_old_j_to_new(old_j_to_new) = mesh%rr(n, :)
-!         mesh%rr(n, :) = r_old_j_to_new(:)
-!      END DO
-!      ! Re-order rr
-!
-!      ! Re-order neigh
-!      ALLOCATE(inter(SIZE(mesh%neigh, 1), mesh%me))
-!      dim = SIZE(mesh%rr, 1)
-!      DO m = 1, mesh%me
-!         DO n = 1, dim + 1
-!            IF (mesh%neigh(n, m) /=0) THEN
-!               inter(n, old_m_to_new(m)) = old_m_to_new(mesh%neigh(n, m))
+!         DO n = 1, SIZE(mesh_glob%jj, 1)
+!            i = mesh_glob%jj(n, tab(m))
+!            IF (i_old_to_new(i)/=0) THEN
+!               mesh%jj(n, m) = i_old_to_new(i)
 !            ELSE
-!               inter(n, old_m_to_new(m)) = 0
+!               index = index + 1
+!               i_old_to_new(i) = index
+!               mesh%jj(n, m) = i_old_to_new(i)
 !            END IF
 !         END DO
 !      END DO
-!      mesh%neigh = inter
-!      DEALLOCATE(inter)
-!      ! End re-order neigh
+!      mesh%np = index
+!      ! End Create mesh%jj
 !
-!      ! Re-order i_d
-!      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%me))
-!      xadj(old_m_to_new) = mesh%i_d
-!      mesh%i_d = xadj
-!      ! End Re-order i_d
+!      ! Create mesh%rr
+!      ALLOCATE(mesh%rr(2, mesh%np))
+!      DO i = 1, mesh_glob%np
+!         IF (i_old_to_new(i)==0) CYCLE
+!         mesh%rr(:, i_old_to_new(i)) = mesh_glob%rr(:, i)
+!      END DO
+!      !End Create mesh%rr
 !
-!      ! Re-order jev
-!      !      ALLOCATE(inter(SIZE(mesh%jev, 1), mesh%medge))
-!      !      dim = SIZE(mesh%jev, 1)
-!      !      DO m = 1, mesh%medge
-!      !         DO n = 1, dim
-!      !            inter(n, old_edge_to_new(m)) = old_j_to_new(mesh%jev(n, m))
-!      !         END DO
-!      !      END DO
-!      !      mesh%jev = inter
-!      !      DEALLOCATE(inter)
-!      ! End Re-order jev
+!      ! Re-order edge
+!      ALLOCATE(mesh%jce(SIZE(mesh_glob%jce, 1), mesh%me))
+!      old_edge_to_new = 0
+!      index = 0
+!      DO m = 1, mesh%me
+!         DO n = 1, SIZE(mesh%jce, 1)
+!            j = mesh_glob%jce(n, tab(m))
+!            IF (old_edge_to_new(j)/=0) THEN
+!               mesh%jce(n, m) = old_edge_to_new(j)
+!            ELSE
+!               index = index + 1
+!               old_edge_to_new(j) = index
+!               mesh%jce(n, m) = old_edge_to_new(j)
+!            END IF
+!         END DO
+!      END DO
+!      mesh%medge = index
+!      ! End re-order edge
 !
-!      ! Re-order neighs
-!      DEALLOCATE(xadj); ALLOCATE(xadj(mesh%mes))
 !
+!      ! Create mesh%neigh
+!      ALLOCATE(mesh%neigh(3, mesh%me))
+!      DO m = 1, mesh%me
+!         DO n = 1, 3
+!            mop = mesh_glob%neigh(n, tab(m))
+!            IF (mop==0) THEN
+!               mesh%neigh(n, m) = 0
+!            ELSE
+!               mesh%neigh(n, m) = bat(mop)
+!            END IF
+!         END DO
+!      END DO
+!      ! End  Create mesh%neigh
+!
+!      ! Create mesh%i_d
+!      ALLOCATE(mesh%i_d(mesh%me))
+!      mesh%i_d = mesh_glob%i_d(tab)
+!      ! End mesh%i_d
+!
+!      ! Create np_loc
+!      IF (displ(rank + 1)/=0) THEN
+!         np_loc(1) = MAXVAL(mesh%jj(:, 1:displ(rank + 1))) + 1
+!      ELSE
+!         np_loc(1) = 1
+!      END IF
+!      np_loc(2) = np_loc(1) - 1
+!      IF (me_loc(1).LE.me_loc(2)) THEN
+!         np_loc(2) = MAXVAL(mesh%jj(:, me_loc(1):me_loc(2)))
+!      END IF
+!      IF (np_loc(2) .LT. np_loc(1) - 1) THEN
+!         np_loc(2) = np_loc(1) - 1
+!      END IF
+!      ! End create np_loc
+!
+!      ! Create mes_loc
 !      nblmt_per_proc = 0
-!      DO ms = 1, mesh%mes
+!      DO ms = 1, mesh_glob%mes
+!         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(mesh_glob%neighs(ms))))/=0) CYCLE
 !         n = parts(ms)
 !         nblmt_per_proc(n) = nblmt_per_proc(n) + 1
 !      END DO
@@ -344,66 +788,125 @@ CONTAINS
 !      END DO
 !      mes_loc(1) = start(rank + 1) + 1
 !      mes_loc(2) = start(rank + 1) + nblmt_per_proc(rank + 1)
+!      mesh%mes = SUM(nblmt_per_proc)
+!      ! End create mes_loc
 !
-!      DO ms = 1, mesh%mes
-!         n = parts(ms)
-!         start(n) = start(n) + 1
-!         old_ms_to_new(ms) = start(n)
+!      ! Create tabs and sbat
+!      ALLOCATE(tabs(mesh%mes))
+!      DO ms = 1, mesh_glob%mes
+!         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(mesh_glob%neighs(ms))))/=0) CYCLE
+!         start(parts(ms)) = start(parts(ms)) + 1
+!         tabs(start(parts(ms))) = ms
 !      END DO
-!      xadj(old_ms_to_new) = mesh%neighs
-!      mesh%neighs = xadj
-!      xadj = old_m_to_new(mesh%neighs)
-!      mesh%neighs = xadj
-!      ! End re-order neighs
+!      ! End create tabs and sbat
 !
-!      ! Re-order inter_news
-!      xadj(1:news) = old_ms_to_new(inter_news(1, 1:news))
-!      inter_news(1, 1:news) = xadj(1:news)
-!      xadj(1:news) = old_ms_to_new(inter_news(2, 1:news))
-!      inter_news(2, 1:news) = xadj(1:news)
-!      ! End re-order inter_news
+!      ! Create neighs
+!      ALLOCATE(mesh%neighs(mesh%mes))
+!      mesh%neighs = bat(mesh_glob%neighs(tabs))
+!      ! End create neighs
 !
 !      ! Re-order sides
-!      xadj(old_ms_to_new) = mesh%sides
-!      mesh%sides = xadj
+!      ALLOCATE(mesh%sides(mesh%mes))
+!      mesh%sides = mesh_glob%sides(tabs)
 !      ! End re-order sides
 !
 !      ! Re-order jjs
+!      mesh%gauss%n_ws = SIZE(mesh_glob%jjs, 1)
+!      ALLOCATE(mesh%jjs(SIZE(mesh_glob%jjs, 1), mesh%mes))
+!
 !      DO n = 1, SIZE(mesh%jjs, 1)
-!         xadj(old_ms_to_new) = old_j_to_new(mesh%jjs(n, :))
-!         mesh%jjs(n, :) = xadj
+!         mesh%jjs(n, :) = i_old_to_new(mesh_glob%jjs(n, tabs))
 !      END DO
 !      ! End re-order jjs
 !
-!      !==We create the local mesh now
-!      !CALL create_local_mesh(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:,1:news))
+!      mesh%mes_int = 0
+!      ! Create mes_int_loc
+!      DO ms = 1, mesh_glob%mes_int
+!         IF (MAXVAL(bat(mesh_glob%neighs_int(:, ms))) > 0) THEN
+!            mesh%mes_int = mesh%mes_int + 1
+!         END IF
+!      END DO
 !
-!      CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news(:, 1:news))
-!      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+!      ! Create neighs_int sides_int jjs_int
+!      ALLOCATE(mesh%neighs_int(2, mesh%mes_int))
+!      ALLOCATE(mesh%sides_int(mesh%mes_int))
+!      ALLOCATE(mesh%jjs_int(SIZE(mesh_glob%jjs, 1), mesh%mes_int))
+!
+!      m = 0
+!      DO ms = 1, mesh_glob%mes_int
+!         IF (MAXVAL(bat(mesh_glob%neighs_int(:, ms))) > 0) THEN
+!            m = m + 1
+!            mesh%neighs_int(1, m) = bat(mesh_glob%neighs_int(1, ms))
+!            mesh%neighs_int(2, m) = bat(mesh_glob%neighs_int(2, ms))
+!            IF (mesh%neighs_int(2, m) > mesh%neighs_int(1, m)) THEN
+!               mesh%neighs_int(:, m) = (/mesh%neighs_int(2, m), mesh%neighs_int(1, m) /)
+!            END IF
+!            mesh%sides_int(m) = mesh_glob%sides_int(ms)
+!            DO n = 1, SIZE(mesh%jjs, 1)
+!               mesh%jjs_int(n, m) = i_old_to_new(mesh_glob%jjs_int(n, ms))
+!            END DO
+!         END IF
+!      END DO
+!      ! End create neighs_int
+!
+!
+!      !==We create the local mesh now
+!      mesh%edge_stab = .FALSE.
+!      ALLOCATE(mesh%jees(0), mesh%jecs(0))
+!
+!      mesh%mextra = 0
+!      ALLOCATE(mesh%jj_extra(3, 0))
+!      ALLOCATE(mesh%jce_extra(3, 0))
+!      ALLOCATE(mesh%jcc_extra(0))
+!
+!      mesh%mes_extra = 0
+!      ALLOCATE(mesh%neighs_extra(0))
+!      ALLOCATE(mesh%sides_extra(0))
+!      ALLOCATE(mesh%jjs_extra(2, 0))
+!      ALLOCATE(mesh%rrs_extra(2, 3, 0))
+!      ALLOCATE(mesh%loc_to_glob(mesh%np))
+!      DO n = 1, mesh%np
+!         mesh%loc_to_glob(n) = n
+!      END DO
+!      mesh%nis = 0
+!      ALLOCATE(mesh%isolated_jjs(0), mesh%isolated_interfaces(0, 2))
+!
+!      ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+!      ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+!      ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+!      mesh%disp = (/ 1, mesh%np + 1 /)
+!      mesh%domnp = (/ mesh%np /)
+!      mesh%discell = (/ 1, mesh%me + 1 /)
+!      mesh%domcell = (/ mesh%me /)
+!      mesh%disedge = (/ 1, mesh%medge + 1 /)
+!      mesh%domedge = (/ mesh%medge /)
+!      CALL create_local_mesh_with_extra_layer(communicator, mesh, mesh_loc, me_loc, mes_loc, np_loc)
+!      CALL free_mesh(mesh)
+!      DEALLOCATE(list_m, tab, tabs)
 
-      DEALLOCATE(xadj, adjwgt, nblmt_per_proc, start, displ, tpwgts)
-   END SUBROUTINE reorder_mesh
+   END SUBROUTINE extract_mesh
 
 
-   SUBROUTINE create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc, news, inter_news)
+   SUBROUTINE create_local_mesh_with_extra_layer(communicator, mesh, mesh_loc, me_loc, mes_loc, np_loc)
       USE def_type_mesh
       USE my_util
+      USE sub_plot
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh, mesh_loc
       INTEGER, DIMENSION(2), INTENT(IN) :: me_loc, mes_loc, np_loc
-      INTEGER, DIMENSION(:, :), INTENT(IN), OPTIONAL :: inter_news
-      INTEGER, OPTIONAL :: news
+      INTEGER, DIMENSION(2) :: is1, is2
       INTEGER, DIMENSION(mesh%me) :: m_glob_to_loc, m_loc_to_glob
       INTEGER, DIMENSION(mesh%np) :: glob_to_loc, loc_to_glob
       LOGICAL, DIMENSION(mesh%np) :: virgin
       LOGICAL, DIMENSION(mesh%medge) :: virgins
-      LOGICAL, ALLOCATABLE, DIMENSION(:) :: virginss
+      LOGICAL, DIMENSION(mesh%me) :: virginss
       LOGICAL, DIMENSION(mesh%me) :: not_my_cells
       INTEGER, DIMENSION(SIZE(mesh%jj, 1)) :: jglob, eglob
       LOGICAL :: test
-      INTEGER :: dim, nws, nw, m, ms, mop, msop, ns, msup, minf, dof, proc, &
-           dom_me, nwc, dom_mes, dom_np, n, i, rank, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
-!
+      INTEGER :: dim, nws, nw, m, ms, mop, ns, msup, minf, dof, proc, m2, &
+           dom_me, nwc, dom_mes, dom_np, n, i, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
+      MPI_Comm :: communicator
+
 !      dim = SIZE(mesh%rr, 1)
 !      nws = SIZE(mesh%jjs, 1)
 !      nw = SIZE(mesh%jj, 1)
@@ -415,13 +918,16 @@ CONTAINS
 !         mesh_loc%me = mesh%me
 !         mesh_loc%np = mesh%np
 !         mesh_loc%mes = mesh%mes
+!         mesh_loc%mes_int = mesh%mes_int
 !         mesh_loc%dom_me = mesh%me
 !         mesh_loc%dom_np = mesh%np
 !         mesh_loc%dom_mes = mesh%mes
 !         mesh_loc%mextra = 0
+!         mesh_loc%mes_extra = 0
 !         mesh_loc%medge = mesh%medge
 !         mesh_loc%medges = 0
 !         mesh_loc%nis = 0
+!         mesh_loc%nps = 0
 !
 !         ALLOCATE(mesh_loc%jees(mesh_loc%medges))
 !         ALLOCATE(mesh_loc%jecs(mesh_loc%medges))
@@ -445,9 +951,21 @@ CONTAINS
 !         ALLOCATE(mesh_loc%jjs(nws, mesh_loc%mes))
 !         mesh_loc%jjs = mesh%jjs
 !
-!         ALLOCATE(mesh_loc%extra_jj(nw, mesh_loc%mextra))
-!         ALLOCATE(mesh_loc%extra_jce(nw, mesh_loc%mextra))
-!         ALLOCATE(mesh_loc%extra_jcc(mesh_loc%mextra))
+!         ALLOCATE(mesh_loc%neighs_int(2, mesh_loc%mes_int))
+!         mesh_loc%neighs_int = mesh%neighs_int
+!         ALLOCATE(mesh_loc%sides_int(mesh_loc%mes_int))
+!         mesh_loc%sides_int = mesh%sides_int
+!         ALLOCATE(mesh_loc%jjs_int(nws, mesh_loc%mes_int))
+!         mesh_loc%jjs_int = mesh%jjs_int
+!
+!         ALLOCATE(mesh_loc%neighs_extra(mesh_loc%mes_extra))
+!         ALLOCATE(mesh_loc%sides_extra(mesh_loc%mes_extra))
+!         ALLOCATE(mesh_loc%jjs_extra(nws, mesh_loc%mes_extra))
+!         ALLOCATE(mesh_loc%rrs_extra(dim, nw, mesh_loc%mes_extra))
+!
+!         ALLOCATE(mesh_loc%jj_extra(nw, mesh_loc%mextra))
+!         ALLOCATE(mesh_loc%jce_extra(nw, mesh_loc%mextra))
+!         ALLOCATE(mesh_loc%jcc_extra(mesh_loc%mextra))
 !
 !         ALLOCATE(mesh_loc%isolated_interfaces(mesh_loc%nis, 2))
 !         ALLOCATE(mesh_loc%isolated_jjs(mesh_loc%nis))
@@ -466,34 +984,30 @@ CONTAINS
 !      END IF
 !      !==End test if one proc only
 !
-!      IF (.NOT.PRESENT(news) .OR. .NOT.PRESENT(inter_news)) THEN
-!         CALL error_Petsc('BUG in create_local_mesh .NOT.present(news) .OR. .NOT.present( inter_news)')
-!      END IF
-!
 !      !==Create the new mesh
 !      dom_me = me_loc(2) - me_loc(1) + 1
 !      dom_mes = mes_loc(2) - mes_loc(1) + 1
 !      dom_np = np_loc(2) - np_loc(1) + 1
-!      mesh_loc%me = dom_me + news
+!      mesh_loc%me = dom_me
 !      mesh_loc%mes = dom_mes
 !      mesh_loc%dom_me = dom_me
 !      mesh_loc%dom_np = dom_np
 !      mesh_loc%dom_mes = dom_mes
 !      CALL MPI_ALLREDUCE(dom_np, dom_np_glob, 1, MPI_INTEGER, &
-!           MPI_MIN, PETSC_COMM_WORLD, ierr)
+!           MPI_MIN, communicator, ierr)
 !      IF (dom_np_glob.LE.0) THEN
 !         CALL error_petsc('Pb in create_local_mesh, not enough cells per processors')
 !      END IF
 !
 !      CALL MPI_ALLGATHER(mesh_loc%dom_np, 1, MPI_INTEGER, mesh_loc%domnp, 1, &
-!           MPI_INTEGER, PETSC_COMM_WORLD, ierr)
+!           MPI_INTEGER, communicator, ierr)
 !      mesh_loc%disp(1) = 1
 !      DO n = 1, nb_proc
 !         mesh_loc%disp(n + 1) = mesh_loc%disp(n) + mesh_loc%domnp(n)
 !      END DO
 !
 !      CALL MPI_ALLGATHER(mesh_loc%me, 1, MPI_INTEGER, mesh_loc%domcell, 1, &
-!           MPI_INTEGER, PETSC_COMM_WORLD, ierr)
+!           MPI_INTEGER, communicator, ierr)
 !      mesh_loc%discell(1) = 1
 !      DO n = 1, nb_proc
 !         mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
@@ -579,32 +1093,6 @@ CONTAINS
 !      DO n = 1, nw
 !         mesh_loc%jj(n, 1:dom_me) = glob_to_loc(mesh%jj(n, me_loc(1):me_loc(2)))
 !      END DO
-!
-!      DO ns = 1, news
-!         ms = inter_news(1, ns)
-!         msop = inter_news(2, ns)
-!         IF (mesh%neighs(ms) < me_loc(1) .OR. mesh%neighs(ms) > me_loc(2)) THEN
-!            m = mesh%neighs(ms)
-!         ELSE
-!            m = mesh%neighs(msop)
-!         END IF
-!
-!         DO n = 1, nw
-!            i = mesh%jj(n, m)
-!            IF(virgin(i)) THEN
-!               virgin(i) = .FALSE.
-!               IF (i.GE.np_loc(1) .AND. i.LE.np_loc(2)) THEN
-!                  CALL error_Petsc('BUG in create_local_mesh, i.GE.np_loc(1) .AND. i.LE.np_loc(2)')
-!               END IF
-!               dof = dof + 1
-!               glob_to_loc(i) = dof
-!               loc_to_glob(dof) = i
-!            END IF
-!         END DO
-!         mesh_loc%jj(:, dom_me + ns) = glob_to_loc(mesh%jj(:, m))
-!         m_loc_to_glob(dom_me + ns) = m
-!         m_glob_to_loc(m) = dom_me + ns
-!      END DO
 !      !==End re-order jj
 !
 !      !==Create mesh%loc_to_glob
@@ -667,6 +1155,44 @@ CONTAINS
 !      END DO
 !      !==End re-order jjs
 !
+!      mesh_loc%mes_int = 0
+!      !===Count number of internal edges
+!      DO ms = 1, mesh%mes_int
+!         test = m_glob_to_loc(mesh%neighs_int(1, ms)) > 0
+!         IF (mesh%neighs_int(2, ms) > 0) THEN
+!            test = test .OR. m_glob_to_loc(mesh%neighs_int(2, ms)) > 0
+!         END IF
+!         IF (test)  THEN
+!            mesh_loc%mes_int = mesh_loc%mes_int + 1
+!         END IF
+!      END DO
+!
+!      !==Re-order neighs_int
+!      ALLOCATE(mesh_loc%neighs_int(2, mesh_loc%mes_int))
+!      ALLOCATE(mesh_loc%sides_int(mesh_loc%mes_int))
+!      ALLOCATE(mesh_loc%jjs_int(nws, mesh_loc%mes_int))
+!
+!      ms = 0
+!      DO m = 1, mesh%mes_int
+!         test = m_glob_to_loc(mesh%neighs_int(1, m)) > 0
+!         IF (mesh%neighs_int(2, m) > 0) THEN
+!            test = test .OR. m_glob_to_loc(mesh%neighs_int(2, m)) > 0
+!         END IF
+!         IF (test)  THEN
+!            ms = ms + 1
+!            mesh_loc%neighs_int(:, ms) = m_glob_to_loc(mesh%neighs_int(:, m))
+!            IF (mesh_loc%neighs_int(2, ms) > mesh_loc%neighs_int(1, ms)) THEN
+!               mesh_loc%neighs_int(:, ms) = (/mesh_loc%neighs_int(2, ms), mesh_loc%neighs_int(1, ms) /)
+!            END IF
+!
+!            mesh_loc%sides_int(ms) = mesh%sides_int(m)
+!            DO ns = 1, nws
+!               mesh_loc%jjs_int(ns, ms) = glob_to_loc(mesh%jjs_int(ns, m))
+!            END DO
+!         END IF
+!      END DO
+!      !==End re-order neighs
+!
 !      !==Re-order jce
 !      ALLOCATE(mesh_loc%jce(SIZE(mesh%jce, 1), mesh_loc%me))
 !      mesh_loc%jce = mesh%jce(:, me_loc(1):me_loc(2))
@@ -712,7 +1238,7 @@ CONTAINS
 !      END DO
 !
 !      CALL MPI_ALLGATHER(mesh_loc%medge, 1, MPI_INTEGER, mesh_loc%domedge, 1, &
-!           MPI_INTEGER, PETSC_COMM_WORLD, ierr)
+!           MPI_INTEGER, communicator, ierr)
 !      mesh_loc%disedge(1) = 1
 !      DO n = 1, nb_proc
 !         mesh_loc%disedge(n + 1) = mesh_loc%disedge(n) + mesh_loc%domedge(n)
@@ -722,6 +1248,10 @@ CONTAINS
 !      !ALLOCATE(mesh_loc%jev(SIZE(mesh%jev, 1), mesh_loc%medge))
 !      !mesh_loc%jev = mesh%jev(:, mesh_loc%ltg_edge(1:mesh_loc%medge))
 !      !==End re-order jev
+!
+!
+!      !==Building extra cells
+!      virginss = .TRUE.
 !      DO proc = 1, nb_proc
 !         IF (mesh_loc%loc_to_glob(1) <= mesh_loc%disp(proc))    EXIT
 !      END DO
@@ -740,12 +1270,41 @@ CONTAINS
 !            CALL ERROR_PETSC('BUG  create_local_mesh_with_extra_layer')
 !         ELSE IF (me_loc(2)<m) THEN
 !            nb_extra = nb_extra + 1
+!            virginss(m) = .FALSE.
+!            IF (MINVAL(ABS(mesh%neighs - m)) == 0) THEN
+!               is1 = 0
+!               is2 = 0
+!               CALL find_cell_interface(mesh, m, m2, is1, is2)
+!               IF (m2 > me_loc(2)) THEN
+!                  IF (virginss(m2)) THEN
+!                     nb_extra = nb_extra + 1
+!                     virginss(m2) = .FALSE.
+!                  END IF
+!               END IF
+!               DO i = 1, 2
+!                  IF (is1(i) < mesh_loc%loc_to_glob(1) .OR. is1(i) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) THEN
+!                     CYCLE
+!                  END IF
+!                  DO m2 = 1, mesh%me
+!                     IF (MINVAL(ABS(mesh%jj(:, m2) - is2(i))) == 0) THEN
+!                        IF (m2 > me_loc(2)) THEN
+!                           IF (virginss(m2)) THEN
+!                              nb_extra = nb_extra + 1
+!                              virginss(m2) = .FALSE.
+!                           END IF
+!                        END IF
+!                     END IF
+!                  END DO
+!               END DO
+!            END IF
 !         END IF
 !      END DO
 !
 !      mesh_loc%mextra = nb_extra
-!      ALLOCATE(mesh_loc%extra_jj(nw, nb_extra), mesh_loc%extra_jce(SIZE(mesh%jce, 1), nb_extra), mesh_loc%extra_jcc(nb_extra))
+!      ALLOCATE(mesh_loc%jj_extra(nw, nb_extra), mesh_loc%jce_extra(SIZE(mesh%jce, 1), nb_extra), &
+!           mesh_loc%jcc_extra(nb_extra))
 !      nb_extra = 0
+!      virginss = .TRUE.
 !      DO m = 1, mesh%me
 !         jglob = mesh%jj(:, m)
 !         eglob = mesh%jce(:, m)
@@ -758,15 +1317,74 @@ CONTAINS
 !         IF (MAXVAL(jglob) < 0  .and. MAXVAL(eglob) < 0) cycle
 !         IF (me_loc(2)<m) THEN
 !            nb_extra = nb_extra + 1
-!            mesh_loc%extra_jj(:, nb_extra) = mesh%jj(:, m)
-!            mesh_loc%extra_jce(:, nb_extra) = mesh%jce(:, m)
-!            mesh_loc%extra_jcc(nb_extra) = m
+!            mesh_loc%jj_extra(:, nb_extra) = mesh%jj(:, m)
+!            mesh_loc%jce_extra(:, nb_extra) = mesh%jce(:, m)
+!            mesh_loc%jcc_extra(nb_extra) = m
+!            virginss(m) = .FALSE.
+!            IF (MINVAL(ABS(mesh%neighs - m)) == 0) THEN
+!               is1 = 0
+!               is2 = 0
+!               CALL find_cell_interface(mesh, m, m2, is1, is2)
+!               IF (m2 > me_loc(2)) THEN
+!                  IF (virginss(m2)) THEN
+!                     nb_extra = nb_extra + 1
+!                     mesh_loc%jj_extra(:, nb_extra) = mesh%jj(:, m2)
+!                     mesh_loc%jce_extra(:, nb_extra) = mesh%jce(:, m2)
+!                     mesh_loc%jcc_extra(nb_extra) = m2
+!                     virginss(m2) = .FALSE.
+!                  END IF
+!               END IF
+!               DO i = 1, 2
+!                  IF (is1(i) < mesh_loc%loc_to_glob(1) .OR. is1(i) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) THEN
+!                     CYCLE
+!                  END IF
+!                  DO m2 = 1, mesh%me
+!                     IF (MINVAL(ABS(mesh%jj(:, m2) - is2(i))) == 0) THEN
+!                        IF (m2 > me_loc(2)) THEN
+!                           IF (virginss(m2)) THEN
+!                              nb_extra = nb_extra + 1
+!                              mesh_loc%jj_extra(:, nb_extra) = mesh%jj(:, m2)
+!                              mesh_loc%jce_extra(:, nb_extra) = mesh%jce(:, m2)
+!                              mesh_loc%jcc_extra(nb_extra) = m2
+!                              virginss(m2) = .FALSE.
+!                           END IF
+!                        END IF
+!                     END IF
+!                  END DO
+!               END DO
+!            END IF
 !         END IF
 !      END DO
 !
 !      mesh_loc%edge_stab = .FALSE.
 !      mesh_loc%mi = 0
 !
+!
+!      !==Building extra edges along interfaces
+!      nb_extra = 0
+!      DO ms = 1, mesh%mes
+!         m = mesh%neighs(ms)
+!         IF (MINVAL(ABS(mesh_loc%jcc_extra - m)) == 0) THEN
+!            nb_extra = nb_extra + 1
+!         END IF
+!      END DO
+!      mesh_loc%mes_extra = nb_extra
+!
+!      ALLOCATE(mesh_loc%jjs_extra(nws, nb_extra), mesh_loc%neighs_extra(nb_extra), &
+!           mesh_loc%sides_extra(nb_extra), mesh_loc%rrs_extra(2, nw, nb_extra))
+!      nb_extra = 0
+!      DO ms = 1, mesh%mes
+!         m = mesh%neighs(ms)
+!         IF (MINVAL(ABS(mesh_loc%jcc_extra - m)) == 0) THEN
+!            nb_extra = nb_extra + 1
+!
+!            mesh_loc%jjs_extra(:, nb_extra) = mesh%jjs(:, ms)
+!            mesh_loc%sides_extra(nb_extra) = mesh%sides(ms)
+!            mesh_loc%neighs_extra(nb_extra) = m
+!            mesh_loc%rrs_extra(1, :, nb_extra) = mesh%rr(1, mesh%jj(:, m))
+!            mesh_loc%rrs_extra(2, :, nb_extra) = mesh%rr(2, mesh%jj(:, m))
+!         END IF
+!      END DO
 !
 !      !===Find the isolated points on the border
 !      nb_extra = 0
@@ -816,7 +1434,7 @@ CONTAINS
 !            END IF
 !         END DO
 !      END DO
-      !===END Find the isolated points on the border
+!      !===END Find the isolated points on the border
 
    END SUBROUTINE create_local_mesh_with_extra_layer
 

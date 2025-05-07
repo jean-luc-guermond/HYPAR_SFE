@@ -24,6 +24,7 @@ CONTAINS
       INTEGER, OPTIONAL :: opt_fe
       INTEGER, DIMENSION(1) :: list_dom = 1
       INTEGER, DIMENSION(0) :: list_inter
+      INTEGER, DIMENSION(:), ALLOCATABLE :: part
       INTEGER :: n, nb_proc, ierr, rank
       LOGICAL :: edge_stab, per_bool
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
@@ -61,11 +62,14 @@ CONTAINS
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
             write(*, *) 'load done'
             write(*, *) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
-            CALL reorder_mesh(PETSC_COMM_WORLD, nb_proc, mesh_glob, mesh)
+            ALLOCATE(part(mesh_glob%me))
+            CALL part_mesh(nb_proc, list_dom, mesh_glob, list_inter, part, periodic_data%list_periodic)
+            CALL extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh)
             write(*, *) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
             write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
-
+            DEALLOCATE(part)
+write(*,*) mesh%mes_extra
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
@@ -83,6 +87,7 @@ CONTAINS
 
             !===create finite elements polynome on mesh
             write(*, *) 'iso start'
+            write(*,*) mesh%mes_extra
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
             write(*, *) 'iso done'
             CALL free_mesh(mesh)
