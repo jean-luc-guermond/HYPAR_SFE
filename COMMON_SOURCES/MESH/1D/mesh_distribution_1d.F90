@@ -19,7 +19,6 @@ CONTAINS
       CALL MPI_Comm_rank(communicator, rank, ierr)
       CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
       rank = rank + 1
-      write(*,*) rank, nb_procs
       IF (PRESENT(opt_per)) THEN
          per_bool = opt_per
          IF (periodic_data%nb_periodic_pairs == 0) THEN
