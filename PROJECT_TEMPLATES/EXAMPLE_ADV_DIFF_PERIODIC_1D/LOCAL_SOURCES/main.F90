@@ -32,12 +32,12 @@ PROGRAM test_matrix
   KSP :: my_ksp
   MPI_Comm       :: communicator
   PetscErrorCode :: ierr
- 
+
   !===Start PETSC and MPI (mandatory)=============================================
 
   CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-  CALL MPI_Comm_rank(communicator, rank, ierr)
   communicator = PETSC_COMM_WORLD
+  CALL MPI_Comm_rank(communicator, rank, ierr)
 
   my_par%it_max = 5000
   my_par%rel_tol = 1.d-10
@@ -47,29 +47,25 @@ PROGRAM test_matrix
   my_par%precond = 'MUMPS'
 
   !===User reads their own data=================================================
-  write(*,*) 'a'
   CALL get_mesh(communicator, mesh, opt_per = .true.)
-  write(*,*) 'b', mesh%nis, mesh%isolated_jjs
   CALL prep_periodic(mesh, per)
-  write(*,*) 'c'
   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per)
-  CALL dir%set(mesh, "a")
 
   CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
   CALL qs_mass_diff_M (mesh, 0.d0, 1.d0, LA, mass)
   !CALL periodic_matrix_petsc(per, LA, mass)
-  CALL Dirichlet_M_parallel(mass, dir%jsd)
-  write(*,*) mesh%rank, ' dir%jsd', dir%jsd
-  write(*,*) mesh%rank, ' dir%list_sides', dir%list_sides
+  CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
+
 
   CALL create_my_ghost(mesh, LA, ifrom)
   CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, sol, ierr)
   CALL VecDuplicate(sol, rhs, ierr)
   CALL VecGhostGetLocalForm(sol, ghost_sol, ierr)
- 
+
 
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
   !CALL periodic_rhs_petsc(per%n_bord, per%list, per%perlist, rhs, LA)
+  write(*,*) rank, mesh%rr(:, dir%jsd),ex_sol(mesh%rr(:, dir%jsd))
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 
   CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
@@ -79,11 +75,11 @@ PROGRAM test_matrix
   CALL VecGhostUpdateEnd(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
   ALLOCATE(un(mesh%np))
   CALL extract(ghost_sol, 1, 1, LA, un)
-  
+
   WRITE(char, '(I5)') mesh%rank
   CALL plot_scalar_field(mesh%jj, mesh%rr, un, 'SOL' // trim(adjustl(char)) // '.plt')
   CALL plot_scalar_field(mesh%jj, mesh%rr, un-ex_sol(mesh%rr), 'error' // trim(adjustl(char)) // '.plt')
-  
+
   CALL array_to_petsc_vec(ex_sol(mesh%rr), rhs, mesh, LA, 'insert')
   CALL VecAssemblyBegin(rhs, ierr)
   CALL VecAssemblyEnd(rhs, ierr)
