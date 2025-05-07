@@ -50,6 +50,7 @@ PROGRAM test_matrix
   CALL get_mesh(communicator, mesh, opt_per = .true.)
   CALL prep_periodic(mesh, per)
   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per)
+  CALL dir%set(mesh, "a")
 
   CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
   CALL qs_mass_diff_M (mesh, 0.d0, 1.d0, LA, mass)
@@ -61,6 +62,7 @@ PROGRAM test_matrix
   CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, sol, ierr)
   CALL VecDuplicate(sol, rhs, ierr)
   CALL VecGhostGetLocalForm(sol, ghost_sol, ierr)
+
 
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
   !CALL periodic_rhs_petsc(per%n_bord, per%list, per%perlist, rhs, LA)
