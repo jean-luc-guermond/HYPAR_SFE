@@ -182,21 +182,12 @@ CONTAINS
             CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
          END DO
 
-         !TEST these lines in euler_matrix_module.f90 must be commented
-         !==DO k = 1, k_dim
-         !==CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
-         !==END DO
-         !==and must be replaced here by
-         !CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
-         !TEST
          !=== set un(comp) in x1vec
          CALL array_to_petsc_vec(un(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
 
          !=== add dij un(comp)to x3vec in x2vec
-         !TEST
-         !CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
-         !TEST
-         !CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
+         CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
+         CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
          
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -333,9 +324,7 @@ CONTAINS
 
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
-      !TEST
-      !CALL periodic_matrix_petsc(this%per, this%LA, this%matrices%dij)
-      !TEST
+
    END SUBROUTINE compute_dij
 
 
