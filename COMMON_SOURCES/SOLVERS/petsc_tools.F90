@@ -14,7 +14,9 @@ CONTAINS
       INTEGER, DIMENSION(SIZE(uu)) :: idxm
       INTEGER :: i, ierr
       Vec     :: xx
-
+      IF (mesh%np.NE.SIZE(uu)) THEN
+         CALL error_Petsc('Bug: array_to_petsc_vec, mesh%np>SIZE(uu)')
+      END IF
       DO i = 1, mesh%np
          idxm(i) = LA%loc_to_glob(1, i) - 1
       END DO

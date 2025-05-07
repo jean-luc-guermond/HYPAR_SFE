@@ -19,31 +19,26 @@ CONTAINS
     INTEGER, PARAMETER :: in_unit = 21
     LOGICAL :: test
     INTEGER :: rank, ierr
+    CHARACTER(LEN=100) :: argument
     !===Initialize data to zero and false by default
     CALL MPI_Comm_rank(petsc_comm_world, rank, ierr)
     OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
 
-    CALL find_string(in_unit, '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?===', test)
+    argument = '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?==='
+    CALL find_string(in_unit, argument, test)
     IF (test) THEN
-       READ (21, *) this%nb_sides
+       READ (in_unit, *) this%nb_sides
     ELSE
+       CALL default_data(rank, in_unit, argument, '0')
        this%nb_sides = 0
-       IF (rank==0) WRITE(*,*) 'Boundaries for '//  trim(adjustl(this%name)) // &
-            ' not found. Set to none by default and added to data file.'
-       CLOSE(in_unit)
-       OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position='append')
-       IF (rank==0) THEN
-          WRITE(in_unit,'(g0)') '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?==='
-          WRITE(in_unit,'(g0)') '0'
-          WRITE(in_unit,'(g0)') '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '==='
-          WRITE(in_unit,'(g0)') '0'
-       END IF
+       argument = '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '==='
+       CALL default_data(rank, in_unit, argument, '0')
     END IF
     ALLOCATE(this%list_sides(this%nb_sides))
 
     IF (this%nb_sides > 0) THEN
        CALL read_until(21, '===List of boundaries for bcs on ' // trim(adjustl(this%name)) // '===')
-       READ(21, *) this%list_sides
+       READ(in_unit, *) this%list_sides
     END IF
 
     CLOSE(in_unit)
@@ -120,6 +115,63 @@ CONTAINS
          END IF
       END DO
       DEALLOCATE(virgin)
-   END SUBROUTINE dirichlet_nodes_parallel
+    END SUBROUTINE dirichlet_nodes_parallel
+
+
+    !TESTTTTT
+    SUBROUTINE dirichlet_nodes_parallel_(this, mesh, name)
+      USE def_type_mesh
+      IMPLICIT NONE
+      CLASS(dirichlet_bc) :: this
+      TYPE(mesh_type) :: mesh
+      CHARACTER(*) :: name
+
+      LOGICAL, DIMENSION(:),   POINTER    :: virgin
+      INTEGER:: nn, ms, n, p, n_D, nws
+      if (mesh%rank==0) write(*,*) ' dirichlet_nodes_parallel being tested. To be removed &
+           and replaced bt the dirichlet_nodes_parallel_ version '
+      this%name = name
+      CALL this%read_dirichlet_data
+
+      IF (SIZE(this%list_sides)==0) THEN
+         ALLOCATE(this%jsd(0))
+         RETURN
+      END IF
+
+      nws = SIZE(mesh%jjs,1)
+      nn=0
+      ALLOCATE(virgin(mesh%dom_np))
+      virgin=.TRUE.
+      DO ms = 1, mesh%dom_mes
+         IF (MINVAL(ABS(mesh%sides(ms)-this%list_sides))/=0) CYCLE
+         DO n = 1, nws
+            p = mesh%jjs(n,ms)
+            IF (p>mesh%dom_np) CYCLE
+            IF (virgin(p)) THEN
+               virgin(p)=.FALSE.
+               nn = nn + 1
+            END IF
+         END DO
+      END DO
+      n_D = nn
+      ALLOCATE(this%jsD(n_D))
+      nn=0
+      virgin=.TRUE.
+      DO ms = 1, mesh%dom_mes
+         IF (MINVAL(ABS(mesh%sides(ms)-this%list_sides))/=0) CYCLE
+         DO n = 1, nws
+            p = mesh%jjs(n,ms)
+            IF (p>mesh%dom_np) CYCLE
+            IF (virgin(p)) THEN
+               virgin(p)=.FALSE.
+               nn = nn + 1
+               this%jsD(nn) = mesh%jjs(n,ms)
+            END IF
+         END DO
+      END DO
+      DEALLOCATE(virgin)
+    END SUBROUTINE dirichlet_nodes_parallel_
+
+    
 
 END MODULE dirichlet_type_module

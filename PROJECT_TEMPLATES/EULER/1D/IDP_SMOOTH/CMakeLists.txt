@@ -53,8 +53,7 @@ ADD_CUSTOM_TARGET(native
 # Create local sources from local dir
 file(GLOB_RECURSE hyper_SFE_sources
 	${HYPER_SFE_DIR}/COMMON_SOURCES/*.F90
-	${HYPER_SFE_DIR}/PROBLEM_SOURCES/EULER/*.F90
-        ${HYPER_SFE_DIR}/PROBLEM_SOURCES/EULER/SHOCKTUBE/*.F90
+        ${HYPER_SFE_DIR}/PROBLEM_SOURCES/*.F90
 	${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)
 	
 # Define runtime output directory
