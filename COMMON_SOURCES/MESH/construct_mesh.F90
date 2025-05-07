@@ -63,7 +63,7 @@ CONTAINS
             write(*, *) 'load done'
             write(*, *) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
             ALLOCATE(part(mesh_glob%me))
-            CALL part_mesh(nb_proc, list_dom, mesh_glob, list_inter, part, periodic_data%list_periodic)
+            CALL part_mesh(nb_proc, list_dom, mesh_glob, list_inter, part, periodic_data)
             CALL extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh)
             write(*, *) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
             write(*, *) 'reorder done'

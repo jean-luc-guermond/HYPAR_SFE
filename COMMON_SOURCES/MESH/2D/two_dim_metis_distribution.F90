@@ -1,7 +1,7 @@
 MODULE two_dim_metis_distribution
 #include "petsc/finclude/petsc.h"
    USE petsc
-   PUBLIC :: reorder_mesh
+   PUBLIC :: part_mesh, extract_mesh
    PRIVATE
    REAL(KIND = 8) :: epsilon = 1.d-10
    !!$ Dummy for metis...
@@ -12,13 +12,14 @@ CONTAINS
       USE def_type_mesh
       USE my_util
       USE sub_plot
-      USE prep_periodic
+      USE def_type_periodic
+      USE periodic_data_module
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       INTEGER, DIMENSION(mesh%me) :: part
       INTEGER, DIMENSION(:) :: list_of_interfaces
       INTEGER, DIMENSION(:) :: list_dom
-      TYPE(periodic_data), OPTIONAL :: my_periodic
+      TYPE(periodic_data_type), OPTIONAL :: my_periodic
 
       LOGICAL, DIMENSION(mesh%mes) :: virgins
       INTEGER, DIMENSION(3, mesh%me) :: neigh_new
