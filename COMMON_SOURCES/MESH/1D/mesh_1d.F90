@@ -62,12 +62,9 @@ CONTAINS
       ALLOCATE(mesh%i_d(mesh%me))
       mesh%i_d = 1
 
-      mesh%nis = 2
+      mesh%nis = 0
       ALLOCATE(mesh%isolated_jjs(mesh%nis), mesh%isolated_interfaces(mesh%nis, 1))
-      mesh%isolated_jjs(1) = 1
-      mesh%isolated_jjs(2) = mesh%np
-      mesh%isolated_interfaces(1, 1) = 1
-      mesh%isolated_interfaces(2, 1) = 2
+
 
       mesh%mi = 0
       mesh%medge = mesh%me

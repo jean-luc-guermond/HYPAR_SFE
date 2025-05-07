@@ -70,15 +70,12 @@ CONTAINS
 
       IF (rank == 1) THEN
          mesh_loc%np = mesh_loc%dom_np
-         mesh_loc%nis = 1
          mesh_loc%mes = 1
       ELSE IF (rank == nb_procs) THEN
          mesh_loc%np = mesh_loc%dom_np + 1
-         mesh_loc%nis = 1
          mesh_loc%mes = 1
       ELSE
          mesh_loc%np = mesh_loc%dom_np + 1
-         mesh_loc%nis = 0
          mesh_loc%mes = 0
       END IF
 
@@ -88,7 +85,6 @@ CONTAINS
             mesh_loc%me = mesh_loc%me - 1
             mesh_loc%mextra = 2
             mesh_loc%np = mesh_loc%dom_np
-            mesh_loc%nis = 0
             mesh_loc%mes = 0
             np_start = np_start + 1
             me_start = me_start + 1
@@ -97,12 +93,13 @@ CONTAINS
             mesh_loc%me = mesh_loc%me + 1
             mesh_loc%mextra = 0
             mesh_loc%np = mesh_loc%dom_np + 2
-            mesh_loc%nis = 0
             mesh_loc%mes = 2
             np_end = np_end + 1
             me_end = me_end + 1
          END IF
       END IF
+
+      mesh_loc%nis = 0
 
       mesh_loc%dom_me = mesh_loc%me
       mesh_loc%dom_mes = mesh_loc%mes
@@ -148,8 +145,6 @@ CONTAINS
             mesh_loc%jj_extra(1, 2) = 1
             mesh_loc%jj_extra(2, 2) = mesh_glob%np
          ELSE
-            mesh_loc%isolated_jjs(1) = 1
-            mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(1)
             mesh_loc%jj_extra(:, 1) = mesh_glob%jj(:, me_end + 1)
             mesh_loc%jcc_extra = me_end + 1
             mesh_loc%sides(1) = mesh_glob%sides(1)
@@ -188,8 +183,6 @@ CONTAINS
             mesh_loc%neighs(2) = mesh_loc%me
             mesh_loc%jjs(1, 2) = mesh_loc%dom_np
          ELSE
-            mesh_loc%isolated_jjs(1) = mesh_glob%np
-            mesh_loc%isolated_interfaces(1, 1) = mesh_glob%sides(2)
             mesh_loc%rr(:, mesh_loc%np) = mesh_glob%rr(:, np_start - 1)
             DO m = 1, mesh_loc%me
                IF (mesh_loc%jj(1, m) < 1) THEN
