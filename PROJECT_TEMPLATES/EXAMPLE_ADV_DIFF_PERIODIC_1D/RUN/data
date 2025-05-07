@@ -1,0 +1,19 @@
+===Name of directory for mesh file===
+.
+===Name of mesh file===
+mesh
+===Is the mesh formatted? (True/False)===
+t
+===Number of subdomains in the mesh===
+1
+===List of subdomain in the mesh===
+1
+
+===How many pieces of periodic boundary?===
+0
+===Indices of periodic boundaries and corresponding vectors===
+1 2 1.d0
+===How many pieces of boundaries for bcs on a?===
+2
+===List of boundaries for bcs on a===
+1 2
