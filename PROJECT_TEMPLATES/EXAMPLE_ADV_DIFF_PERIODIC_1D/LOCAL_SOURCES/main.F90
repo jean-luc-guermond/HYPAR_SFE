@@ -55,7 +55,7 @@ PROGRAM test_matrix
   CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
   CALL qs_mass_diff_M (mesh, 0.d0, 1.d0, LA, mass)
   !CALL periodic_matrix_petsc(per, LA, mass)
-  CALL Dirichlet_M_parallel(mass, dir%jsd)
+  CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
 
 
   CALL create_my_ghost(mesh, LA, ifrom)
