@@ -53,8 +53,8 @@ PROGRAM test_matrix
   CALL dir%set(mesh, "a")
 
   CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
-  CALL qs_mass_diff_M (mesh, 0.d0, 1.d0, LA, mass)
-  !CALL periodic_matrix_petsc(per, LA, mass)
+  CALL qs_mass_diff_M (mesh, 1.d0, 1.d0, LA, mass)
+  CALL periodic_matrix_petsc(per, LA, mass)
   CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
 
 
@@ -65,7 +65,7 @@ PROGRAM test_matrix
 
 
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
-  !CALL periodic_rhs_petsc(per%n_bord, per%list, per%perlist, rhs, LA)
+  CALL periodic_rhs_petsc(per%n_bord, per%list, per%perlist, rhs, LA)
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 
   CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
@@ -95,7 +95,7 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(:, :) :: rr
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
     REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
-    uu = (0+kmax**2)*COS(kmax * rr(1, :))
+    uu = (1+kmax**2)*COS(kmax * rr(1, :))
   END FUNCTION source
   FUNCTION ex_sol(rr) RESULT(uu)
     IMPLICIT NONE
