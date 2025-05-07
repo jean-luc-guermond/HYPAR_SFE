@@ -711,142 +711,180 @@ CONTAINS
     REAL(KIND=8), DIMENSION(:),   INTENT(IN) :: uu  ! rigid translation
     CHARACTER(*) :: file_name
 
-    INTEGER :: m, n1, n2, n3, unit_w=47
+    INTEGER :: m, n, n1, n2, n3, unit_w=47, k_dim, n_w
 
 100 FORMAT(3(e15.8,3x),i5)
     OPEN (UNIT=unit_w, FILE=file_name, FORM='formatted', STATUS='unknown')
 
-    WRITE (unit_w, '(A)') '$ DATA = CONTCURVE'
-    WRITE (unit_w, '(A)') '% contstyle = 2'
-    WRITE (unit_w, '(A)') '% nsteps = 50'
-    WRITE (unit_w, '(A)') '% meshplot  = false'
-    WRITE (unit_w, '(A)')
+    k_dim = SIZE(rr,1)
+    n_w   = SIZE(jj,1) 
 
-    IF (SIZE(jj,1)==3) THEN
-       DO m = 1, SIZE(jj, 2)
-          n1 = jj(1, m)
-          n2 = jj(2, m)
-          n3 = jj(3, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
-       ENDDO
-    ELSE IF (SIZE(jj,1)==6) THEN
-       DO m = 1, SIZE(jj, 2)
-          n1 = jj(1, m)
-          n2 = jj(6, m)
-          n3 = jj(5, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+    SELECT CASE(k_dim)
 
-          n1 = jj(2, m)
-          n2 = jj(4, m)
-          n3 = jj(6, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+    CASE(1)
+       IF (n_w==2) THEN
+          DO m = 1, SIZE(jj, 2)
+             n1 = jj(1, m)
+             n2 = jj(2, m)
+             WRITE (unit_w, 100) rr(1,n1), uu(n1)
+             WRITE (unit_w, 100) rr(1,n2), uu(n2)
+             WRITE (unit_w, 100)
+          ENDDO
+       ELSE IF (n_w>2) THEN
+          DO m = 1, SIZE(jj, 2)
+             n1 = jj(1, m)
+             n2 = jj(3, m)
+             WRITE (unit_w, 100) rr(1,n1), uu(n1)
+             WRITE (unit_w, 100) rr(1,n2), uu(n2)
+             WRITE (unit_w, 100)
+             DO n = 3, n_w-1
+                n1 = jj(n, m)
+                n2 = jj(n+1, m)
+                WRITE (unit_w, 100) rr(1,n1), uu(n1)
+                WRITE (unit_w, 100) rr(1,n2), uu(n2)
+                WRITE (unit_w, 100)
+             ENDDO
+             n1 = jj(n_w, m)
+             n2 = jj(2, m)
+             WRITE (unit_w, 100) rr(1,n1), uu(n1)
+             WRITE (unit_w, 100) rr(1,n2), uu(n2)
+             WRITE (unit_w, 100)
+          END DO
+       END IF
+       
+    CASE(2)
+       WRITE (unit_w, '(A)') '$ DATA = CONTCURVE'
+       WRITE (unit_w, '(A)') '% contstyle = 2'
+       WRITE (unit_w, '(A)') '% nsteps = 50'
+       WRITE (unit_w, '(A)') '% meshplot  = false'
+       WRITE (unit_w, '(A)')
 
-          n1 = jj(4, m)
-          n2 = jj(3, m)
-          n3 = jj(5, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+       IF (SIZE(jj,1)==3) THEN
+          DO m = 1, SIZE(jj, 2)
+             n1 = jj(1, m)
+             n2 = jj(2, m)
+             n3 = jj(3, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
+          ENDDO
+       ELSE IF (SIZE(jj,1)==6) THEN
+          DO m = 1, SIZE(jj, 2)
+             n1 = jj(1, m)
+             n2 = jj(6, m)
+             n3 = jj(5, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(5, m)
-          n2 = jj(6, m)
-          n3 = jj(4, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
-       ENDDO
+             n1 = jj(2, m)
+             n2 = jj(4, m)
+             n3 = jj(6, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-    ELSE IF (SIZE(jj,1)==10) THEN
+             n1 = jj(4, m)
+             n2 = jj(3, m)
+             n3 = jj(5, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-       DO m = 1, SIZE(jj, 2)
-          n1 = jj(1, m)
-          n2 = jj(8, m)
-          n3 = jj(6, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(5, m)
+             n2 = jj(6, m)
+             n3 = jj(4, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
+          ENDDO
 
-          n1 = jj(8, m)
-          n2 = jj(10, m)
-          n3 = jj(6, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+       ELSE IF (SIZE(jj,1)==10) THEN
 
-          n1 = jj(8, m)
-          n2 = jj(9, m)
-          n3 = jj(10, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+          DO m = 1, SIZE(jj, 2)
+             n1 = jj(1, m)
+             n2 = jj(8, m)
+             n3 = jj(6, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(9, m)
-          n2 = jj(4, m)
-          n3 = jj(10, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(8, m)
+             n2 = jj(10, m)
+             n3 = jj(6, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(9, m)
-          n2 = jj(2, m)
-          n3 = jj(4, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(8, m)
+             n2 = jj(9, m)
+             n3 = jj(10, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(6, m)
-          n2 = jj(10, m)
-          n3 = jj(7, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(9, m)
+             n2 = jj(4, m)
+             n3 = jj(10, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(10, m)
-          n2 = jj(5, m)
-          n3 = jj(7, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(9, m)
+             n2 = jj(2, m)
+             n3 = jj(4, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(10, m)
-          n2 = jj(4, m)
-          n3 = jj(5, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
+             n1 = jj(6, m)
+             n2 = jj(10, m)
+             n3 = jj(7, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
-          n1 = jj(7, m)
-          n2 = jj(5, m)
-          n3 = jj(3, m)
-          WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
-          WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
-          WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
-          WRITE (unit_w, 100)
-       ENDDO
-    ELSE
-       WRITE(*,*) ' Problem in plot_scalar_field ', SIZE(jj,1)
-       STOP
-    END IF
+             n1 = jj(10, m)
+             n2 = jj(5, m)
+             n3 = jj(7, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
 
+             n1 = jj(10, m)
+             n2 = jj(4, m)
+             n3 = jj(5, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
+
+             n1 = jj(7, m)
+             n2 = jj(5, m)
+             n3 = jj(3, m)
+             WRITE (unit_w, 100) rr(1,n1), rr(2,n1), uu(n1), n1
+             WRITE (unit_w, 100) rr(1,n2), rr(2,n2), uu(n2), n2
+             WRITE (unit_w, 100) rr(1,n3), rr(2,n3), uu(n3), n3
+             WRITE (unit_w, 100)
+          ENDDO
+       ELSE
+          WRITE(*,*) ' Problem in plot_scalar_field ', SIZE(jj,1)
+          STOP
+       END IF
+
+    END SELECT
     CLOSE(UNIT=unit_w)
 
   END SUBROUTINE plot_scalar_field

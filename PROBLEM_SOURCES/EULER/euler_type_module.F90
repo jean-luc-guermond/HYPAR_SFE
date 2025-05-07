@@ -164,18 +164,7 @@ CONTAINS
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: k, comp, ierr
 
-      !===compute dij
-      !CALL this%compute_dij(un)
-
-      !CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
-      !CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
-
-      !dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
-      !dt_min_loc = MINVAL(dij_diag) / 2.d0
-
-      !CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
-      !this%dt = this%CFL * dt_min_glob
-
+      !===compute dij and dt
       CALL compute_dt(this, un)
 
       this%time = this%time + this%dt
@@ -187,13 +176,13 @@ CONTAINS
          DO k = 1, k_dim
             !=== set flux_k in x1vec
             CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
-            !=== compute sum_j cij_k * fluxj_k in x2vec
+            !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
             CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-            !=== construct sum_k sum_j cij_k flux_k into x3vec
+            !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
             CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
          END DO
 
-         !TEST these line in euler_matrix_miodule.f90 must be commented
+         !TEST these lines in euler_matrix_module.f90 must be commented
          !==DO k = 1, k_dim
          !==CALL periodic_matrix_petsc(opt_per, LA, this%cij(k))
          !==END DO
@@ -205,8 +194,9 @@ CONTAINS
 
          !=== add dij un(comp)to x3vec in x2vec
          !TEST
-         CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
+         !CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
          !TEST
+         !CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
          
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
