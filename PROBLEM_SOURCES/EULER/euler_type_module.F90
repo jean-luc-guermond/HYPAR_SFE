@@ -188,7 +188,6 @@ CONTAINS
          !=== add dij un(comp)to x3vec in x2vec
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
          CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
-         
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)

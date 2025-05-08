@@ -1,26 +1,29 @@
 MODULE mesh_1d
    USE def_type_mesh
-   USE input_mesh_data
    USE space_dim
    uSE mesh_tools
    PUBLIC :: load_mesh_1d, GAUSS_POINT_1d
    PRIVATE
 CONTAINS
 
-   SUBROUTINE load_mesh_1d(mesh)
+   SUBROUTINE load_mesh_1d(directory, file_name, mesh, if_mesh_formatted)
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
+      CHARACTER(*) :: directory, file_name
       INTEGER, PARAMETER :: in_unit = 30
       INTEGER :: type_fe
       INTEGER :: i, n, m, nb_procs
       REAL(KIND = 8) :: x0, x1, dx
+      LOGICAL :: if_mesh_formatted
       nb_procs = 1
-
-      OPEN(in_unit, FILE = TRIM(ADJUSTL(mesh_data%directory)) // &
-           '/' // TRIM(ADJUSTL(mesh_data%file_name)), FORM = 'formatted')
-      READ(in_unit, *) mesh%me, mesh_data%type_fe
+      IF (if_mesh_formatted) THEN
+         OPEN(in_unit, FILE = TRIM(ADJUSTL(directory)) // '/' // TRIM(ADJUSTL(file_name)), FORM = 'formatted')
+      ELSE
+         OPEN(in_unit, FILE = TRIM(ADJUSTL(directory)) // '/' // TRIM(ADJUSTL(file_name)), FORM = 'unformatted')
+      END IF
+      READ(in_unit, *) mesh%me, type_fe
       READ(in_unit, *) x0, x1
-      type_fe = mesh_data%type_fe
+
       ALLOCATE(mesh%jj(type_fe + 1, mesh%me))
       ALLOCATE(mesh%neigh(2, mesh%me))
       DO m = 1, mesh%me
@@ -65,7 +68,6 @@ CONTAINS
       mesh%nis = 0
       ALLOCATE(mesh%isolated_jjs(mesh%nis), mesh%isolated_interfaces(mesh%nis, 1))
 
-
       mesh%mi = 0
       mesh%medge = mesh%me
       mesh%medges = 0
@@ -102,7 +104,7 @@ CONTAINS
       mesh%domnp(1) = mesh%dom_np
       mesh%domcell(1) = mesh%dom_me
       mesh%domedge(1) = mesh%medge
-      IF (mesh_data%type_fe==1) THEN
+      IF (type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
       ELSE
          WRITE(*, *) ' BUG load_mesh_1d: FE not programmed yet'

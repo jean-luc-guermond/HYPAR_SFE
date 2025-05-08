@@ -4,7 +4,6 @@ MODULE construct_mesh
    USE space_dim
    USE st_matrix
    USE petsc
-   USE input_mesh_data
    USE input_periodic_data
    USE mesh_data_module
    USE mesh_tools
@@ -22,15 +21,17 @@ CONTAINS
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab, opt_per
       INTEGER, OPTIONAL :: opt_fe
+      TYPE(mesh_data_type) :: mesh_data
       INTEGER, DIMENSION(1) :: list_dom = 1
       INTEGER, DIMENSION(0) :: list_inter
       INTEGER, DIMENSION(:), ALLOCATABLE :: part
       INTEGER :: n, nb_proc, ierr, rank
       LOGICAL :: edge_stab, per_bool
+      CHARACTER(LEN = 100) :: mesh_part_name
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
-      CALL read_mesh_data('data')
+      CALL mesh_data%read()
       CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
       CALL MPI_Comm_rank(communicator, rank, ierr)
 
@@ -63,13 +64,30 @@ CONTAINS
             write(*, *) 'load done'
             write(*, *) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
             ALLOCATE(part(mesh_glob%me))
-            CALL part_mesh(nb_proc, list_dom, mesh_glob, list_inter, part, periodic_data)
+
+            mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data%file_name))
+            IF (mesh_data%if_read_partition) THEN
+               IF (rank == 0) WRITE(*, *) 'read partition'
+               OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'unknown', FORM = 'formatted')
+               READ(51, *) part
+               CLOSE(51)
+            ELSE
+               IF (rank == 0) WRITE(*, *) 'create partition'
+               CALL part_mesh(nb_proc, mesh_glob, list_inter, part, periodic_data)
+               IF (rank==0) THEN
+                  OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'replace', FORM = 'formatted')
+                  WRITE(51, *) part
+                  CLOSE(51)
+               END IF
+            END IF
+
+            CALL part_mesh(nb_proc, mesh_glob, list_inter, part, periodic_data)
             CALL extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh)
             write(*, *) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
             write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
             DEALLOCATE(part)
-write(*,*) mesh%mes_extra
+            write(*, *) mesh%mes_extra
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
@@ -87,7 +105,7 @@ write(*,*) mesh%mes_extra
 
             !===create finite elements polynome on mesh
             write(*, *) 'iso start'
-            write(*,*) mesh%mes_extra
+            write(*, *) mesh%mes_extra
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
             write(*, *) 'iso done'
             CALL free_mesh(mesh)
@@ -102,8 +120,7 @@ write(*,*) mesh%mes_extra
          END IF
 
       CASE(1)
-         CALL load_mesh_1d(mesh_glob)
-
+         CALL load_mesh_1d(mesh_data%directory, mesh_data%file_name, mesh_glob, mesh_data%if_mesh_formatted)
          CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_per)
          CALL free_mesh(mesh_glob)
          CALL GAUSS_POINT_1d(mesh)

@@ -3,13 +3,14 @@ MODULE mesh_data_module
    TYPE mesh_data_type
       CHARACTER(len = 200) :: directory
       CHARACTER(len = 200) :: file_name
-      LOGICAL :: if_mesh_formatted, if_HCT
+      LOGICAL :: if_mesh_formatted, if_HCT, if_read_partition
       CHARACTER(len = 20) :: mesh_structure
       INTEGER :: nb_dom
       INTEGER, DIMENSION(:), POINTER :: list_dom
       INTEGER :: type_fe, nb_refinement
    CONTAINS
       PROCEDURE, PUBLIC :: init
+      PROCEDURE, PUBLIC :: read => read_mesh_data
    END TYPE mesh_data_type
 CONTAINS
    SUBROUTINE init(a)
@@ -26,56 +27,109 @@ CONTAINS
       a%nb_refinement = 0
       a%type_fe = 2
    END SUBROUTINE init
-END MODULE mesh_data_module
 
-MODULE input_mesh_data
-   USE mesh_data_module
-   IMPLICIT NONE
-   PUBLIC :: read_mesh_data
-   TYPE(mesh_data_type), PUBLIC :: mesh_data
-   PRIVATE
-CONTAINS
-   SUBROUTINE read_mesh_data(data_fichier)
+   SUBROUTINE read_mesh_data(this)
       USE character_strings
+      USE petsc
       IMPLICIT NONE
+      CLASS(mesh_data_type), INTENT(INOUT) :: this
       INTEGER, PARAMETER :: in_unit = 21
-      CHARACTER(len = *), INTENT(IN) :: data_fichier
       CHARACTER(LEN = 100) :: argument
       LOGICAL :: test
-      !===Initialize data to zero and false by default
-      CALL mesh_data%init
-      OPEN(UNIT = in_unit, FILE = data_fichier, FORM = 'formatted', STATUS = 'unknown')
+      INTEGER :: rank, ierr
 
-      CALL read_until(in_unit, "===Name of directory for mesh file===")
-      READ (in_unit, *) mesh_data%directory
-      CALL read_until(in_unit, "===Name of mesh file===")
-      READ (in_unit, *) mesh_data%file_name
-      CALL read_until(in_unit, "===Is the mesh formatted? (True/False)===")
-      READ (in_unit, *) mesh_data%if_mesh_formatted
-      CALL read_until(in_unit, '===Number of subdomains in the mesh===')
-      READ(21, *) mesh_data%nb_dom
-      ALLOCATE(mesh_data%list_dom(mesh_data%nb_dom))
-      CALL read_until(21, '===List of subdomain in the mesh===')
-      READ(21, *) mesh_data%list_dom
-      CALL find_string(21, '===Number of refinement steps===', test)
+      CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+      !===Initialize data to zero and false by default
+      CALL this%init
+      OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+
+      argument = '===Name of directory for mesh file==='
+      CALL find_string(in_unit, argument, test)
       IF (test) THEN
-         READ(in_unit, *) mesh_data%nb_refinement
+         READ (in_unit, *) this%file_name
       ELSE
-         mesh_data%nb_refinement = 0
+         CALL default_data(rank, in_unit, argument, '.')
+         this%file_name = '.'
       END IF
-      CALL find_string(21, '===HCT mesh ?===', test)
+
+      argument = "===Name of mesh file==="
+      CALL find_string(in_unit, argument, test)
       IF (test) THEN
-         READ(in_unit, *) mesh_data%if_HCT
+         READ (in_unit, *) this%file_name
       ELSE
-         mesh_data%if_HCT = .false.
+         CALL default_data(rank, in_unit, argument, 'mesh_name')
+         this%file_name = 'mesh_name'
+         WRITE(*, *) "No mesh_name specified."
+         STOP
       END IF
-      CALL find_string(21, '===Type of finite element===', test)
+
+      argument = "===Is the mesh formatted? (True/False)==="
+      CALL find_string(in_unit, argument, test)
       IF (test) THEN
-         READ(in_unit, *) mesh_data%type_fe
+         READ (in_unit, *) this%if_mesh_formatted
       ELSE
-         mesh_data%type_fe = 2
+         CALL default_data(rank, in_unit, argument, '.t.')
+         this%if_mesh_formatted = .true.
+      END IF
+
+      argument = '===Do we read metis partition? (true/false)'
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%if_read_partition
+      ELSE
+         CALL default_data(rank, in_unit, argument, '.f.')
+         this%if_read_partition = .false.
+      END IF
+
+      argument = '===Number of subdomains in the mesh==='
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%nb_dom
+      ELSE
+         CALL default_data(rank, in_unit, argument, '1')
+         this%nb_dom = 1
+      END IF
+
+      argument = '===List of subdomain in the mesh==='
+      ALLOCATE(this%list_dom(this%nb_dom))
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%list_dom
+      ELSE
+         CALL default_data(rank, in_unit, argument, '1')
+         this%list_dom(1) = 1
+      END IF
+
+      argument = '===Number of refinement steps==='
+      ALLOCATE(this%list_dom(this%nb_dom))
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%nb_refinement
+      ELSE
+         CALL default_data(rank, in_unit, argument, '0')
+         this%nb_refinement = 0
+      END IF
+
+      argument = "===HCT mesh ?==="
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%if_HCT
+         write(*, *) "HCT mesh not inmplemented yet"
+      ELSE
+         CALL default_data(rank, in_unit, argument, '.f.')
+         this%if_HCT = .false.
+      END IF
+
+      argument = '===Type of finite element==='
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%type_fe
+      ELSE
+         CALL default_data(rank, in_unit, argument, '1')
+         this%type_fe = 1
       END IF
 
       CLOSE(in_unit)
    END SUBROUTINE read_mesh_data
-END MODULE input_mesh_data
+END MODULE mesh_data_module
