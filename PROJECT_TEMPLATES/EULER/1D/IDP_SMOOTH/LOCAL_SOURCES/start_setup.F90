@@ -110,7 +110,7 @@ CONTAINS
          READ (in_unit, *) setup_data%final_time
       ELSE
          CALL default_data(rank, in_unit, argument, '0.1d0')
-          setup_data%final_time = 0.1d0
+         setup_data%final_time = 0.1d0
       END IF
 
       !===Regression test

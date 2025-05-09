@@ -61,8 +61,6 @@ CONTAINS
             !===load and re order mesh
             CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
                  list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
-            write(*, *) 'load done'
-            write(*, *) '2', SIZE(mesh_glob%jjs_extra, 1), SIZE(mesh_glob%jjs_extra, 2)
             ALLOCATE(part(mesh_glob%me))
 
             mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data%file_name))
@@ -83,16 +81,13 @@ CONTAINS
 
             CALL part_mesh(nb_proc, mesh_glob, list_inter, part, periodic_data)
             CALL extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh)
-            write(*, *) '2', SIZE(mesh%jjs_extra, 1), SIZE(mesh%jjs_extra, 2)
-            write(*, *) 'reorder done'
             CALL free_mesh(mesh_glob)
             DEALLOCATE(part)
-            write(*, *) mesh%mes_extra
             !===mesh refinements
             DO n = 1, mesh_data%nb_refinement
                !===Create refined mesh
                CALL refinement_iso_grid_distributed(mesh)
-               write(*, *) 'refinement done', n
+               IF(rank == 0) write(*, *) 'refinement done', n
             END DO
 
             !===special meshes
@@ -104,10 +99,7 @@ CONTAINS
             !      END IF
 
             !===create finite elements polynome on mesh
-            write(*, *) 'iso start'
-            write(*, *) mesh%mes_extra
             CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
-            write(*, *) 'iso done'
             CALL free_mesh(mesh)
             CALL copy_mesh(mesh_r, mesh)
             CALL free_mesh(mesh_r)
@@ -115,7 +107,6 @@ CONTAINS
             mesh%rank = rank  !=== petsc convention
             !===gauss points on mesh
             CALL create_gauss_points_2d(mesh, mesh_data%type_fe)
-            write(*, *) 'gauss points done'
 
          END IF
 
@@ -127,7 +118,7 @@ CONTAINS
          mesh%rank = rank
 
       CASE DEFAULT
-         write(*, *) ' BUG in construct_mesh, k_dim not correct'
+         IF(rank == 0) write(*, *) ' BUG in construct_mesh, k_dim not correct'
          STOP
       END SELECT
 

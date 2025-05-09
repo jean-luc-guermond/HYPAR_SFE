@@ -47,10 +47,10 @@ CONTAINS
       argument = '===Name of directory for mesh file==='
       CALL find_string(in_unit, argument, test)
       IF (test) THEN
-         READ (in_unit, *) this%file_name
+         READ (in_unit, *) this%directory
       ELSE
          CALL default_data(rank, in_unit, argument, '.')
-         this%file_name = '.'
+         this%directory = '.'
       END IF
 
       argument = "===Name of mesh file==="
@@ -115,7 +115,7 @@ CONTAINS
       CALL find_string(in_unit, argument, test)
       IF (test) THEN
          READ (in_unit, *) this%if_HCT
-         write(*, *) "HCT mesh not inmplemented yet"
+         IF (this%if_HCT) write(*, *) "HCT mesh not inmplemented yet"
       ELSE
          CALL default_data(rank, in_unit, argument, '.f.')
          this%if_HCT = .false.

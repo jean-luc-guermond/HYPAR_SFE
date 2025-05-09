@@ -48,7 +48,6 @@ CONTAINS
       DO k = 1, opt_per%n_bord
          this%lumped_mass(opt_per%list(k)%DIL) = this%lumped_mass(opt_per%perlist(k)%DIL)
       END DO
-      write(*,*) mesh%rank, this%lumped_mass
 
       CALL construct_cij(mesh, LA, this%cij)
 

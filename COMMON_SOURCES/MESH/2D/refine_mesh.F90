@@ -37,7 +37,12 @@ CONTAINS
       f_dof = type_fe - 1
       nb_proc = SIZE(mesh_p1%domnp)
 
-      write(*,*) 'alloc start'
+      ALLOCATE(mesh%jjs_int(SIZE(mesh_p1%jjs_int, 1), SIZE(mesh_p1%jjs_int, 2)))
+      mesh%jjs_int = mesh_p1%jjs_int
+      ALLOCATE(mesh%sides_int(SIZE(mesh_p1%sides_int)))
+      mesh%sides_int = mesh_p1%sides_int
+      ALLOCATE(mesh%neighs_int(2, SIZE(mesh_p1%neighs_int, 2)))
+      mesh%neighs_int = mesh_p1%neighs_int
 
       IF (type_fe==1 .OR. mesh_p1%me == 0) THEN
          mesh%me = mesh_p1%me
@@ -47,25 +52,20 @@ CONTAINS
          mesh%medges = mesh_p1%medges
          mesh%mextra = mesh_p1%mextra
          mesh%mes_extra = mesh_p1%mes_extra
-      write(*,*) 'alloc start'
          ALLOCATE(mesh%jj(nw, me))
          mesh%jj = mesh_p1%jj
-         write(*,*) '1'
          ALLOCATE(mesh%jjs(nws, mes))
          mesh%jjs = mesh_p1%jjs
-           write(*,*) '2', nws, mesh%mes_extra, SIZE(mesh_p1%jjs_extra, 1), SIZE(mesh_p1%jjs_extra, 2)
          ALLOCATE(mesh%jjs_extra(nws, mesh%mes_extra))
          mesh%jjs_extra = mesh_p1%jjs_extra
          !ALLOCATE(mesh%iis(nws,mes))
          !mesh%iis = mesh_p1%iis
-         write(*,*) 'jj end'
          ALLOCATE(mesh%jj_extra(nw, mesh%mextra))
          mesh%jj_extra = mesh_p1%jj_extra
          ALLOCATE(mesh%jce(nw, me))
          mesh%jce = mesh_p1%jce
          !ALLOCATE(mesh%jev(nw - 1, mesh%medge))
          !mesh%jev = mesh_p1%jev
-                  write(*,*) 'jc end'
          ALLOCATE(mesh%rr(kd, mesh%np))
          mesh%rr = mesh_p1%rr
          ALLOCATE(mesh%neigh(nw, mesh%me))
@@ -86,7 +86,6 @@ CONTAINS
          mesh%loc_to_glob = mesh_p1%loc_to_glob
          ALLOCATE(mesh%jcc_extra(mesh%mextra))
          mesh%jcc_extra = mesh_p1%jcc_extra
-         write(*,*) 'other end'
          mesh%dom_me = mesh_p1%dom_me
          mesh%dom_np = mesh_p1%dom_np
          mesh%dom_mes = mesh_p1%dom_mes
@@ -99,20 +98,17 @@ CONTAINS
          ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
          mesh%domedge = mesh_p1%domedge
          mesh%disedge = mesh_p1%disedge
-         write(*,*) 'dis dom end'
          mesh%nis = mesh_p1%nis
          ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
          mesh%isolated_interfaces = mesh_p1%isolated_interfaces
          ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
          mesh%isolated_jjs = mesh_p1%isolated_jjs
-         write(*,*) 'isolated end'
          ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
          mesh%jce_extra = mesh_p1%jce_extra
          ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
          mesh%jees = mesh_p1%jees
          ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
          mesh%jecs = mesh_p1%jecs
-         write(*,*) 'jjss end'
          mesh%gauss%n_w = 3
          mesh%gauss%n_ws = 2
          RETURN
@@ -144,7 +140,6 @@ CONTAINS
          ALLOCATE(mesh%neighs(mesh%mes))
          mesh%neighs = mesh_p1%neighs
          ALLOCATE(mesh%sides_extra(mesh%mes_extra))
-         write(*,*) mesh%mes_extra, mesh_p1%mes_extra, mesh_p1%sides_extra
          mesh%sides_extra = mesh_p1%sides_extra
          ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
          mesh%neighs_extra = mesh_p1%neighs_extra
@@ -243,7 +238,7 @@ CONTAINS
          mesh%gauss%n_w = 10
          mesh%gauss%n_ws = 4
       END IF
-      write(*,*) 'alloc end'
+      write(*, *) 'alloc end'
       nb_angle = 0
       ALLOCATE(virgin(mesh_p1%medge), j_mid(nw * f_dof, me), jjs_mid(f_dof, mes), r_mid(kd))
 
@@ -313,7 +308,7 @@ CONTAINS
       END DO
 
       virgin = .TRUE.
-      write(*,*) 'renum end'
+      write(*, *) 'renum end'
       n_dof = 0
       DO m = 1, me !===loop on the elements
          DO k = 1, nw !===loop on the nodes (sides) of the element
@@ -345,7 +340,7 @@ CONTAINS
                        'BUG in create_iso_grid: cell near boundary isnt in neighs', m_op_k, m
                   IF (mesh_p1%neighs(ms) == m) EXIT
                END DO
-!               CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
+               !               CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
 
             END IF
 
@@ -355,9 +350,9 @@ CONTAINS
                   j_mid((k - 1) * f_dof + l, m) = l + n_new_start
                   mesh%rr(:, l + n_new_start) = mesh_p1%rr(:, n_start) &
                        + l * (mesh_p1%rr(:, n_end) - mesh_p1%rr(:, n_start)) / type_fe
-!                  IF (iso) THEN
-!                     CALL rescale_to_curved_boundary(mesh%rr(:, l + n_new_start), interface)
-!                  END IF
+                  !                  IF (iso) THEN
+                  !                     CALL rescale_to_curved_boundary(mesh%rr(:, l + n_new_start), interface)
+                  !                  END IF
                   mesh%loc_to_glob(l + n_new_start) = l + n_new_start + mesh%disp(proc) - 1
                END DO
             ELSE !===the side has been already considered
@@ -380,7 +375,7 @@ CONTAINS
          WRITE(*, *) 'BUG in create_iso_grid_distributed, n_dof /= mesh_p1%medge * f_dof'
          STOP
       END IF
-      write(*,*) 'new me end'
+      write(*, *) 'new me end'
       n_dof = 0
       DO edges = 1, mesh_p1%medges
          edge_g = mesh_p1%jees(edges)
@@ -426,7 +421,7 @@ CONTAINS
          WRITE(*, *) 'BUG in create_iso_grid_distributed, n_dof /= mesh_p1%medge * f_dof'
          STOP
       END IF
-      write(*,*) 'new edge end'
+      write(*, *) 'new edge end'
       n_dof = 0
       !===connectivity array for iso grid
       DO m = 1, me
@@ -473,7 +468,7 @@ CONTAINS
       mesh%jjs(nws + 1:, :) = jjs_mid
 
       DEALLOCATE(virgin, j_mid, jjs_mid, r_mid)
-      write(*,*) 'connec end'
+      write(*, *) 'connec end'
       !===new vertices on extra cells
       DO m = 1, mesh%mextra
          DO k = 1, nw !===loop on the nodes (sides) of the element
@@ -503,11 +498,11 @@ CONTAINS
             END IF
          END DO
       END DO
-      write(*,*) 'extra count end'
+      write(*, *) 'extra count end'
       !==connectivity array the surface elements of the iso grid for extras
       DO ms = 1, mesh%mes_extra
          iso = .FALSE.
-!         CALL is_on_curved_interface(mesh%sides_extra(ms), iso, interface)
+         !         CALL is_on_curved_interface(mesh%sides_extra(ms), iso, interface)
 
          cell_g = mesh%neighs_extra(ms)
          DO m = 1, mesh%mextra !find associated extra cell
@@ -538,9 +533,9 @@ CONTAINS
             DO l = 1, f_dof
                mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms) = mesh_p1%rrs_extra(:, n_start, ms) &
                     + l * (mesh_p1%rrs_extra(:, n_end, ms) - mesh_p1%rrs_extra(:, n_start, ms)) / type_fe
-!               IF (iso) THEN
-!                  CALL rescale_to_curved_boundary(mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms), interface)
-!               END IF
+               !               IF (iso) THEN
+               !                  CALL rescale_to_curved_boundary(mesh%rrs_extra(:, nw + (k - 1) * f_dof + l, ms), interface)
+               !               END IF
             END DO
          END DO
 
@@ -791,10 +786,10 @@ CONTAINS
          mesh%sides(ms) = mesh_p1%sides(ms)
          mesh%sides(mes + ms) = mesh_p1%sides(ms)
 
-!         CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
-!         IF (iso) THEN
-!            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
-!         END IF
+         !         CALL is_on_curved_interface(mesh_p1%sides(ms), iso, interface)
+         !         IF (iso) THEN
+         !            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
+         !         END IF
       ENDDO
 
       !===Internal surface elements
@@ -822,10 +817,10 @@ CONTAINS
          mesh%sides_int(ms) = mesh_p1%sides_int(ms)
          mesh%sides_int(mes_int + ms) = mesh_p1%sides_int(ms)
 
-!         CALL is_on_curved_interface(mesh_p1%sides_int(ms), iso, interface)
-!         IF (iso) THEN
-!            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
-!         END IF
+         !         CALL is_on_curved_interface(mesh_p1%sides_int(ms), iso, interface)
+         !         IF (iso) THEN
+         !            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
+         !         END IF
       ENDDO
 
       !===Counting number of new extra cells
@@ -1001,9 +996,9 @@ CONTAINS
             END IF
             mesh%jjs_extra(2, mextra) = mesh%jj_extra(tab1, m2)
             mesh%rrs_extra(:, tab1, mextra) = (mesh_p1%rrs_extra(:, n_ks(1), m) + mesh_p1%rrs_extra(:, n_ks(2), m)) / 2
-!            IF (iso) THEN
-!               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
-!            END IF
+            !            IF (iso) THEN
+            !               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
+            !            END IF
             mesh%rrs_extra(:, tab2, mextra) = (mesh_p1%rrs_extra(:, n_ks(k), m) + mesh_p1%rrs_extra(:, n, m)) / 2
          END DO
       END DO
@@ -1018,55 +1013,55 @@ CONTAINS
       CALL copy_mesh(mesh, mesh_p1)
       CALL free_mesh(mesh)
    END SUBROUTINE refinement_iso_grid_distributed
-! TODO add back curved boundaries
-!   SUBROUTINE is_on_curved_interface(side, iso, interface)
-!      USE input_data
-!      INTEGER :: side, interface
-!      LOGICAL :: iso
-!      interface = -1
-!      iso = .FALSE.
-!
-!      IF (inputs%nb_spherical + inputs%nb_curved > 0) THEN
-!         IF (MINVAL(ABS(side - inputs%list_spherical)) == 0 .OR. &
-!              MINVAL(ABS(side - inputs%list_curved)) == 0) THEN
-!            DO interface = 1, inputs%nb_spherical + inputs%nb_curved
-!               IF (interface <= inputs%nb_spherical) THEN
-!                  IF (side - inputs%list_spherical(interface) == 0) EXIT
-!               ELSE
-!                  IF (side - inputs%list_curved(interface - inputs%nb_spherical) == 0) EXIT
-!               END IF
-!            END DO
-!            iso = .TRUE.
-!         ELSE
-!            iso = .FALSE.
-!         END IF
-!      ELSE
-!         iso = .FALSE.
-!      END IF
-!
-!   END SUBROUTINE is_on_curved_interface
-!
-!   SUBROUTINE rescale_to_curved_boundary(rr, interface)
-!      USE input_data
-!      USE boundary
-!      REAL(KIND = 8), DIMENSION(2) :: rr, rr_ref
-!      INTEGER :: interface
-!      REAL(KIND = 8) :: rescale, pi = ACOS(-1.d0), theta
-!      IF (interface <= inputs%nb_spherical) THEN
-!         rr_ref = rr - inputs%origin_spherical(:, interface)
-!         rescale = inputs%radius_spherical(interface) / SQRT(SUM(rr_ref * rr_ref))
-!         rr = rr_ref * rescale + inputs%origin_spherical(:, interface)
-!      ELSE
-!         rr_ref = rr - inputs%origin_curved(:, interface - inputs%nb_spherical)
-!         theta = pi - pi / 2 * (1 + sgn(rr_ref(1))) * (1 - sgn(rr_ref(2) * rr_ref(2))) &
-!              - pi / 4 * (2 + sgn(rr_ref(1))) * sgn(rr_ref(2)) &
-!              - sgn(rr_ref(1) * rr_ref(2)) * ATAN((ABS(rr_ref(1)) - ABS(rr_ref(2))) / (ABS(rr_ref(1)) + ABS(rr_ref(2))))
-!         rescale = curved_boundary_radius(inputs%list_curved(interface - inputs%nb_spherical), theta) &
-!              / SQRT(SUM(rr_ref * rr_ref))
-!         rr = rr_ref * rescale + inputs%origin_curved(:, interface - inputs%nb_spherical)
-!      END IF
-!
-!   END SUBROUTINE rescale_to_curved_boundary
+   ! TODO add back curved boundaries
+   !   SUBROUTINE is_on_curved_interface(side, iso, interface)
+   !      USE input_data
+   !      INTEGER :: side, interface
+   !      LOGICAL :: iso
+   !      interface = -1
+   !      iso = .FALSE.
+   !
+   !      IF (inputs%nb_spherical + inputs%nb_curved > 0) THEN
+   !         IF (MINVAL(ABS(side - inputs%list_spherical)) == 0 .OR. &
+   !              MINVAL(ABS(side - inputs%list_curved)) == 0) THEN
+   !            DO interface = 1, inputs%nb_spherical + inputs%nb_curved
+   !               IF (interface <= inputs%nb_spherical) THEN
+   !                  IF (side - inputs%list_spherical(interface) == 0) EXIT
+   !               ELSE
+   !                  IF (side - inputs%list_curved(interface - inputs%nb_spherical) == 0) EXIT
+   !               END IF
+   !            END DO
+   !            iso = .TRUE.
+   !         ELSE
+   !            iso = .FALSE.
+   !         END IF
+   !      ELSE
+   !         iso = .FALSE.
+   !      END IF
+   !
+   !   END SUBROUTINE is_on_curved_interface
+   !
+   !   SUBROUTINE rescale_to_curved_boundary(rr, interface)
+   !      USE input_data
+   !      USE boundary
+   !      REAL(KIND = 8), DIMENSION(2) :: rr, rr_ref
+   !      INTEGER :: interface
+   !      REAL(KIND = 8) :: rescale, pi = ACOS(-1.d0), theta
+   !      IF (interface <= inputs%nb_spherical) THEN
+   !         rr_ref = rr - inputs%origin_spherical(:, interface)
+   !         rescale = inputs%radius_spherical(interface) / SQRT(SUM(rr_ref * rr_ref))
+   !         rr = rr_ref * rescale + inputs%origin_spherical(:, interface)
+   !      ELSE
+   !         rr_ref = rr - inputs%origin_curved(:, interface - inputs%nb_spherical)
+   !         theta = pi - pi / 2 * (1 + sgn(rr_ref(1))) * (1 - sgn(rr_ref(2) * rr_ref(2))) &
+   !              - pi / 4 * (2 + sgn(rr_ref(1))) * sgn(rr_ref(2)) &
+   !              - sgn(rr_ref(1) * rr_ref(2)) * ATAN((ABS(rr_ref(1)) - ABS(rr_ref(2))) / (ABS(rr_ref(1)) + ABS(rr_ref(2))))
+   !         rescale = curved_boundary_radius(inputs%list_curved(interface - inputs%nb_spherical), theta) &
+   !              / SQRT(SUM(rr_ref * rr_ref))
+   !         rr = rr_ref * rescale + inputs%origin_curved(:, interface - inputs%nb_spherical)
+   !      END IF
+   !
+   !   END SUBROUTINE rescale_to_curved_boundary
 
    FUNCTION sgn(x) RESULT(out)
       REAL(KIND = 8) :: x, out
