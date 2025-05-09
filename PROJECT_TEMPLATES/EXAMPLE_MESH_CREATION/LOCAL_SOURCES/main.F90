@@ -2,8 +2,7 @@ PROGRAM test_matrix
 #include "petsc/finclude/petsc.h"
    USE construct_mesh
    USE def_type_mesh
-   USE def_type_periodic
-   USE prep_periodic_module
+   USE periodic_data_module
    USE dirichlet_type_module
    USE compute_periodic
    USE petsc
@@ -23,7 +22,7 @@ PROGRAM test_matrix
    INTEGER, POINTER, DIMENSION(:) :: ifrom
    REAL(KIND = 8) :: error
    TYPE(solver_param) :: my_par
-   TYPE(periodic_type) :: opt_per
+   TYPE(periodic_type), DIMENSION(1) :: opt_pers
    MPI_Comm       :: communicator
    PetscErrorCode :: ierr
    INTEGER :: rank
@@ -44,15 +43,16 @@ PROGRAM test_matrix
 
    !===User reads his/her own data=================================================
 
-   CALL get_mesh(communicator, mesh, opt_per = .true.)
-   CALL prep_periodic(mesh, opt_per)
-   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_per)
+   CALL opt_pers(1)%read("a")
+   CALL get_mesh(communicator, mesh, opt_pers = opt_pers)
+   CALL opt_pers(1)%set(mesh)
+   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = opt_pers(1))
    CALL dir%set(mesh, "a")
 
    CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
    CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
-   CALL periodic_matrix_petsc(opt_per, LA, mass)
-   CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
+   CALL periodic_matrix_petsc(opt_pers(1), LA, mass)
+   CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1, dir%jsd))
 
    CALL create_my_ghost(mesh, LA, ifrom)
    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, test_vec, ierr)

@@ -2,11 +2,11 @@ MODULE euler_type_MODULE
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
-   USE def_type_periodic
    USE euler_bc_arrays
    USE Butcher_tableau
    USE euler_matrices_module
    USE space_dim
+   USE periodic_data_module
    IMPLICIT NONE
 
    ABSTRACT INTERFACE
@@ -55,8 +55,7 @@ MODULE euler_type_MODULE
 CONTAINS
    SUBROUTINE init_euler(this, communicator, name, mesh, LA, per, pressure, impose_bc, time_init)
       USE st_matrix
-      USE input_periodic_data
-      USE prep_periodic_module
+      USE periodic_data_module
       CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       CHARACTER(100) :: name
@@ -187,7 +186,7 @@ CONTAINS
 
          !=== add dij un(comp)to x3vec in x2vec
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
-         CALL periodic_rhs_petsc(this%per%n_bord, this%per%list, this%per%perlist, this%x2vec, this%LA)
+         CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x2vec, this%LA)
          CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -197,7 +196,7 @@ CONTAINS
 
          un(:, comp) = un(:, comp) + rk
 
-         DO k = 1, this%per%n_bord
+         DO k = 1, this%per%nb_bords
                un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
          END DO
 

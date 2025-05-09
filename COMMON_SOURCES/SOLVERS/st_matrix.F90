@@ -168,6 +168,7 @@ CONTAINS
       !                  --->  node number in the grid
       USE def_type_mesh
       USE my_util
+      USE periodic_data_module
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh_glob, mesh
       INTEGER, INTENT(IN) :: kmax
@@ -253,7 +254,7 @@ CONTAINS
       END DO
 
       IF (PRESENT(opt_per)) THEN
-         DO k = 1, opt_per%n_bord
+         DO k = 1, opt_per%nb_bords
             DO i = 1, SIZE(opt_per%list(k)%DIL)
                per_loc = 0
                i1 = opt_per%list(k)%DIL(i)
@@ -304,6 +305,7 @@ CONTAINS
       !                  --->  node number in the grid
       USE def_type_mesh
       USE my_util
+      USE periodic_data_module
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       INTEGER, INTENT(IN) :: kmax
@@ -422,7 +424,7 @@ CONTAINS
          END DO
       END DO
       IF (PRESENT(opt_per)) THEN
-         DO k = 1, opt_per%n_bord
+         DO k = 1, opt_per%nb_bords
             DO i = 1, SIZE(opt_per%list(k)%DIL)
                per_loc = 0
                i1 = opt_per%list(k)%DIL(i)

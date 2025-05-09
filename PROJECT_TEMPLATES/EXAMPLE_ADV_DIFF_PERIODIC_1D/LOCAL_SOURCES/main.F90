@@ -4,8 +4,7 @@ PROGRAM test_matrix
   USE petsc_tools
   USE construct_mesh
   USE def_type_mesh
-  USE def_type_periodic
-  USE prep_periodic_module
+  USE periodic_data_module
   USE dirichlet_type_module
   USE compute_periodic
   USE solver_petsc
@@ -20,7 +19,7 @@ PROGRAM test_matrix
   TYPE(petsc_csr_LA)  :: LA
   TYPE(dirichlet_bc)  :: dir
   TYPE(solver_param)  :: my_par
-  TYPE(periodic_type) :: per
+  TYPE(periodic_type), DIMENSION(1) :: per
   !INTEGER, POINTER, DIMENSION(:) :: js_d_loc
   INTEGER, POINTER, DIMENSION(:) :: ifrom
   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un
@@ -47,14 +46,15 @@ PROGRAM test_matrix
   my_par%precond = 'MUMPS'
 
   !===User reads their own data=================================================
-  CALL get_mesh(communicator, mesh, opt_per = .true.)
-  CALL prep_periodic(mesh, per)
-  CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per)
+  CALL per(1)%read("a")
+  CALL get_mesh(communicator, mesh, opt_pers = per)
+  CALL per(1)%set(mesh)
+  CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per(1))
   CALL dir%set(mesh, "a")
 
   CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
   CALL qs_mass_diff_M (mesh, 1.d0, 1.d0, LA, mass)
-  CALL periodic_matrix_petsc(per, LA, mass)
+  CALL periodic_matrix_petsc(per(1), LA, mass)
   CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
 
 
@@ -65,7 +65,8 @@ PROGRAM test_matrix
 
 
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
-  CALL periodic_rhs_petsc(per%n_bord, per%list, per%perlist, rhs, LA)
+  CALL periodic_rhs_petsc(per(1)%nb_bords, per(1)%list, per(1)%perlist, rhs, LA)
+  write(*,*) per(1)%nb_bords, per(1)%list(1)%DIL, per(1)%perlist(1)%DIL
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 
   CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
@@ -95,13 +96,13 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(:, :) :: rr
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
     REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
-    uu = (1+kmax**2)*COS(kmax * rr(1, :))
+    uu = (1+kmax**2)*COS(kmax * rr(1, :) +  .7d0)
   END FUNCTION source
   FUNCTION ex_sol(rr) RESULT(uu)
     IMPLICIT NONE
     REAL(KIND = 8), DIMENSION(:, :) :: rr
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
     REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
-    uu = COS(kmax * rr(1, :))
+    uu = COS(kmax * rr(1, :) +  .7d0 )
   END FUNCTION ex_sol
 END PROGRAM test_matrix

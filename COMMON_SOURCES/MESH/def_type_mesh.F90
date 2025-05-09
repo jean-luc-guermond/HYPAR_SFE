@@ -3,7 +3,6 @@
 !
 MODULE def_type_mesh
    USE dyn_line_type
-   USE def_type_periodic
    USE space_dim
    IMPLICIT NONE
 
@@ -93,7 +92,6 @@ MODULE def_type_mesh
       INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int, rank
       LOGICAL :: edge_stab ! edge stab, yes/no, (JLG April 2009)
       TYPE(gauss_type) :: gauss
-      TYPE(periodic_type) :: periodic
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hloc ! local mesh size (JLG+LC January, 21, 2015)
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hloc_gauss ! local mesh size (JLG+LC January, 21, 2015)
       REAL(KIND = 8) :: global_diameter !diameter of domain (LC 2017/01/27)

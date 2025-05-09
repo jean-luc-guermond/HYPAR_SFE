@@ -5,7 +5,7 @@ MODULE euler_matrices_module
    USE def_type_mesh
    USE space_dim
    USE solver_petsc
-   USE def_type_periodic
+   USE periodic_data_module
    USE compute_periodic
 
    TYPE euler_matrices_type
@@ -45,7 +45,7 @@ CONTAINS
       CALL periodic_matrix_petsc(opt_per, LA, this%mass)
 
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
-      DO k = 1, opt_per%n_bord
+      DO k = 1, opt_per%nb_bords
          this%lumped_mass(opt_per%list(k)%DIL) = this%lumped_mass(opt_per%perlist(k)%DIL)
       END DO
 
@@ -132,7 +132,6 @@ CONTAINS
 
       nw = mesh%gauss%n_w
       virgin_edge = .true.
-      write(*, *) mesh%me, SIZE(mesh%jce, 2)
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN

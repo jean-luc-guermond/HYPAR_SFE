@@ -9,18 +9,17 @@ MODULE two_dim_metis_distribution
    INTEGER :: METIS_NOPTIONS = 40, METIS_OPTION_NUMBERING = 18
    !!$ Dummy for metis...
 CONTAINS
-   SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part, my_periodic)
+   SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part, my_periodics)
       USE def_type_mesh
       USE my_util
       USE sub_plot
-      USE def_type_periodic
       USE periodic_data_module
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       INTEGER, DIMENSION(mesh%me) :: part
       INTEGER, DIMENSION(:) :: list_of_interfaces
-      TYPE(periodic_data_type), OPTIONAL :: my_periodic
-
+      TYPE(periodic_type), DIMENSION(:), TARGET, OPTIONAL :: my_periodics
+      TYPE(periodic_type), POINTER :: my_periodic
       LOGICAL, DIMENSION(mesh%mes) :: virgins
       INTEGER, DIMENSION(3, mesh%me) :: neigh_new
       INTEGER, DIMENSION(5) :: opts
@@ -106,43 +105,46 @@ CONTAINS
       !===End Create neigh_new for interfaces
 
       !===Create neigh_new for periodic faces
-      IF (PRESENT(my_periodic)) THEN
-         IF (my_periodic%nb_periodic_pairs/=0) THEN
-            DO ms = 1, mesh%mes
-               m = mesh%neighs(ms)
-               IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) == 0) THEN
-                  jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
-                  s2 = my_periodic%list_periodic(2, jm_loc(1))
-                  test = .FALSE.
-                  DO msop = 1, mesh%mes
-                     IF (mesh%sides(msop) /= s2) CYCLE
+      IF (PRESENT(my_periodics)) THEN
+         DO k = 1, SIZE(my_periodics)
+            my_periodic => my_periodics(k)
+            IF (my_periodic%nb_bords/=0) THEN
+               DO ms = 1, mesh%mes
+                  m = mesh%neighs(ms)
+                  IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) == 0) THEN
+                     jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
+                     s2 = my_periodic%list_periodic(2, jm_loc(1))
+                     test = .FALSE.
+                     DO msop = 1, mesh%mes
+                        IF (mesh%sides(msop) /= s2) CYCLE
 
-                     err = 0.d0
-                     DO ns = 1, SIZE(my_periodic%vect_e, 1)
-                        err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                             + my_periodic%vect_e(ns, jm_loc(1))))
+                        err = 0.d0
+                        DO ns = 1, SIZE(my_periodic%vect_e, 1)
+                           err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+                                + my_periodic%vect_e(ns, jm_loc(1))))
+                        END DO
+
+                        IF (err .LE. epsilon) THEN
+                           test = .TRUE.
+                           EXIT
+                        END IF
                      END DO
-
-                     IF (err .LE. epsilon) THEN
-                        test = .TRUE.
-                        EXIT
+                     IF (.NOT.test) THEN
+                        CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
                      END IF
-                  END DO
-                  IF (.NOT.test) THEN
-                     CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+                     mop = mesh%neighs(msop)
+                     DO n = 1, 3
+                        IF (neigh_new(n, m) == 0) THEN
+                           neigh_new(n, m) = mop
+                        END IF
+                        IF (neigh_new(n, mop) == 0) THEN
+                           neigh_new(n, mop) = m
+                        END IF
+                     END DO
                   END IF
-                  mop = mesh%neighs(msop)
-                  DO n = 1, 3
-                     IF (neigh_new(n, m) == 0) THEN
-                        neigh_new(n, m) = mop
-                     END IF
-                     IF (neigh_new(n, mop) == 0) THEN
-                        neigh_new(n, mop) = m
-                     END IF
-                  END DO
-               END IF
-            END DO
-         END IF
+               END DO
+            END IF
+         END DO
       END IF
       !===End Create neigh_new for periodic faces
 
@@ -252,59 +254,62 @@ CONTAINS
       !===End create parts and modify part
 
       !===Move the two elements with one periodic face on same processor
-      IF (PRESENT(my_periodic)) THEN
-         IF (my_periodic%nb_periodic_pairs/=0) THEN
-            DO j = 1, mesh%np
-               per_pts(j, 1) = j
-            END DO
-            per_pts(:, 2:3) = 0
-            DO ms = 1, mesh%mes
-               m = mesh%neighs(ms)
-               IF ((MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /=0) .AND. &
-                    (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(2, :))) /=0)) CYCLE
-               DO ns = 1, SIZE(mesh%jjs, 1)
-                  j = mesh%jjs(ns, ms)
-                  per_pts(j, 2) = m
-                  DO msop = 1, mesh%mes
-                     IF (MINVAL(ABS(mesh%sides(msop) - my_periodic%list_periodic(:, :))) /=0) CYCLE
-                     IF (msop == ms) CYCLE
-                     DO nsop = 1, SIZE(mesh%jjs, 1)
-                        IF (mesh%jjs(nsop, msop)==j) THEN
-                           per_pts(j, 3) = mesh%neighs(msop)
-                        END IF
+      IF (PRESENT(my_periodics)) THEN
+         DO k = 1, SIZE(my_periodics)
+            my_periodic => my_periodics(k)
+            IF (my_periodic%nb_bords/=0) THEN
+               DO j = 1, mesh%np
+                  per_pts(j, 1) = j
+               END DO
+               per_pts(:, 2:3) = 0
+               DO ms = 1, mesh%mes
+                  m = mesh%neighs(ms)
+                  IF ((MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /=0) .AND. &
+                       (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(2, :))) /=0)) CYCLE
+                  DO ns = 1, SIZE(mesh%jjs, 1)
+                     j = mesh%jjs(ns, ms)
+                     per_pts(j, 2) = m
+                     DO msop = 1, mesh%mes
+                        IF (MINVAL(ABS(mesh%sides(msop) - my_periodic%list_periodic(:, :))) /=0) CYCLE
+                        IF (msop == ms) CYCLE
+                        DO nsop = 1, SIZE(mesh%jjs, 1)
+                           IF (mesh%jjs(nsop, msop)==j) THEN
+                              per_pts(j, 3) = mesh%neighs(msop)
+                           END IF
+                        END DO
                      END DO
                   END DO
                END DO
-            END DO
-            CALL reassign_per_pts(mesh, part, per_pts)
-            DO ms = 1, mesh%mes
-               m = mesh%neighs(ms)
-               IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /= 0) CYCLE
-               jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
-               s2 = my_periodic%list_periodic(2, jm_loc(1))
-               test = .FALSE.
-               DO msop = 1, mesh%mes
-                  IF (mesh%sides(msop) /= s2) CYCLE
-                  err = 0.d0
-                  DO ns = 1, SIZE(my_periodic%vect_e, 1)
-                     err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                          + my_periodic%vect_e(ns, jm_loc(1))))
+               CALL reassign_per_pts(mesh, part, per_pts)
+               DO ms = 1, mesh%mes
+                  m = mesh%neighs(ms)
+                  IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /= 0) CYCLE
+                  jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
+                  s2 = my_periodic%list_periodic(2, jm_loc(1))
+                  test = .FALSE.
+                  DO msop = 1, mesh%mes
+                     IF (mesh%sides(msop) /= s2) CYCLE
+                     err = 0.d0
+                     DO ns = 1, SIZE(my_periodic%vect_e, 1)
+                        err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+                             + my_periodic%vect_e(ns, jm_loc(1))))
+                     END DO
+                     IF (err .LE. epsilon) THEN
+                        test = .TRUE.
+                        EXIT
+                     END IF
                   END DO
-                  IF (err .LE. epsilon) THEN
-                     test = .TRUE.
-                     EXIT
+                  IF (.NOT.test) THEN
+                     CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+                  END IF
+                  IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
+                     proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
+                     part(mesh%neighs(ms)) = proc !make sure interface are internal
+                     part(mesh%neighs(msop)) = proc !make sure interface are internal
                   END IF
                END DO
-               IF (.NOT.test) THEN
-                  CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
-               END IF
-               IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
-                  proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-                  part(mesh%neighs(ms)) = proc !make sure interface are internal
-                  part(mesh%neighs(msop)) = proc !make sure interface are internal
-               END IF
-            END DO
-         END IF
+            END IF
+         END DO
       END IF
       !===End Move the two elements with one periodic face on same processor
 

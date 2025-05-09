@@ -1,39 +1,90 @@
-!
-!Authors Jean-Luc Guermond, Copyrights 1996
-!
-MODULE prep_periodic_module
-   USE def_type_mesh
-   USE def_type_periodic
+MODULE periodic_data_module
    USE dyn_line_type
-   USE input_periodic_data
-   USE periodic_data_module
+   USE def_type_mesh
    IMPLICIT NONE
-
-   PUBLIC :: prep_periodic
-   PRIVATE
-
+   TYPE periodic_type
+      CHARACTER(100) :: name
+      INTEGER :: nb_bords
+      INTEGER, DIMENSION(:, :), POINTER :: list_periodic
+      REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
+      TYPE(dyn_int_line), DIMENSION(20) :: list
+      TYPE(dyn_int_line), DIMENSION(20) :: perlist
+      INTEGER, POINTER, DIMENSION(:) :: pnt
+   CONTAINS
+      PROCEDURE, PUBLIC :: read => read_periodic_data
+      PROCEDURE, PUBLIC :: set => prep_periodic
+   END TYPE periodic_type
 CONTAINS
-   SUBROUTINE prep_periodic(mesh, periodic, opt_nb_bloc)
+   SUBROUTINE read_periodic_data(this, name)
+      USE character_strings
+      USE space_dim
+      USE petsc
+      IMPLICIT NONE
+      INTEGER, PARAMETER :: in_unit = 21
+      INTEGER :: k
+      CHARACTER(*) :: name
+      CHARACTER(LEN = 100) :: argument
+      LOGICAL :: test
+      CLASS(periodic_type), INTENT(INOUT) :: this
+      INTEGER :: rank, ierr
+
+      CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
+
+      this%name = name
+
+      !===Initialize data to zero and false by default
+      OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+
+      argument = '===How many pieces of periodic boundary on ' // trim(adjustl(this%name)) // '?==='
+      CALL find_string(in_unit, argument, test)
+      IF (test) THEN
+         READ (in_unit, *) this%nb_bords
+      ELSE
+         CALL default_data(rank, in_unit, argument, '0')
+         this%nb_bords = 0
+         argument = '===Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '==='
+         CALL default_data(rank, in_unit, argument, '0 0 0.d0 0.d0')
+      END IF
+
+      ALLOCATE(this%list_periodic(2, this%nb_bords))
+      ALLOCATE(this%vect_e(k_dim, this%nb_bords))
+
+      IF (this%nb_bords > 0) THEN
+         argument = '===Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '==='
+         CALL find_string(in_unit, argument, test)
+         IF (test) THEN
+            DO k = 1, this%nb_bords
+               READ(in_unit, *) this%list_periodic(:, k), this%vect_e(:, k)
+            END DO
+         ELSE
+            CALL default_data(rank, in_unit, argument, '0 0 0.d0 0.d0')
+            IF (rank == 0) WRITE(*, *) 'Please add data for periodic boundaries.' ; STOP
+         END IF
+      END IF
+
+      CLOSE(in_unit)
+   END SUBROUTINE read_periodic_data
+
+   SUBROUTINE prep_periodic(this, mesh, opt_nb_bloc)
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
-      TYPE(periodic_type) :: periodic
+      CLASS(periodic_type), INTENT(INOUT)  :: this
       INTEGER, OPTIONAL :: opt_nb_bloc
 
       IF (PRESENT(opt_nb_bloc)) THEN
-         CALL prep_periodic_bloc(periodic_data, mesh, periodic, opt_nb_bloc)
+         CALL prep_periodic_bloc(this, mesh, opt_nb_bloc)
       ELSE
-         CALL prep_periodic_scal(periodic_data, mesh, periodic)
+         CALL prep_periodic_scal(this, mesh)
       END IF
 
    END SUBROUTINE prep_periodic
 
-   SUBROUTINE prep_periodic_scal(my_periodic, mesh, periodic)
+   SUBROUTINE prep_periodic_scal(periodic, mesh)
       !=========================================
       USE character_strings
       IMPLICIT NONE
-      TYPE(periodic_data_type), INTENT(IN) :: my_periodic
-      TYPE(mesh_type) :: mesh
       TYPE(periodic_type) :: periodic
+      TYPE(mesh_type) :: mesh
       INTEGER, DIMENSION(:), POINTER :: list_loc, perlist_loc, list_dom, perlist_dom
       INTEGER :: n, side1, side2, n_b, nx, i
       REAL(KIND = 8), DIMENSION(:), POINTER :: e
@@ -43,19 +94,18 @@ CONTAINS
          RETURN
       END IF
 
-      ALLOCATE(e(SIZE(my_periodic%vect_e, 1)))
+      ALLOCATE(e(SIZE(periodic%vect_e, 1)))
 
-      periodic%n_bord = my_periodic%nb_periodic_pairs
-      IF (periodic%n_bord .GT. 20) THEN
+      IF (periodic%nb_bords .GT. 20) THEN
          WRITE(*, *) 'PREP_MESH_PERIODIC: trop de bords periodiques'
          STOP
       END IF
 
-      DO n = 1, periodic%n_bord
+      DO n = 1, periodic%nb_bords
 
-         side1 = my_periodic%list_periodic(1, n)
-         side2 = my_periodic%list_periodic(2, n)
-         e = my_periodic%vect_e(:, n)
+         side1 = periodic%list_periodic(1, n)
+         side2 = periodic%list_periodic(2, n)
+         e = periodic%vect_e(:, n)
 
          CALL list_periodic(mesh%np, mesh%jjs, mesh%sides, mesh%rr, side1, side2, e, &
               list_loc, perlist_loc)
@@ -87,12 +137,11 @@ CONTAINS
 
    END SUBROUTINE prep_periodic_scal
 
-   SUBROUTINE prep_periodic_bloc(my_periodic, mesh, periodic, nb_bloc)
+   SUBROUTINE prep_periodic_bloc(periodic, mesh, nb_bloc)
       !=========================================
       USE character_strings
       USE def_type_mesh
       IMPLICIT NONE
-      TYPE(periodic_data_type), INTENT(IN) :: my_periodic
       TYPE(mesh_type) :: mesh
       TYPE(periodic_type) :: periodic
       INTEGER, INTENT(IN) :: nb_bloc
@@ -108,17 +157,16 @@ CONTAINS
          RETURN
       END IF
 
-      periodic%n_bord = my_periodic%nb_periodic_pairs
-      IF (periodic%n_bord .GT. 20) THEN
+      IF (periodic%nb_bords .GT. 20) THEN
          WRITE(*, *) 'PREP_MESH_PERIODIC: trop de bords periodiques'
          STOP
       END IF
 
-      DO n = 1, periodic%n_bord
+      DO n = 1, periodic%nb_bords
 
-         side1 = my_periodic%list_periodic(1, n)
-         side2 = my_periodic%list_periodic(2, n)
-         e = my_periodic%vect_e(:, n)
+         side1 = periodic%list_periodic(1, n)
+         side2 = periodic%list_periodic(2, n)
+         e = periodic%vect_e(:, n)
 
          CALL list_periodic(mesh%np, mesh%jjs, mesh%sides, mesh%rr, side1, side2, e, &
               list_loc, perlist_loc)
@@ -244,4 +292,4 @@ CONTAINS
 
    END SUBROUTINE list_periodic
 
-END MODULE prep_periodic_module
+END MODULE periodic_data_module

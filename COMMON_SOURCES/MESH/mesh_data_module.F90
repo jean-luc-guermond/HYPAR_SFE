@@ -60,8 +60,7 @@ CONTAINS
       ELSE
          CALL default_data(rank, in_unit, argument, 'mesh_name')
          this%file_name = 'mesh_name'
-         WRITE(*, *) "No mesh_name specified."
-         STOP
+         IF (rank == 0) WRITE(*, *) "No mesh_name specified." ; STOP
       END IF
 
       argument = "===Is the mesh formatted? (True/False)==="
@@ -117,7 +116,6 @@ CONTAINS
          READ (in_unit, *) this%if_HCT
          IF (this%if_HCT) write(*, *) "HCT mesh not inmplemented yet"
       ELSE
-         CALL default_data(rank, in_unit, argument, '.f.')
          this%if_HCT = .false.
       END IF
 

@@ -34,7 +34,7 @@ CONTAINS
       CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
       CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
 
-      n_bord = periodic%n_bord
+      n_bord = periodic%nb_bords
       list = periodic%list
       perlist = periodic%perlist
 

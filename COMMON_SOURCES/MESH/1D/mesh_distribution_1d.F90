@@ -2,14 +2,14 @@ MODULE mesh_distribution_1d
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE mesh_tools
-   USE input_periodic_data
+   USE periodic_data_module
    PUBLIC :: extract_mesh_1d
    PRIVATE
 CONTAINS
-   SUBROUTINE extract_mesh_1d(communicator, mesh_glob, mesh_loc, opt_per)
+   SUBROUTINE extract_mesh_1d(communicator, mesh_glob, mesh_loc, opt_pers)
       USE def_type_mesh
       IMPLICIT NONE
-      LOGICAL, OPTIONAL :: opt_per
+      TYPE(periodic_type), DIMENSION(:), OPTIONAL :: opt_pers
       LOGICAL :: per_bool
       TYPE(mesh_type) :: mesh_glob, mesh_loc
       INTEGER :: n, m, np_start, np_end, me_start, me_end
@@ -19,13 +19,12 @@ CONTAINS
       CALL MPI_Comm_rank(communicator, rank, ierr)
       CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
       rank = rank + 1
-      IF (PRESENT(opt_per)) THEN
-         per_bool = opt_per
-         IF (periodic_data%nb_periodic_pairs == 0) THEN
-            per_bool = .false.
-         END IF
-      ELSE
-         per_bool = .false.
+
+      per_bool = .false.
+      IF (PRESENT(opt_pers)) THEN
+         DO n = 1, SIZE(opt_pers)
+            per_bool = per_bool .or. opt_pers(n)%nb_bords > 0
+         END DO
       END IF
       IF  (nb_procs == 1) THEN
          IF (per_bool) THEN
