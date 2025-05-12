@@ -52,17 +52,14 @@ CONTAINS
          END IF
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start + 1
-         mesh_loc%medge = mesh_loc%me
          mesh_loc%mextra = 1
       ELSE
          np_start = (rank - 1) * (mesh_glob%np / nb_procs) + 1
          np_end = mesh_glob%np
          mesh_loc%dom_np = np_end - np_start + 1
-
          me_start = np_start - 1
          me_end = np_end - 1
          mesh_loc%me = me_end - me_start + 1
-         mesh_loc%medge = mesh_loc%me
          mesh_loc%mextra = 0
       END IF
 
@@ -96,6 +93,8 @@ CONTAINS
             me_end = me_end + 1
          END IF
       END IF
+
+      mesh_loc%medge = mesh_loc%me
 
       mesh_loc%nis = 0
 
