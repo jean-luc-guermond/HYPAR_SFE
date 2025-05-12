@@ -288,7 +288,7 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
-               write(*, *) i, j, nij_c(1, k), norm_c
+               write(*, *) i, j, nij_c(1, :), norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
