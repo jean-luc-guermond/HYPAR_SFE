@@ -255,7 +255,6 @@ CONTAINS
 
       DO m = 1, mesh%me
          DO n = 1, mesh%gauss%n_e
-            write(*, *) mesh%rank, mesh%np, mesh%dom_np, mesh%me, m, mesh%attr_e(mesh%jce(n, m)), mesh%jce(n, m)
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
                edge = mesh%jce_loc(n, m)
                IF (.not. virgin_edge(edge)) CYCLE
@@ -288,8 +287,6 @@ CONTAINS
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                dij_c = MAXVAL(lambda_max) * norm_c
-
-               write(*, *) mesh%rank, mesh%np, mesh%dom_np, mesh%me, i, j, nij_c(1, :), norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
@@ -325,7 +322,6 @@ CONTAINS
 
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
-      stop
 
    END SUBROUTINE compute_dij
 
