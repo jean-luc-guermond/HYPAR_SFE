@@ -197,7 +197,7 @@ CONTAINS
          un(:, comp) = un(:, comp) + rk
 
          DO k = 1, this%per%nb_bords
-               un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
+            un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
          END DO
 
          CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
@@ -288,6 +288,8 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
+               write(*, *) i, j, nij_c(1, k), norm_c
+
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
                   DO k = 1, k_dim
@@ -319,6 +321,7 @@ CONTAINS
          END DO
 
       END DO
+      stop
 
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
