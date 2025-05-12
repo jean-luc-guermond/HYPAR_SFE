@@ -257,6 +257,7 @@ CONTAINS
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
                edge = mesh%jce_loc(n, m)
+               write(*, *) mesh%rank, mesh%np, mesh%dom_np, mesh%me, edge
                IF (.not. virgin_edge(edge)) CYCLE
                virgin_edge(edge) = .false.
 
