@@ -30,7 +30,7 @@ CONTAINS
       USE construct_mesh
       USE st_matrix
       USE setup
-       IMPLICIT NONE
+      IMPLICIT NONE
       PetscErrorCode :: ierr
       REAL(KIND = 8) :: init_time = 0.d0
       CHARACTER(100) :: name = 'Euler 1'
@@ -44,7 +44,8 @@ CONTAINS
       CALL per(1)%read("global")
       CALL get_mesh(communicator, mesh, opt_pers = per)
       CALL per(1)%set(mesh)
-
+      CALL per(1)%read("none")
+      CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
       !===Read
