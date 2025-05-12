@@ -288,7 +288,7 @@ CONTAINS
 
                dij_c = MAXVAL(lambda_max) * norm_c
 
-               write(*, *) i, j, nij_c(1, :), norm_c
+               write(*, *) mesh%rank, i, j, nij_c(1, :), norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
@@ -321,10 +321,10 @@ CONTAINS
          END DO
 
       END DO
-      stop
 
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
+      stop
 
    END SUBROUTINE compute_dij
 
