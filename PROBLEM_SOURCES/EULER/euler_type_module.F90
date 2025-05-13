@@ -157,19 +157,23 @@ CONTAINS
       USE st_matrix
       CLASS(euler_type) :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim) :: un_temp
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dij_diag
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: k, comp, ierr
 
+      un_temp = un
+
       !===compute dij and dt
-      CALL compute_dt(this, un)
+      CALL compute_dt(this, un_temp)
 
       this%time = this%time + this%dt
 
       DO comp = 1, this%syst_dim
-         ff = flux(comp, un)
+         ff = 0.d0
+         ff = flux(comp, un_temp)
 
          CALL VecSet(this%x3vec, 0.d0, ierr)
          DO k = 1, k_dim
@@ -182,8 +186,7 @@ CONTAINS
          END DO
 
          !=== set un(comp) in x1vec
-         CALL array_to_petsc_vec(un(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
-
+         CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
          !=== add dij un(comp)to x3vec in x2vec
          CALL MatMultAdd(this%matrices%dij, this%x1vec, this%x3vec, this%x2vec, ierr)
          CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x2vec, this%LA)
@@ -194,7 +197,7 @@ CONTAINS
 
          rk = rk * this%dt / this%matrices%lumped_mass
 
-         un(:, comp) = un(:, comp) + rk
+         un(:, comp) = un_temp(:, comp) + rk
 
          DO k = 1, this%per%nb_bords
             un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
