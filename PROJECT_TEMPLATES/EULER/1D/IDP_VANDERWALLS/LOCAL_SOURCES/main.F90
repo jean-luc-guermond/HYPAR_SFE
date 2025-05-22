@@ -1,33 +1,26 @@
 PROGRAM prog
 #include "petsc/finclude/petsc.h"
    USE start_setup_MODULE
+   USE setup
    USE sub_plot
-   USE my_util
    IMPLICIT NONE
    REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
-   CHARACTER(5) :: car
-   REAL(KIND = 8) :: t0
-   INTEGER :: n, i
+   CHARACTER(5) :: char
+   INTEGER :: n
 
    CALL start_setup
 
-   WRITE(car, '(I5)') rank
-   ALLOCATE(un(mesh%np, 3))
+   ALLOCATE(un(mesh%np, euler%syst_dim))
    CALL init(un, 0.d0, euler%mesh%rr)
 
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'initrho' // trim(adjustl(car)) // '.plt')
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,2)/un(:,1), 'initvt' // trim(adjustl(car)) // '.plt')
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,3), 'initE' // trim(adjustl(car)) // '.plt')
-
-   euler%cfl = 0.5
-
-   t0 = user_time()
-   i = 0
-   DO WHILE (i < 100 )
+   WRITE(char, '(I5)') euler%mesh%rank
+   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'initrho' // trim(adjustl(char)) // '.plt')
+   n = 0
+   DO WHILE(euler%time < setup_data%final_time)
       CALL euler%update(un)
-      i = i + 1
+      n = n + 1
+      IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
    END DO
-   write(*,*)  'th', i*SUM(euler%mesh%domnp)/(user_time() - t0)
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,1), 'rho' // trim(adjustl(car)) // '.plt')
-   CALL plot_1d(euler%mesh%rr(1, :), un(:,2), 'mt' // trim(adjustl(car)) // '.plt')
+
+   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // trim(adjustl(char)) // '.plt')
 END PROGRAM prog
