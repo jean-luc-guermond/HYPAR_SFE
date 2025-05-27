@@ -1,18 +1,26 @@
 ===Name of directory for mesh file===
-.
+'/mnt/c/Users/MELVIN/PycharmProjects/Scaling_2d/MESHES/'
 ===Name of mesh file===
-mesh
+cav_0.1.FEM
 ===Is the mesh formatted? (True/False)===
-t
+f
 ===Number of subdomains in the mesh===
 1
 ===List of subdomain in the mesh===
 1
-===How many pieces of dirichlet boundary?===
+===Do we read metis partition? (true/false)
+.f.
+===Number of refinement steps===
 0
-===List of dirichlet boundaries===
-
-===How many pieces of periodic boundary?===
+===HCT mesh ?===
+.f.
+===Type of finite element===
 1
-===Indices of periodic boundaries and corresponding vectors===
-1 2 9.d0
+===How many pieces of boundaries for bcs on a?===
+0
+===List of boundaries for bcs on a===
+0
+===How many pieces of periodic boundary on a?===
+1
+===Indices of periodic boundaries and corresponding vectors on a?===
+1 3 1.d0 0.d0

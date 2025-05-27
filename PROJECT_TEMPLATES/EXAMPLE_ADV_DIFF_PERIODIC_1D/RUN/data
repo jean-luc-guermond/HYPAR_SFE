@@ -8,12 +8,17 @@ t
 1
 ===List of subdomain in the mesh===
 1
-
-===How many pieces of periodic boundary?===
+===Do we read metis partition? (true/false)
+.f.
+===Number of refinement steps===
+0
+===Type of finite element===
 1
-===Indices of periodic boundaries and corresponding vectors===
-1 2 1.d0
+===How many pieces of periodic boundary on a?===
+1
+===Indices of periodic boundaries and corresponding vectors on a===
+1 2 1.d0 0.d0
 ===How many pieces of boundaries for bcs on a?===
 0
 ===List of boundaries for bcs on a===
-1 2
+0
