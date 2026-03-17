@@ -250,7 +250,7 @@ CONTAINS
          mesh_loc%disedge(n + 1) = mesh_loc%disedge(n) + mesh_loc%domedge(n)
       END DO
 
-      write(*,*) mesh_loc%domnp, mesh_loc%domcell, mesh_loc%domedge
+      !write(*,*) mesh_loc%domnp, mesh_loc%domcell, mesh_loc%domedge
    END SUBROUTINE extract_mesh_1d
 
 END MODULE mesh_distribution_1d

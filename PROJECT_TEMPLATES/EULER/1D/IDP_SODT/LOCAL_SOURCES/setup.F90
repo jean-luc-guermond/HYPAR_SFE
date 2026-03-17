@@ -4,9 +4,11 @@ MODULE setup
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
    REAL(KIND = 8) :: x0, x1
-   REAL(KIND = 8) :: rhol, pl, ul
-   REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
+   REAL(KIND = 8), PARAMETER :: rhoL=1.d0, rhor=0.125d0, pl=1.d0, pr=0.1d0, ul=0.d0, ur=0.d0,&
+        l1m=-1.183215956619923d0, l1p=-0.07027281256118334d0, &
+        l3=1.7521557320301779, ustar=0.92745262004894991d0, rhoLstar=0.4263194281784952d0, &
+        rhoRstar=0.26557371170530708d0, pstar=0.3031301780506468, cL=SQRT(gamma*pL/rhoL) 
 CONTAINS
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
@@ -38,16 +40,15 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
-      gamma = 1.4d0
       long = 1.d0
       x0 = long * 0.5d0
-      rhol = 1.d0
-      rhor = 0.125d0
-      pl = 1.d0
-      pr = 0.1d0
-      ul = 0.d0
-      ur = 0.d0
-
+!!$      rhol = 1.d0
+!!$      rhor = 0.125d0
+!!$      pl = 1.d0
+!!$      pr = 0.1d0
+!!$      ul = 0.d0
+!!$      ur = 0.d0
+!!$
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)
       un(:, 3) = E_anal(time, rr)
@@ -60,12 +61,28 @@ CONTAINS
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       INTEGER :: n
+      REAL(KIND = 8) :: xi
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
-         IF (rr(1, n)<x0) THEN
-            vv(n) = rhol
+         IF (time.LE.1.d-12) THEN
+            IF (rr(1, n)<x0) THEN
+               vv(n) = rhol
+            ELSE
+               vv(n) = rhor
+            END IF
          ELSE
-            vv(n) = rhor
+            xi = (rr(1,n)-x0)/time
+            IF (xi.LE.l1m) THEN
+               vv(n) = rhoL
+            ELSE IF (xi.LE.l1p) THEN
+               vv(n) = rhoL*(2/(gamma+1) + (uL-xi)*(gamma-1)/((gamma+1)*cL))**(2/(gamma-1))
+            ELSE IF (xi.LE.ustar) THEN
+               vv(n) = rhoLstar
+            ELSE IF (xi.LE.l3) THEN
+               vv(n) = rhoRstar
+            ELSE
+               vv(n) = rhoR
+            END IF
          END IF
       END DO
    END FUNCTION rho_anal
@@ -76,12 +93,26 @@ CONTAINS
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       INTEGER :: n
+      REAL(KIND = 8) :: xi
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
-         IF (rr(1, n)<x0) THEN
-            vv(n) = pl
+         IF (time.LE.1.d-12) THEN
+            IF (rr(1, n)<x0) THEN
+               vv(n) = pl
+            ELSE
+               vv(n) = pr
+            END IF
          ELSE
-            vv(n) = pr
+            xi = (rr(1,n)-x0)/time
+            IF (xi.LE.l1m) THEN
+               vv(n) = pL
+            ELSE IF (xi.LE.l1p) THEN
+               vv(n) = pL*(2/(gamma+1) + (uL-xi)*(gamma-1)/((gamma+1)*cL))**(2*gamma/(gamma-1))
+            ELSE IF (xi.LE.l3) THEN
+               vv(n) = pstar
+            ELSE
+               vv(n) = pR
+            END IF
          END IF
       END DO
    END FUNCTION press_anal
@@ -93,12 +124,26 @@ CONTAINS
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       INTEGER :: n
+      REAL(KIND = 8) :: xi
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
-         IF (rr(1, n)<x0) THEN
-            vv(n) = ul
+         IF (time.LE.1.d-12) THEN
+            IF (rr(1, n)<x0) THEN
+               vv(n) = ul
+            ELSE
+               vv(n) = ur
+            END IF
          ELSE
-            vv(n) = ur
+            xi = (rr(1,n)-x0)/time
+            IF (xi.LE.l1m) THEN
+               vv(n) = uL
+            ELSE IF (xi.LE.l1p) THEN
+               vv(n) = (2/(gamma+1))*(cL + uL*(gamma-1)/2+xi)
+            ELSE IF (xi.LE.l3) THEN
+               vv(n) = ustar
+            ELSE
+               vv(n) = uR
+            END IF
          END IF
       END DO
    END FUNCTION vit_anal

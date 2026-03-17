@@ -3,7 +3,6 @@ MODULE setup
    USE eos
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
    PRIVATE
-   REAL(KIND = 8) :: x0, x1
 CONTAINS
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
@@ -35,9 +34,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
-      gamma = 1.4d0
-      x0 = 0.1
-      x1 = 0.3
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)
       un(:, 3) = mt_anal(2, time, rr)
@@ -52,7 +48,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       INTEGER :: n
       IF (SIZE(vv)==0) RETURN
-      vv = 1.4d0
+      vv = gamma
    END FUNCTION rho_anal
 
    FUNCTION press_anal(time, rr) RESULT(vv)
@@ -109,7 +105,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
    END FUNCTION mt_anal
-
 
    FUNCTION sol_anal(comp, time, rr) RESULT(vv)
       IMPLICIT NONE
