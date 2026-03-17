@@ -7,9 +7,8 @@ PROGRAM prog
    REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
    CHARACTER(5) :: char
    INTEGER :: n
-
+   
    CALL start_setup
-
    ALLOCATE(un(mesh%np, euler%syst_dim))
    CALL init(un, 0.d0, euler%mesh%rr)
 

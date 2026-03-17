@@ -86,18 +86,15 @@ CONTAINS
       !this%CFL = 0.5d0
 
       CALL this%read_euler_data
-
       CALL this%ERK%init(this%erk_sv)
       CALL this%euler_bc%construct_euler_bc(this%mesh)
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
-
+      
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
       CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%x1vec, ierr)
-
       CALL VecDuplicate(this%x1vec, this%x2vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
-
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
       CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
@@ -105,7 +102,7 @@ CONTAINS
       DO n = 1, this%mesh%dom_np
          this%tab(n) = n - 1
       END DO
-
+      
    END SUBROUTINE init_euler
 
    SUBROUTINE read_euler_data(this)
@@ -163,7 +160,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dij_diag
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: k, comp, ierr
-
       un_temp = un
 
       !===compute dij and dt
@@ -216,11 +212,10 @@ CONTAINS
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: ierr
       CALL this%compute_dij(un)
-
       CALL MatGetDiagonal(this%matrices%dij, this%vec_loc, ierr)
       CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dij_diag, ierr)
-
       dij_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dij_diag)
+
       dt_min_loc = MINVAL(dij_diag) / 2.d0
 
       CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
@@ -247,7 +242,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: pstar
       LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
-
       CALL MatZeroEntries(this%matrices%dij, ierr)
 
       mesh => this%mesh
@@ -286,7 +280,6 @@ CONTAINS
                p = this%pressure(rho, ie)
 
                CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
-
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                dij_c = MAXVAL(lambda_max) * norm_c

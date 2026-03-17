@@ -9,11 +9,10 @@ MODULE euler_matrices_module
    USE compute_periodic
 
    TYPE euler_matrices_type
-      Mat :: mass, dij
+      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
+      Mat :: mass, dij, cij_norm_loc
       Mat, DIMENSION(k_dim) :: cij, nij_loc
       Mat, DIMENSION(1, k_dim) :: cij_loc
-      Mat :: cij_norm_loc
-      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
       PROCEDURE, PRIVATE :: construct_loc_nij
@@ -43,24 +42,22 @@ CONTAINS
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
       CALL periodic_matrix_petsc(opt_per, LA, this%mass)
-
       CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
       DO k = 1, opt_per%nb_bords
          this%lumped_mass(opt_per%list(k)%DIL) = this%lumped_mass(opt_per%perlist(k)%DIL)
       END DO
-
       CALL construct_cij(mesh, LA, this%cij)
-
-
+   
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
       DO k = 1, k_dim
          CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
          CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k), ierr)
       END DO
       CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc, ierr)
-
       CALL this%construct_loc_nij(mesh)
 
+ 
+ 
    END SUBROUTINE construct_euler_matrices
 
    SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
