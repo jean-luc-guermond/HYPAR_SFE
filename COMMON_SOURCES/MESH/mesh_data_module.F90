@@ -61,13 +61,15 @@ CONTAINS
     CLASS(mesh_data_type), INTENT(INOUT) :: this
     TYPE(argument_mesh_data_type)        :: argument_data
     INTEGER, PARAMETER :: in_unit = 21
-    INTEGER, PARAMETER :: list_length=200
-    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
+    INTEGER, PARAMETER :: list_length=200, length_begin=27, length_end=25
+    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record, record_outside_start_end
     CHARACTER(LEN=rec_length) :: control, st, string_default
-    CHARACTER(LEN=15) :: end_section='%%% END SECTION' 
+    CHARACTER(LEN=length_begin) :: begin_section='%%% BEGIN SECTION: MESH %%%' 
+    CHARACTER(LEN=length_end) :: end_section='%%% END SECTION: MESH %%%'
+    CHARACTER(LEN=5)         :: fmt 
     LOGICAL :: okay
     INTEGER :: rank, ierr, record_size=0, i_list=0, section_counter=0, last_section_line=0, j
-
+    INTEGER :: line_begin_section=-1, line_end_section=-1
     CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
@@ -78,70 +80,139 @@ CONTAINS
        IF (TRIM(ADJUSTL(control))=='') CYCLE
        record_size = record_size+1
        record(record_size)=control
-       WRITE(st,'(A15)') TRIM(ADJUSTL(control))
+       !WRITE(st,'(A15)') TRIM(ADJUSTL(control))
+       !IF (st==end_section) THEN
+       !   section_counter=section_counter+1
+       !   last_section_line = record_size
+       !END IF
+       write(fmt, '("(A", I0, ")")') length_begin
+       WRITE(st,fmt) TRIM(ADJUSTL(control))
+       IF (st==begin_section) THEN
+!          section_counter=section_counter+1
+!          last_section_line = record_size
+          line_begin_section = record_size
+       END IF
+       write(fmt, '("(A", I0, ")")') length_end
+       WRITE(st,fmt) TRIM(ADJUSTL(control))
        IF (st==end_section) THEN
-          section_counter=section_counter+1
-          last_section_line = record_size
+          line_end_section = record_size
        END IF
     END DO
 100 CONTINUE
     CLOSE(in_unit)
 
-    !===Copy record into list
-    list(1:last_section_line)=record(1:last_section_line)
+
+    IF (line_begin_section .NE. -1) THEN
+        record(line_begin_section:record_size-1) = record(line_begin_section+1: record_size)
+        record_size = record_size -1
+        IF (line_end_section > line_begin_section) line_end_section = line_end_section -1
+    ELSE
+        line_begin_section = 1
+    END IF
+    IF (line_end_section .NE. -1) THEN
+        record(line_end_section:record_size-1) = record(line_end_section+1: record_size)
+        record_size = record_size -1
+    ELSE
+        line_end_section = record_size
+    END IF
+
+!    !===Copy record into list
+!    list(1:last_section_line)=record(1:last_section_line)
 
     !===Now we reorganize record
-    i_list = last_section_line
- 
-    i_list = i_list+1
-    list(i_list) = '%%% BEGIN SECTION: MESH %%%'
+!    i_list = last_section_line
 
+    i_list = line_begin_section
+!    i_list = i_list+1
+    list(i_list) = '%%% BEGIN SECTION: MESH %%%'
+    i_list = i_list+1
+
+    !WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%directory, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%directory  
+    !END IF
     WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
-    CALL compare_string(record(last_section_line+1:), list, argument_data%directory, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%directory, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%directory  
     END IF
     
+    !WRITE(string_default,*) TRIM(ADJUSTL(this%file_name))
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%file_name, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%file_name  
+    !END IF
     WRITE(string_default,*) TRIM(ADJUSTL(this%file_name))
-    CALL compare_string(record(last_section_line+1:), list, argument_data%file_name, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%file_name, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%file_name  
     END IF
     
+    !WRITE(string_default,*) this%if_mesh_formatted
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%if_mesh_formatted, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%if_mesh_formatted 
+    !END IF
     WRITE(string_default,*) this%if_mesh_formatted
-    CALL compare_string(record(last_section_line+1:), list, argument_data%if_mesh_formatted, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%if_mesh_formatted, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%if_mesh_formatted 
     END IF
     
+    !WRITE(string_default,*) this%if_read_partition
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%if_read_partition,string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%if_read_partition
+    !END IF
     WRITE(string_default,*) this%if_read_partition
-    CALL compare_string(record(last_section_line+1:), list, argument_data%if_read_partition,string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%if_read_partition,string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%if_read_partition
     END IF
     
+    !WRITE(string_default,*) this%type_fe
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%type_fe, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%type_fe
+    !END IF
     WRITE(string_default,*) this%type_fe
-    CALL compare_string(record(last_section_line+1:), list, argument_data%type_fe, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%type_fe, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%type_fe
     END IF
     
+    !WRITE(string_default,*) this%nb_refinement
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%nb_refinement, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%nb_refinement
+    !END IF
     WRITE(string_default,*) this%nb_refinement
-    CALL compare_string(record(last_section_line+1:), list, argument_data%nb_refinement, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%nb_refinement, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%nb_refinement
     END IF
     
+    !WRITE(string_default,*) this%nb_dom
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%nb_dom, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ(list(i_list),*) this%nb_dom
+    !END IF
     WRITE(string_default,*) this%nb_dom
-    CALL compare_string(record(last_section_line+1:), list, argument_data%nb_dom, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%nb_dom, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%nb_dom
     END IF
 
     ALLOCATE(this%list_dom(this%nb_dom))
     this%list_dom(1) = 1
+    !WRITE(string_default,*) this%list_dom
+    !CALL compare_string(record(last_section_line+1:), list, argument_data%list_dom, string_default, okay, i_list, j)
+    !IF (okay) THEN
+    !   READ (list(i_list), *) this%list_dom
+    !END IF
     WRITE(string_default,*) this%list_dom
-    CALL compare_string(record(last_section_line+1:), list, argument_data%list_dom, string_default, okay, i_list, j)
+    CALL compare_string(record, list, argument_data%list_dom, string_default, okay, i_list, j)
     IF (okay) THEN
        READ (list(i_list), *) this%list_dom
     END IF
@@ -152,17 +223,42 @@ CONTAINS
     i_list = i_list+1
     list(i_list) = ''
 
+!    DO j = 1, record_size
+!       IF (trim(adjustl(record(j)))=='') CYCLE
+!       i_list = i_list + 1
+!       list(i_list) = record(j)
+!    END DO
+
   !===Record reorganized data
-  OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
-  DO j = 1, i_list
-     WRITE(in_unit,'(A)') TRIM(ADJUSTL(list(j)))
+  okay = .TRUE.
+  DO j = 1, record_size
+  !DO j = last_section_line+1, record_size
+     IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
+     WRITE(st,'(A17)') TRIM(ADJUSTL(control))
+     IF ((TRIM(ADJUSTL(st))=="%%% BEGIN SECTION" okay = .FALSE.
+     WRITE(st,'(A15)') TRIM(ADJUSTL(control))
+     IF ((TRIM(ADJUSTL(st))=="%%% END SECTION" okay = .TRUE.
+     
+     IF (okay) THEN
+        record_outside_start_end(i) = record(j) 
+      i = i  
+    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record, record_outside_start_end
+     
+     END IF
+     WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
   END DO
-  DO j = last_section_line+1, record_size
+  
+  OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
+  DO j = 1, record_size
+  !DO j = last_section_line+1, record_size
      IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
      WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
   END DO
+  DO j = 1, i_list
+     WRITE(in_unit,'(A)') TRIM(ADJUSTL(list(j)))
+  END DO
   CLOSE(in_unit)
-
+  stop
   
 !!$    argument = '===Name of directory for mesh file==='
 !!$    CALL find_string(in_unit, argument, test)
