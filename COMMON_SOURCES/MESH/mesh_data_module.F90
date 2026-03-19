@@ -63,10 +63,10 @@ CONTAINS
     INTEGER, PARAMETER :: in_unit = 21
     INTEGER, PARAMETER :: list_length=200, length_begin=27, length_end=25
     CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-    CHARACTER(LEN=rec_length) :: control, st, string_default
-    CHARACTER(LEN=length_begin) :: begin_section='%%% BEGIN SECTION: MESH %%%' 
-    CHARACTER(LEN=length_end) :: end_section='%%% END SECTION: MESH %%%'
-    CHARACTER(LEN=5)         :: fmt 
+    CHARACTER(LEN=rec_length)   :: control, st, string_default
+    CHARACTER(LEN=length_begin) :: begin_section ='%%% BEGIN SECTION: MESH %%%' 
+    CHARACTER(LEN=length_end)   :: end_section   ='%%% END SECTION: MESH %%%'
+    CHARACTER(LEN=5)            :: fmt 
     LOGICAL :: okay
     INTEGER :: rank, ierr, record_size=0, i_list=0, section_counter=0, last_section_line=0, j
     INTEGER :: line_begin_section=-1, line_end_section=-1
@@ -112,7 +112,7 @@ CONTAINS
     !===Now we reorganize record
 
     i_list = 1
-    list(i_list) = '%%% BEGIN SECTION: MESH %%%'
+    list(i_list) = begin_section
 
     WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
     CALL compare_string(record, list, argument_data%directory, string_default, okay, i_list, j)
@@ -165,7 +165,7 @@ CONTAINS
     END IF
 
     i_list = i_list+1
-    list(i_list) = '%%% END SECTION: MESH %%%'
+    list(i_list) = end_section
     
     i_list = i_list+1
     list(i_list) = ''
