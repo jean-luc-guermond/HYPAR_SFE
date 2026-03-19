@@ -121,16 +121,13 @@ CONTAINS
     INTEGER,                INTENT(IN) :: unit
     CHARACTER(LEN=*),       INTENT(IN) :: string
     CHARACTER(len=long_max)            :: control
-    INTEGER                            :: d_end, d_start
     LOGICAL                            :: okay
 
     okay = .TRUE.
     REWIND(unit)
     DO WHILE (.TRUE.)
        READ(unit,'(64A)',ERR=11,END=22) control
-       d_start = start_of_string(control)
-       d_end =   last_of_string(control)
-       IF (control(d_start:d_end)==string) RETURN
+       IF (TRIM(ADJUSTL(control))==string) RETURN
     END DO
 
 11  WRITE(*,*) ' File reading error '; STOP
@@ -158,4 +155,31 @@ CONTAINS
     END IF
   END SUBROUTINE default_data
 
+  SUBROUTINE compare_string(record, list, string, string_default, okay, i_list, j)
+    IMPLICIT NONE
+    CHARACTER(LEN=*), DIMENSION(:) :: record, list
+    CHARACTER(LEN=*)               :: string, string_default
+    LOGICAL                        :: okay
+    INTEGER, INTENT(OUT)           :: j
+    INTEGER                        :: i, i_list
+    okay = .TRUE.
+    i_list = i_list+1
+    list(i_list) = string
+    DO i = 1, SIZE(record)
+       IF (TRIM(ADJUSTL(record(i)))==list(i_list)) THEN
+          j = i
+          record(j) = ''
+          i_list = i_list + 1
+          list(i_list) = record(j+1)
+          record(j+1) = ''
+          RETURN
+       END IF
+    END DO
+    WRITE(*,*) ' File reading error '
+    i_list = i_list+1
+    list(i_list) = string_default
+    okay = .FALSE.
+    j = -1
+    RETURN
+  END SUBROUTINE compare_string
 END MODULE character_strings

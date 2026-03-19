@@ -184,32 +184,4 @@ CONTAINS
   
   END SUBROUTINE read_mesh_data
 
-  SUBROUTINE compare_string(record, list, string, string_default, okay, i_list, j)
-    IMPLICIT NONE
-    CHARACTER(LEN=*), DIMENSION(:) :: record, list
-    CHARACTER(LEN=*)               :: string, string_default
-    LOGICAL                        :: okay
-    INTEGER, INTENT(OUT)           :: j
-    INTEGER                        :: i, i_list
-    okay = .TRUE.
-    i_list = i_list+1
-    list(i_list) = string
-    DO i = 1, SIZE(record)
-       IF (TRIM(ADJUSTL(record(i)))==list(i_list)) THEN
-          j = i
-          record(j) = ''
-          i_list = i_list + 1
-          list(i_list) = record(j+1)
-          record(j+1) = ''
-          RETURN
-       END IF
-    END DO
-    WRITE(*,*) ' File reading error '
-    i_list = i_list+1
-    list(i_list) = string_default
-    okay = .FALSE.
-    j = -1
-    RETURN
-  END SUBROUTINE compare_string
-    
 END MODULE mesh_data_module
