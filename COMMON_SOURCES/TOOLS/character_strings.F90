@@ -133,23 +133,28 @@ CONTAINS
        IF (control(d_start:d_end)==string) RETURN
     END DO
 
-11  WRITE(*,*) ' Erreur de lecture '; STOP
+11  WRITE(*,*) ' File reading error '; STOP
 22  okay = .FALSE.; RETURN
 
   END SUBROUTINE find_string
   !========================================================================
 
-  SUBROUTINE default_data(rank, in_unit, argument, char)
+  SUBROUTINE default_data(rank, in_unit, argument, opt_char)
     IMPLICIT NONE
     INTEGER :: rank, in_unit
-    CHARACTER(*), INTENT(IN) :: argument, char
-    IF (rank==0) WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found. Set to ' // TRIM(ADJUSTL(char)) // &
-         ' by default and added to data file.'
+    CHARACTER(*), INTENT(IN) :: argument
+    CHARACTER(*), OPTIONAL, INTENT(IN) :: opt_char
+    IF (rank==0) THEN
+       WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found.'
+       IF (PRESENT(opt_char)) THEN
+          WRITE(*, *) 'Set to ' // TRIM(ADJUSTL(opt_char)) // ' by default and added to data file.'
+       END IF
+    END IF
     CLOSE(in_unit)
     OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position = 'append')
     IF (rank==0) THEN
        WRITE(in_unit, '(g0)') TRIM(ADJUSTL(argument))
-       WRITE(in_unit, '(g0)') TRIM(ADJUSTL(char))
+       IF (PRESENT(opt_char)) WRITE(in_unit, '(g0)') TRIM(ADJUSTL(opt_char))
     END IF
   END SUBROUTINE default_data
 

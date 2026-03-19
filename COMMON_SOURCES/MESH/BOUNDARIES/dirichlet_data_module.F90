@@ -23,7 +23,7 @@ CONTAINS
     !===Initialize data to zero and false by default
     CALL MPI_Comm_rank(petsc_comm_world, rank, ierr)
     OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
-
+    
     argument = '===How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '?==='
     CALL find_string(in_unit, argument, test)
     IF (test) THEN

@@ -14,7 +14,6 @@ MODULE start_setup_MODULE
    CONTAINS
       PROCEDURE, PUBLIC :: init
    END TYPE setup_data_type
-
    TYPE(mesh_type), PUBLIC :: mesh
    TYPE(petsc_csr_LA), PRIVATE :: LA
    TYPE(euler_type), PUBLIC :: euler
@@ -40,9 +39,13 @@ CONTAINS
       CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
       communicator = PETSC_COMM_WORLD
       CALL MPI_Comm_rank(communicator, rank, ierr)
+      
       !===Construct mesh
       CALL per(1)%read("global")
       CALL get_mesh(communicator, mesh, opt_pers = per)
+
+      !stop
+      
       CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))

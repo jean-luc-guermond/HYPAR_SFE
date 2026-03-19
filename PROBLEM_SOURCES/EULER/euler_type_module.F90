@@ -42,7 +42,7 @@ MODULE euler_type_MODULE
       LOGICAL :: no_iter
       INTEGER :: erk_sv = -21, syst_dim = k_dim + 2
       REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
-
+      
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost, vec_loc
       INTEGER, DIMENSION(:), POINTER :: tab
    CONTAINS
@@ -320,6 +320,5 @@ CONTAINS
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
 
    END SUBROUTINE compute_dij
-
 
 END MODULE euler_type_MODULE
