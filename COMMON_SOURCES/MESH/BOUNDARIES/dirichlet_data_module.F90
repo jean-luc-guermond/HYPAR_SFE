@@ -13,11 +13,11 @@ MODULE dirichlet_type_module
       INTEGER                        :: nb_sides   = 0
       INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
-   CONTAINS
-      PROCEDURE, PUBLIC       :: set => dirichlet_nodes_parallel
-      PROCEDURE, PRIVATE      :: read_dirichlet_data
+    CONTAINS
+      PROCEDURE, PUBLIC :: set => dirichlet_nodes_local !===With ghosted nodes
+      PROCEDURE, PRIVATE :: read_dirichlet_data
+      !!PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel !===Without ghosted nodes
    END type dirichlet_bc
-
 CONTAINS
 
   SUBROUTINE read_dirichlet_data(this)
@@ -43,15 +43,15 @@ CONTAINS
     list = ""
     record = ""
     CALL MPI_Comm_rank(petsc_comm_world, rank, ierr)
-    
+
     argument_data%nb_sides = '=== How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '? ==='
     argument_data%list_sides = '=== List of boundaries for bcs on ' // trim(adjustl(this%name)) // ' ==='
-    
+
     !=== dynamic BEGIN/END in data
     length_name = LEN(trim(adjustl(this%name)))
     length_begin = length_template_begin + length_name + len(template_tip) 
     length_end   = length_template_end   + length_name + len(template_tip)
-    
+
     ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
     ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
     ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
@@ -62,7 +62,7 @@ CONTAINS
 
     begin_section = template_begin_section // trim(adjustl(this%name)) // template_tip
     end_section = template_end_section // trim(adjustl(this%name)) // template_tip
-     
+
     CALL read_data_in_record(record_size, record, begin_section, end_section)
 
     !===Now we reorganize record
@@ -89,12 +89,12 @@ CONTAINS
        list(i_list) = "0" 
     END IF
 
-!    i_list = i_list+1
-!    list(i_list) = char_end
+    !    i_list = i_list+1
+    !    list(i_list) = char_end
     i_list = i_list+1
     list(i_list) = end_section
-!    i_list = i_list+1
-!    list(i_list) = char_end
+    !    i_list = i_list+1
+    !    list(i_list) = char_end
     i_list = i_list+1
     list(i_list) = ''
 
@@ -105,77 +105,172 @@ CONTAINS
     DEALLOCATE(end_section)
   END SUBROUTINE read_dirichlet_data
 
-   SUBROUTINE dirichlet_nodes_parallel(this, mesh, name)
-      USE def_type_mesh
-      IMPLICIT NONE
-      CLASS(dirichlet_bc) :: this
-      TYPE(mesh_type) :: mesh
-      CHARACTER(*) :: name
-      LOGICAL, DIMENSION(:), POINTER :: virgin
-      INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
-      LOGICAL :: test
+  SUBROUTINE dirichlet_nodes_local(this, mesh, name)
+    USE def_type_mesh
+    IMPLICIT NONE
+    CLASS(dirichlet_bc) :: this
+    TYPE(mesh_type) :: mesh
+    CHARACTER(*) :: name
+    LOGICAL, DIMENSION(:), POINTER :: virgin
+    INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
+    LOGICAL :: test
 
-      this%name = name
+    this%name = name
 
-      CALL this%read_dirichlet_data
+    IF (this%name.NE.'whole boundary') THEN
+       CALL this%read_dirichlet_data
+    ELSE
+       n = MINVAL(mesh%sides)
+       p = MAXVAL(mesh%sides)
+       this%nb_sides = p-n+1
+       ALLOCATE(this%list_sides(this%nb_sides))
+       DO k = n, p
+          this%list_sides(k-n+1) = k
+       END DO
+    END IF
 
-      IF (SIZE(this%list_sides)==0) THEN
-         ALLOCATE(this%jsd(0))
-         RETURN
-      END IF
+    IF (SIZE(this%list_sides)==0) THEN
+       ALLOCATE(this%jsd(0))
+       RETURN
+    END IF
 
-      nws = SIZE(mesh%jjs, 1)
-      nn = 0
-      ALLOCATE(virgin(mesh%dom_np))
-      virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
-         DO n = 1, nws
-            p = mesh%jjs(n, ms)
-            IF (p>mesh%dom_np) CYCLE
-            IF (virgin(p)) THEN
-               virgin(p) = .FALSE.
-               nn = nn + 1
-            END IF
-         END DO
-      END DO
-      n_D_me = nn
-      DO ms = 1, mesh%nis
-         test = .false.
-         DO k = 1, mesh%gauss%n_ws
-            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
-         END DO
-         IF (test) THEN
-            nn = nn + 1
-         END IF
-      END DO
-      n_D = nn
-      ALLOCATE(this%jsd(n_D))
-      nn = 0
-      virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
-         IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
-         DO n = 1, nws
-            p = mesh%jjs(n, ms)
-            IF (p>mesh%dom_np) CYCLE
-            IF (virgin(p)) THEN
-               virgin(p) = .FALSE.
-               nn = nn + 1
-               this%jsd(nn) = mesh%jjs(n, ms)
-            END IF
-         END DO
-      END DO
-      DO ms = 1, mesh%nis
-         test = .false.
-         DO k = 1, mesh%gauss%n_ws
-            test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
-         END DO
-         IF (test) THEN
-            nn = nn + 1
-            this%jsd(nn) = mesh%isolated_jjs(nn - n_D_me) - mesh%loc_to_glob(1) + 1
-         END IF
-      END DO
-      DEALLOCATE(virgin)
-    END SUBROUTINE dirichlet_nodes_parallel
+    nws = SIZE(mesh%jjs, 1)
+    nn = 0
+    ALLOCATE(virgin(mesh%np)) !===mesh%np instead of mesh%dom_np
+    virgin = .TRUE.
+    DO ms = 1, mesh%dom_mes
+       IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
+       DO n = 1, nws
+          p = mesh%jjs(n, ms)
+          IF (p>mesh%np) CYCLE! ===mesh%np instead of mesh%dom_np
+          IF (virgin(p)) THEN
+             virgin(p) = .FALSE.
+             nn = nn + 1
+          END IF
+       END DO
+    END DO
+    n_D_me = nn
+    DO ms = 1, mesh%nis
+       test = .false.
+       DO k = 1, mesh%gauss%n_ws
+          test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
+       END DO
+       IF (test) THEN
+          nn = nn + 1
+       END IF
+    END DO
+    n_D = nn
+    ALLOCATE(this%jsd(n_D))
+    nn = 0
+    virgin = .TRUE.
+    DO ms = 1, mesh%dom_mes
+       IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
+       DO n = 1, nws
+          p = mesh%jjs(n, ms)
+          IF (p>mesh%np) CYCLE !===mesh%np instead of mesh%dom_np
+          IF (virgin(p)) THEN
+             virgin(p) = .FALSE.
+             nn = nn + 1
+             this%jsd(nn) = mesh%jjs(n, ms)
+          END IF
+       END DO
+    END DO
+    DO ms = 1, mesh%nis
+       test = .false.
+       DO k = 1, mesh%gauss%n_ws
+          test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
+       END DO
+       IF (test) THEN
+          nn = nn + 1
+          this%jsd(nn) = mesh%isolated_jjs(nn - n_D_me) - mesh%loc_to_glob(1) + 1
+       END IF
+    END DO
+    DEALLOCATE(virgin)
+  END SUBROUTINE dirichlet_nodes_local
 
+  SUBROUTINE dirichlet_nodes_parallel(this, mesh, name)
+    USE def_type_mesh
+    IMPLICIT NONE
+    CLASS(dirichlet_bc) :: this
+    TYPE(mesh_type) :: mesh
+    CHARACTER(*) :: name
+    LOGICAL, DIMENSION(:), POINTER :: virgin
+    INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
+    LOGICAL :: test
+
+    this%name = name
+
+    IF (this%name.NE.'whole boundary') THEN
+       CALL this%read_dirichlet_data
+    ELSE
+       n = MINVAL(mesh%sides)
+       p = MAXVAL(mesh%sides)
+       this%nb_sides = p-n+1
+       ALLOCATE(this%list_sides(this%nb_sides))
+       DO k = n, p
+          this%list_sides(k-n+1) = k
+       END DO
+    END IF
+
+    IF (SIZE(this%list_sides)==0) THEN
+       ALLOCATE(this%jsd(0))
+       RETURN
+    END IF
+
+    nws = SIZE(mesh%jjs, 1)
+    nn = 0
+    ALLOCATE(virgin(mesh%dom_np))
+    virgin = .TRUE.
+    DO ms = 1, mesh%dom_mes
+       IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
+       DO n = 1, nws
+          p = mesh%jjs(n, ms)
+          IF (p>mesh%dom_np) CYCLE
+          IF (virgin(p)) THEN
+             virgin(p) = .FALSE.
+             nn = nn + 1
+          END IF
+       END DO
+    END DO
+    n_D_me = nn
+    DO ms = 1, mesh%nis
+       test = .false.
+       DO k = 1, mesh%gauss%n_ws
+          test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
+       END DO
+       IF (test) THEN
+          nn = nn + 1
+       END IF
+    END DO
+    n_D = nn
+    ALLOCATE(this%jsd(n_D))
+    nn = 0
+    virgin = .TRUE.
+    DO ms = 1, mesh%dom_mes
+       IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
+       DO n = 1, nws
+          p = mesh%jjs(n, ms)
+          IF (p>mesh%dom_np) CYCLE
+          IF (virgin(p)) THEN
+             virgin(p) = .FALSE.
+             nn = nn + 1
+             this%jsd(nn) = mesh%jjs(n, ms)
+          END IF
+       END DO
+    END DO
+    DO ms = 1, mesh%nis
+       test = .false.
+       DO k = 1, mesh%gauss%n_ws
+          test = test .OR. MINVAL(ABS(mesh%isolated_interfaces(ms, k) - this%list_sides))==0
+       END DO
+       IF (test) THEN
+          nn = nn + 1
+          this%jsd(nn) = mesh%isolated_jjs(nn - n_D_me) - mesh%loc_to_glob(1) + 1
+       END IF
+    END DO
+    DEALLOCATE(virgin)
+
+  END SUBROUTINE dirichlet_nodes_parallel
+
+  
 END MODULE dirichlet_type_module

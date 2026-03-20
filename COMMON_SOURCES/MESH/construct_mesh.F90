@@ -41,8 +41,8 @@ CONTAINS
          edge_stab = opt_edge_stab
       END IF
 
-
-      !=== FIXME mesh%rank to be tranfered throught refinement_iso_grid_distributed, create_iso_grid_distributed, copy_mesh
+      !=== FIXME mesh%rank to be transferred through refinement_iso_grid_distributed,
+      !=== create_iso_grid_distributed, copy_mesh
       mesh_glob%rank = -1
 
       SELECT CASE(k_dim)
