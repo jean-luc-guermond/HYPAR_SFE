@@ -90,47 +90,33 @@ CONTAINS
          i_list = i_list+1
          list(i_list) = string
          DO i = 1, SIZE(record)
+            !=== detecting if there is Periodic BC
             IF (TRIM(ADJUSTL(record(i)))==list(i_list)) THEN
                j = i
                record(j) = ''
-               i_list = i_list + 1
-               list(i_list) = record(j+1)
-               record(j+1) = ''
                okay = .TRUE.
                EXIT
             END IF
          END DO
          IF (okay) THEN
+            !=== reading all Periodic BC if detected
             DO k=1, this%nb_bords
+               i_list = i_list + 1
+               list(i_list) = record(j+k)
+               record(j+k) = ''
                READ(list(i_list), *) this%list_periodic(:, k), this%vect_e(:, k)
             END DO
          ELSE
+            !=== default value if no Periodic BC detected
             i_list = i_list+1
             list(i_list) = string_default
          END IF
       ELSE
-         WRITE(*,*) 'rank=', rank, '; File reading error for indices of periodicity'
          i_list = i_list+1
          list(i_list) = string
          i_list = i_list+1
          list(i_list) = string_default
       END IF
-
-!$$      ALLOCATE(this%list_periodic(2, this%nb_bords))
-!$$      ALLOCATE(this%vect_e(k_dim, this%nb_bords))
-!$$
-!$$      IF (this%nb_bords > 0) THEN
-!$$         argument = '===Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '==='
-!$$         CALL find_string(in_unit, argument, test)
-!$$         IF (test) THEN
-!$$            DO k = 1, this%nb_bords
-!$$               READ(in_unit, *) this%list_periodic(:, k), this%vect_e(:, k)
-!$$            END DO
-!$$         ELSE
-!$$            CALL default_data(rank, in_unit, argument, '0 0 0.d0 0.d0')
-!$$            IF (rank == 0) WRITE(*, *) 'Please add data for periodic boundaries.' ; STOP
-!$$         END IF
-!$$      END IF
 
       i_list = i_list+1
       list(i_list) = end_section

@@ -1,6 +1,10 @@
-%%% BEGIN SECTION: PERIODIC global %%%
 ===How many pieces of periodic boundary on global?===
 0
+%%% BEGIN SECTION: PERIODIC global %%%
+=== How many pieces of periodic boundary on global? ===
+0
+=== Indices of periodic boundaries and corresponding vectors on global? ===
+0 0 0.d0 0.d0
 %%% END SECTION: PERIODIC global %%%
 %%% BEGIN SECTION: MESH %%%
 === Name of directory for mesh file ===
