@@ -9,6 +9,8 @@ MODULE euler_type_MODULE
    USE periodic_data_module
    IMPLICIT NONE
 
+   INTEGER, PARAMETER, PRIVATE :: rec_length = 200
+
    ABSTRACT INTERFACE
       FUNCTION function_template_pressure(rho, ie) RESULT(vv)
          REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
@@ -27,7 +29,19 @@ MODULE euler_type_MODULE
       END SUBROUTINE function_template_impose_bc
    END INTERFACE
 
+   TYPE argument_euler_type
+      CHARACTER(LEN=rec_length) :: CFL       = '=== CFL ? ==='
+      CHARACTER(LEN=rec_length) :: erk_sv
+      CHARACTER(LEN=rec_length) :: eos_param 
+      
+   END TYPE argument_euler_type
+   
    TYPE euler_type
+      !===Parameters read from data
+      REAL(KIND=8)                 :: CFL       = 0.5d0
+      REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
+      INTEGER                      :: erk_sv    = -21
+      !===Parameters built along way
       MPI_Comm :: communicator
       CHARACTER(100) :: name
       TYPE(mesh_type), POINTER :: mesh
@@ -38,10 +52,9 @@ MODULE euler_type_MODULE
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
-      REAL(KIND = 8) :: dt, time, in_tol, CFL
+      REAL(KIND = 8) :: dt, time, in_tol
       LOGICAL :: no_iter
-      INTEGER :: erk_sv = -21, syst_dim = k_dim + 2
-      REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
+      INTEGER :: syst_dim = k_dim + 2
       
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost, vec_loc
       INTEGER, DIMENSION(:), POINTER :: tab
@@ -108,44 +121,60 @@ CONTAINS
    SUBROUTINE read_euler_data(this)
       USE character_strings
       IMPLICIT NONE
-      CLASS(euler_type), INTENT(INOUT) :: this
-      CHARACTER(LEN = 100) :: argument
       INTEGER, PARAMETER :: in_unit = 21
-      INTEGER :: rank
-      LOGICAL :: test
+      INTEGER, PARAMETER :: list_length=200, length_begin=28, length_end=26
+      CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: EULER %%%' 
+      CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: EULER %%%'
+
+      CLASS(euler_type), INTENT(INOUT) :: this
+      TYPE(argument_euler_type)        :: argument_data
+
+      CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
+      CHARACTER(LEN=rec_length)                         :: string_default
+      LOGICAL :: okay
+      INTEGER :: rank, record_size, i_list, j
+
+
+      !===Initialize data to zero and false by default
       rank = this%mesh%rank
-      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
+      list = ""
+      record = ""
+      argument_data%eos_param = '===' // trim(adjustl(this%name)) // ': b_covolume ?==='
+      argument_data%erk_sv = '===' // trim(adjustl(this%name)) // ': ERK ?==='
+
+      !===Initializing record
+      CALL read_data_in_record(record_size, record, begin_section, end_section)
+      !===Now we reorganize record
+
+      i_list = 1
+      list(i_list) = begin_section
 
       !===CFL
-      argument = '===CFL ?==='
-      CALL find_string(in_unit, argument, test)
-      IF (test) THEN
-         READ (21, *) this%CFL
-      ELSE
-         CALL default_data(rank, in_unit, argument, '0.5d0')
-         this%CFL = 0.5d0
+      WRITE(string_default,*) this%CFL
+      CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
+      IF (okay) THEN
+         READ(list(i_list),*) this%CFL
       END IF
 
       !===b_covolume
-      argument = '===' // trim(adjustl(this%name)) // ': b_covolume ?==='
-      CALL find_string(in_unit, argument, test)
-      IF (test) THEN
-         READ (21, *) this%eos_param(1)
-      ELSE
-         CALL default_data(rank, in_unit, argument, '0.d0')
-         this%eos_param(1) = 0.d0
+      WRITE(string_default,*) this%eos_param(1)
+      CALL compare_string(record, list, argument_data%eos_param, string_default, okay, i_list, j)
+      IF (okay) THEN
+         READ(list(i_list),*) this%eos_param(1)
       END IF
 
       !===ERK
-      argument = '===' // trim(adjustl(this%name)) // ': ERK ?==='
-      CALL find_string(in_unit, argument, test)
-      IF (test) THEN
-         READ (21, *) this%erk_sv
-      ELSE
-         CALL default_data(rank, in_unit, argument, '-21')
-         this%erk_sv = -21
+      WRITE(string_default,*) this%erk_sv
+      CALL compare_string(record, list, argument_data%erk_sv, string_default, okay, i_list, j)
+      IF (okay) THEN
+         READ(list(i_list),*) this%erk_sv
       END IF
-      CLOSE(in_unit)
+
+      i_list = i_list + 1
+      list(i_list) = end_section
+
+      !===Closing unit
+      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
    END SUBROUTINE read_euler_data
 
    SUBROUTINE update(this, un)

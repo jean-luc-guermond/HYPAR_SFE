@@ -12,7 +12,7 @@ MODULE periodic_data_module
    
    TYPE periodic_type
       CHARACTER(100)                           :: name
-      INTEGER                                  :: nb_bords
+      INTEGER                                  :: nb_bords      = 0
       INTEGER, DIMENSION(:, :), POINTER        :: list_periodic
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
       TYPE(dyn_int_line), DIMENSION(20)        :: list
@@ -30,81 +30,51 @@ CONTAINS
       USE petsc
       IMPLICIT NONE
       INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_template_begin=28, length_template_end=26
-      INTEGER            :: k, length_begin, length_end, length_name
-      CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
+      CHARACTER(LEN=length_template_begin), PARAMETER :: template_begin_section = '%%% BEGIN SECTION: PERIODIC '  
+      CHARACTER(LEN=length_template_end),   PARAMETER :: template_end_section   = '%%% END SECTION: PERIODIC '
+      CHARACTER(LEN=4),                     PARAMETER :: template_tip           = ' %%%'
+      CHARACTER(LEN=:), ALLOCATABLE                   :: begin_section, end_section
+      
+      CHARACTER(LEN=rec_length), DIMENSION(list_length):: list, record
       CHARACTER(*) :: name
-      CHARACTER(LEN=rec_length)       :: control, st, string, string_default
-      CHARACTER(LEN=length_template_begin)     :: template_begin_section = '%%% BEGIN SECTION: PERIODIC '  
-      CHARACTER(LEN=length_template_end)       :: template_end_section   = '%%% END SECTION: PERIODIC '
-      CHARACTER(LEN=4)                :: template_tip             = ' %%%'
-      CHARACTER(LEN=:), ALLOCATABLE   :: begin_section, end_section
+      CHARACTER(LEN=rec_length)       :: string, string_default
+      
       CLASS(periodic_type), INTENT(INOUT) :: this
-      CHARACTER(LEN=5)            :: fmt 
+      
       LOGICAL :: okay
-      INTEGER :: rank, ierr, record_size=0, i_list=0, section_counter=0, last_section_line=0, j, i
-      INTEGER :: line_begin_section=-1, line_end_section=-1
+      INTEGER :: k, length_begin, length_end, length_name
+      INTEGER :: rank, ierr, record_size, i_list, j, i
 
       TYPE(argument_periodic_type)        :: argument_data
 
+      !===Initialize data to zero and false by default
+      list = ""
+      record = ""
       CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
       this%name = name
-      argument_data%nb_bords = '===How many pieces of periodic boundary on ' // trim(adjustl(this%name)) // '?==='
-      argument_data%list_periodic = '===How many pieces of periodic boundary on ' // trim(adjustl(this%name)) // '?==='
+      argument_data%nb_bords = '=== How many pieces of periodic boundary on ' // trim(adjustl(this%name)) // '? ==='
+      argument_data%list_periodic = '=== Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '? ==='
 
       !=== dynamic BEGIN/END in data
-      length_name = LEN(trim(adjustl(name)))
-      length_begin = length_template_begin + length_name + len(template_tip) 
-      length_end   = length_template_end   + length_name + len(template_tip)
+      length_name = LEN(this%name)
+      length_begin = length_template_begin + length_name + LEN(template_tip) 
+      length_end   = length_template_end   + length_name + LEN(template_tip)
       ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
       ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
-      begin_section = template_begin_section // trim(adjustl(name)) // template_tip
-      end_section = template_end_section // trim(adjustl(name)) // template_tip
+      begin_section = template_begin_section // TRIM(ADJUSTL(this%name)) // template_tip
+      end_section = template_end_section // TRIM(ADJUSTL(this%name)) // template_tip
       
-      
-      OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
-  
-      !===Read data file into record
-      DO
-         READ(in_unit,'(A)',END=100) control
-         IF (TRIM(ADJUSTL(control))=='') CYCLE
-         record_size = record_size+1
-         record(record_size)=control
-         write(fmt, '("(A", I0, ")")') length_begin
-         WRITE(st,fmt) TRIM(ADJUSTL(control))
-         IF (st==begin_section) THEN
-            line_begin_section = record_size
-         END IF
-         write(fmt, '("(A", I0, ")")') length_end
-         WRITE(st,fmt) TRIM(ADJUSTL(control))
-         IF (st==end_section) THEN
-            line_end_section = record_size
-         END IF
-      END DO
-  100 CONTINUE
-      CLOSE(in_unit)
+      !===Initializing record
+      CALL read_data_in_record(record_size, record, begin_section, end_section)
 
-      IF (line_begin_section .NE. -1) THEN
-          record(line_begin_section:record_size-1) = record(line_begin_section+1: record_size)
-          record_size = record_size -1
-          IF (line_end_section > line_begin_section) line_end_section = line_end_section -1
-      ELSE
-          line_begin_section = 1
-      END IF
-      IF (line_end_section .NE. -1) THEN
-          record(line_end_section:record_size-1) = record(line_end_section+1: record_size)
-          record_size = record_size -1
-      ELSE
-          line_end_section = record_size
-      END IF
-  
       !===Now we reorganize record
   
       i_list = 1
       list(i_list) = begin_section
 
       !===Initialize data to zero and false by default
-      
+      this%nb_bords = 0
       WRITE(string_default,*) this%nb_bords
       CALL compare_string(record, list, argument_data%nb_bords, string_default, okay, i_list, j)
       IF (okay) THEN
@@ -132,16 +102,18 @@ CONTAINS
          END DO
          IF (okay) THEN
             DO k=1, this%nb_bords
-               i_list = i_list + 1
-               list(i_list) = record(j)
                READ(list(i_list), *) this%list_periodic(:, k), this%vect_e(:, k)
             END DO
          ELSE
-            WRITE(*,*) ' File reading error '
             i_list = i_list+1
             list(i_list) = string_default
-            !list(i_list) = "0 0 0.d0 0.d0"
          END IF
+      ELSE
+         WRITE(*,*) 'rank=', rank, '; File reading error for indices of periodicity'
+         i_list = i_list+1
+         list(i_list) = string
+         i_list = i_list+1
+         list(i_list) = string_default
       END IF
 
 !$$      ALLOCATE(this%list_periodic(2, this%nb_bords))
@@ -162,21 +134,13 @@ CONTAINS
 
       i_list = i_list+1
       list(i_list) = end_section
-      
-      i_list = i_list+1
-      list(i_list) = ''
-  
-      OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
-      IF (rank == 0) THEN 
-         DO j = 1, record_size
-            IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
-            WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
-         END DO
-         DO j = 1, i_list
-            WRITE(in_unit,'(A)') TRIM(ADJUSTL(list(j)))
-         END DO
-      END IF
-      CLOSE(in_unit)
+     
+
+      !===Closing unit
+      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+
+      DEALLOCATE(begin_section)
+      DEALLOCATE(end_section)
 
    END SUBROUTINE read_periodic_data
 

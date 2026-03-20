@@ -5,15 +5,25 @@ MODULE start_setup_MODULE
    USE eos
    USE euler_type_module
    MPI_Comm        :: communicator
+   
+   INTEGER, PARAMETER, PRIVATE :: rec_length = 200
+
+   TYPE argument_setup_data_type
+      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
+      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+   END TYPE argument_setup_data_type
+   
    TYPE setup_data_type
-      LOGICAL :: if_regression_test
-      LOGICAL :: if_restart
-      REAL(KIND = 8) :: checkpointing_freq
-      REAL(KIND = 8) :: final_time
+      LOGICAL        :: if_regression_test  = .FALSE.
+      LOGICAL        :: if_restart          = .FALSE. 
+      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
+      REAL(KIND = 8) :: final_time          = 0.1d0
       INTEGER :: syst_size
-   CONTAINS
-      PROCEDURE, PUBLIC :: init
+   CONTAINS 
+      PROCEDURE, PUBLIC :: read => read_setup_data
    END TYPE setup_data_type
+   
    TYPE(mesh_type), PUBLIC :: mesh
    TYPE(petsc_csr_LA), PRIVATE :: LA
    TYPE(euler_type), PUBLIC :: euler
@@ -39,18 +49,17 @@ CONTAINS
       CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
       communicator = PETSC_COMM_WORLD
       CALL MPI_Comm_rank(communicator, rank, ierr)
-      
+       
       !===Construct mesh
       CALL per(1)%read("global")
       CALL get_mesh(communicator, mesh, opt_pers = per)
 
-      !stop
       
       CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
       !===Read
-      CALL read_setup_data(rank)
+      CALL setup_data%read(rank)
 
       !===Start Euler
       !FIXE ME init_time too
@@ -59,69 +68,68 @@ CONTAINS
       !===Read data setup
    END SUBROUTINE start_setup
 
-   SUBROUTINE init(this)
-      CLASS(setup_data_type), INTENT(INOUT) :: this
-      !===Logicals
-      this%if_regression_test = .FALSE.
-      this%if_restart = .FALSE.
-      !===Reals
-      this%checkpointing_freq = 1.d20
-      this%final_time = 0.d0
-      !===Characters
-      !===Integers
-   END SUBROUTINE init
-
-   SUBROUTINE read_setup_data(rank)
+   SUBROUTINE read_setup_data(this, rank)
       USE character_strings
       IMPLICIT NONE
-      INTEGER, PARAMETER :: in_unit = 21
-      CHARACTER(LEN = 100) :: argument
-      INTEGER :: rank
-      LOGICAL :: okay
-      !===Initialize data to zero and false by default
-      CALL setup_data%init
+      INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_begin=28, length_end=26
+      CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: SETUP %%%'
+      CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: SETUP %%%'
+      
+      CLASS(setup_data_type)             :: this
+      TYPE(argument_setup_data_type)     :: argument_data
 
-      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
+      CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
+      CHARACTER(LEN=rec_length)     :: string_default
+      LOGICAL :: okay
+      INTEGER :: rank, record_size, i_list, j
+
+
+      !===Initialize data to zero and false by default
+      list = ''
+      record = ''
+      
+      !===Initializing record
+      CALL read_data_in_record(record_size, record, begin_section, end_section)
+
+      !===Now we reorganize record
+
+      i_list = 1
+      list(i_list) = begin_section
 
       !===Restart
-      argument = '===Restart (true/false)==='
-      CALL find_string(in_unit, argument, okay)
+      WRITE(string_default,*) this%if_restart
+      CALL compare_string(record, list, argument_data%if_restart, string_default, okay, i_list, j)
       IF (okay) THEN
-         READ (in_unit, *) setup_data%if_restart
-      ELSE
-         CALL default_data(rank, in_unit, argument, '.F.')
-         setup_data%if_restart = .False.
+          READ(list(i_list),*) this%if_restart
       END IF
 
       !===Checkpointing
-      argument = '===Checkpointing frequency==='
-      CALL find_string(in_unit, argument, okay)
+      WRITE(string_default,*) this%checkpointing_freq
+      CALL compare_string(record, list, argument_data%checkpointing_freq, string_default, okay, i_list, j)
       IF (okay) THEN
-         READ (in_unit, *) setup_data%checkpointing_freq
-      ELSE
-         CALL default_data(rank, in_unit, argument, '1.d20')
-         setup_data%checkpointing_freq = 1.d20
+          READ(list(i_list),*) this%checkpointing_freq
       END IF
 
       !===Checkpointing
-      argument = '===Final time==='
-      CALL find_string(in_unit, argument, okay)
+      WRITE(string_default,*) this%final_time
+      CALL compare_string(record, list, argument_data%final_time, string_default, okay, i_list, j)
       IF (okay) THEN
-         READ (in_unit, *) setup_data%final_time
-      ELSE
-         CALL default_data(rank, in_unit, argument, '0.1d0')
-         setup_data%final_time = 0.1d0
+          READ(list(i_list),*) this%final_time
       END IF
 
       !===Regression test
-      CALL getarg(1, argument)
-      IF (trim(adjustl(argument))=='regression') THEN
-         setup_data%if_regression_test = .true.
+      CALL getarg(1, string_default)
+      IF (trim(adjustl(string_default))=='regression') THEN
+         this%if_regression_test = .true.
       ELSE
-         setup_data%if_regression_test = .false.
+         this%if_regression_test = .false.
       END IF
 
-      CLOSE(in_unit)
+      i_list = i_list + 1
+      list(i_list) = end_section
+
+      !===Closing unit
+      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
    END SUBROUTINE read_setup_data
 
 
