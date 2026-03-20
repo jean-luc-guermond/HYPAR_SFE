@@ -4,7 +4,7 @@
 MODULE character_strings
 
   PUBLIC :: last_c_leng, last_of_string, start_of_string, default_data
-
+  INTEGER, PARAMETER, PRIVATE :: rec_length=200,list_length=200
 CONTAINS
 
   FUNCTION last_c_leng (len_str, string) RESULT (leng)
@@ -184,6 +184,45 @@ CONTAINS
     RETURN
   END SUBROUTINE compare_string
 
+
+  SUBROUTINE clean_data_once(rank)
+    use petsc
+    IMPLICIT NONE
+    INTEGER, INTENT(IN)                        :: rank
+    INTEGER                                    :: code, record_size, j, in_unit=21
+    CHARACTER(LEN=rec_length), DIMENSION(list_length)  :: record
+    CHARACTER(LEN=rec_length)                  :: control 
+
+    IF (rank == 0) THEN 
+       record_size = 0
+       
+    !===Cleaning data
+       OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+       DO
+          READ(in_unit,'(A)',END=100) control
+          IF (TRIM(ADJUSTL(control(1:8)))=="%%%%%%%%") THEN
+             CYCLE
+          ELSE
+             record_size = record_size + 1
+             record(record_size) = control
+          END IF
+       END DO
+   100 CONTINUE
+       CLOSE(in_unit)
+    
+    !===Rewriting data
+       OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+       DO j = 1, record_size
+          IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
+          WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
+          WRITE(*,*) TRIM(ADJUSTL(record(j)))
+       END DO
+       CLOSE(in_unit)
+
+    END IF
+    CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
+  END SUBROUTINE clean_data_once
+
   SUBROUTINE read_data_in_record(record_size, record, begin_section, end_section)
     use petsc
     IMPLICIT NONE
@@ -193,7 +232,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)                 :: begin_section, end_section
     
     INTEGER, PARAMETER :: in_unit=21
-    CHARACTER(LEN=200) :: control, string
+    CHARACTER(LEN=rec_length) :: control, string
     CHARACTER(LEN=5)   :: fmt
     INTEGER            :: length_begin, length_end, line_begin_section, line_end_section
     INTEGER            :: code
@@ -244,14 +283,12 @@ CONTAINS
 
   END SUBROUTINE read_data_in_record
 
-  SUBROUTINE rewrite_data_from_list_record(rank, list, record, i_list, record_size, opt_maybe)
+  SUBROUTINE rewrite_data_from_list_record(rank, list, record, i_list, record_size)
     use petsc
     IMPLICIT NONE
     
     CHARACTER(LEN=*), DIMENSION(*), INTENT(IN) :: record, list
     INTEGER,                        INTENT(IN) :: rank, i_list, record_size
-    LOGICAL, OPTIONAL                          :: opt_maybe
-    LOGICAL                                    :: write_list
     INTEGER, PARAMETER                         :: in_unit=21
     INTEGER                                    :: j, code
 
@@ -259,27 +296,13 @@ CONTAINS
 
     OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
        IF (rank == 0) THEN 
-          write_list = .TRUE.
-          IF (PRESENT(opt_maybe)) THEN
-                  write_list = (.NOT. opt_maybe)
-                  IF (write_list) WRITE(*,*) "writing only record"
-          ENDIF
-          IF (write_list) THEN
              DO j = 1, record_size
                 IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
                 WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
              END DO
-          ENDIF 
-          write_list = .TRUE.
-          IF (PRESENT(opt_maybe)) THEN
-                  write_list = (opt_maybe)
-                  IF (write_list) WRITE(*,*) "writing only list"
-          ENDIF
-          IF (write_list) THEN
              DO j = 1, i_list
                 WRITE(in_unit,'(A)') TRIM(ADJUSTL(list(j)))
              END DO
-          ENDIF 
        END IF
     CLOSE(in_unit)
 

@@ -35,6 +35,8 @@ CONTAINS
     INTEGER, PARAMETER :: list_length=200, length_begin=27, length_end=25
     CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: MESH %%%' 
     CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: MESH %%%'
+    CHARACTER(LEN=length_begin), PARAMETER :: char_begin    ='%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+    CHARACTER(LEN=length_end),   PARAMETER :: char_end      ='%%%%%%%%%%%%%%%%%%%%%%%%%'
     
     CLASS(mesh_data_type), INTENT(INOUT) :: this
     TYPE(argument_mesh_data_type)        :: argument_data
@@ -47,6 +49,9 @@ CONTAINS
     !===Initialize data to zero and false by default
     list = ""
     record = ""
+    i_list = 0
+    i_list = i_list + 1
+    list(i_list) = ""
     CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     !===Initializing record
@@ -54,8 +59,12 @@ CONTAINS
 
     !===Now we reorganize record
 
-    i_list = 1
+    i_list = i_list + 1
+    list(i_list) = char_begin
+    i_list = i_list + 1
     list(i_list) = begin_section
+    i_list = i_list + 1
+    list(i_list) = char_begin
 
     WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
     CALL compare_string(record, list, argument_data%directory, string_default, okay, i_list, j)
@@ -108,7 +117,13 @@ CONTAINS
     END IF
 
     i_list = i_list+1
+    list(i_list) = char_end
+    i_list = i_list+1
     list(i_list) = end_section
+    i_list = i_list+1
+    list(i_list) = char_end
+    i_list = i_list+1
+    list(i_list) = ''
   
     !===Closing unit 
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)

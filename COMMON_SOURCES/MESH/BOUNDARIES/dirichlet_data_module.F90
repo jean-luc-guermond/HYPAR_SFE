@@ -30,7 +30,7 @@ CONTAINS
     CHARACTER(LEN=length_template_begin), PARAMETER :: template_begin_section = '%%% BEGIN SECTION: DIRICHLET BC '  
     CHARACTER(LEN=length_template_end),   PARAMETER :: template_end_section   = '%%% END SECTION: DIRICHLET BC '
     CHARACTER(LEN=4),                     PARAMETER :: template_tip             = ' %%%'
-    CHARACTER(LEN=:), ALLOCATABLE   :: begin_section, end_section
+    CHARACTER(LEN=:), ALLOCATABLE   :: begin_section, end_section, char_begin, char_end
     INTEGER            :: length_begin, length_end, length_name
     CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
     CHARACTER(LEN=rec_length)       :: string_default
@@ -51,8 +51,15 @@ CONTAINS
     length_name = LEN(trim(adjustl(this%name)))
     length_begin = length_template_begin + length_name + len(template_tip) 
     length_end   = length_template_end   + length_name + len(template_tip)
+    
     ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
     ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
+    ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
+    ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
+
+    char_begin = "%"
+    char_end = "%"
+
     begin_section = template_begin_section // trim(adjustl(this%name)) // template_tip
     end_section = template_end_section // trim(adjustl(this%name)) // template_tip
      
@@ -60,7 +67,11 @@ CONTAINS
 
     !===Now we reorganize record
     i_list = 1
+    !list(i_list) = char_begin
+    !i_list = i_list + 1
     list(i_list) = begin_section
+    !i_list = i_list + 1
+    !list(i_list) = char_begin
 
 
     WRITE(string_default,*) this%nb_sides
@@ -78,8 +89,14 @@ CONTAINS
        list(i_list) = "0" 
     END IF
 
+!    i_list = i_list+1
+!    list(i_list) = char_end
     i_list = i_list+1
     list(i_list) = end_section
+!    i_list = i_list+1
+!    list(i_list) = char_end
+    i_list = i_list+1
+    list(i_list) = ''
 
     !===Closing unit
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)!!, .TRUE.)

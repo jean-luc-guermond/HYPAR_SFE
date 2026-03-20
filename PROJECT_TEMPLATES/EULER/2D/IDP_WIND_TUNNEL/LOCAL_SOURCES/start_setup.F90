@@ -4,6 +4,7 @@ MODULE start_setup_MODULE
    USE def_type_mesh
    USE eos
    USE euler_type_module
+   USE character_strings, ONLY : clean_data_once
    MPI_Comm        :: communicator
    
    INTEGER, PARAMETER, PRIVATE :: rec_length = 200
@@ -50,11 +51,12 @@ CONTAINS
       communicator = PETSC_COMM_WORLD
       CALL MPI_Comm_rank(communicator, rank, ierr)
        
+      !===Clean data once
+      CALL clean_data_once(rank)
+
       !===Construct mesh
       CALL per(1)%read("global")
       CALL get_mesh(communicator, mesh, opt_pers = per)
-
-      
       CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
@@ -74,6 +76,8 @@ CONTAINS
       INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_begin=28, length_end=26
       CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: SETUP %%%'
       CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: SETUP %%%'
+      CHARACTER(LEN=length_begin), PARAMETER :: char_begin    ='%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
+      CHARACTER(LEN=length_end),   PARAMETER :: char_end      ='%%%%%%%%%%%%%%%%%%%%%%%%%%'
       
       CLASS(setup_data_type)             :: this
       TYPE(argument_setup_data_type)     :: argument_data
@@ -94,7 +98,11 @@ CONTAINS
       !===Now we reorganize record
 
       i_list = 1
+      list(i_list) = char_begin
+      i_list = i_list + 1
       list(i_list) = begin_section
+      i_list = i_list + 1
+      list(i_list) = char_begin
 
       !===Restart
       WRITE(string_default,*) this%if_restart
@@ -126,7 +134,11 @@ CONTAINS
       END IF
 
       i_list = i_list + 1
+      list(i_list) = char_end
+      i_list = i_list + 1
       list(i_list) = end_section
+      i_list = i_list + 1
+      list(i_list) = char_end
 
       !===Closing unit
       CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)

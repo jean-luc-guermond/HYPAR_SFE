@@ -33,7 +33,7 @@ CONTAINS
       CHARACTER(LEN=length_template_begin), PARAMETER :: template_begin_section = '%%% BEGIN SECTION: PERIODIC '  
       CHARACTER(LEN=length_template_end),   PARAMETER :: template_end_section   = '%%% END SECTION: PERIODIC '
       CHARACTER(LEN=4),                     PARAMETER :: template_tip           = ' %%%'
-      CHARACTER(LEN=:), ALLOCATABLE                   :: begin_section, end_section
+      CHARACTER(LEN=:), ALLOCATABLE                   :: begin_section, end_section, char_begin, char_end
       
       CHARACTER(LEN=rec_length), DIMENSION(list_length):: list, record
       CHARACTER(*) :: name
@@ -60,8 +60,15 @@ CONTAINS
       length_name = LEN(this%name)
       length_begin = length_template_begin + length_name + LEN(template_tip) 
       length_end   = length_template_end   + length_name + LEN(template_tip)
+      
       ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
       ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
+      ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
+      ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
+
+      char_begin = '%'
+      char_end   = '%'
+
       begin_section = template_begin_section // TRIM(ADJUSTL(this%name)) // template_tip
       end_section = template_end_section // TRIM(ADJUSTL(this%name)) // template_tip
       
@@ -71,10 +78,13 @@ CONTAINS
       !===Now we reorganize record
   
       i_list = 1
+!      list(i_list) = char_begin
+!      i_list = i_list + 1
       list(i_list) = begin_section
+!      i_list = i_list + 1
+!      list(i_list) = char_begin
 
       !===Initialize data to zero and false by default
-      this%nb_bords = 0
       WRITE(string_default,*) this%nb_bords
       CALL compare_string(record, list, argument_data%nb_bords, string_default, okay, i_list, j)
       IF (okay) THEN
@@ -98,28 +108,29 @@ CONTAINS
                EXIT
             END IF
          END DO
-         IF (okay) THEN
             !=== reading all Periodic BC if detected
-            DO k=1, this%nb_bords
-               i_list = i_list + 1
+         DO k=1, this%nb_bords
+            i_list = i_list + 1
+            IF (okay) THEN
                list(i_list) = record(j+k)
                record(j+k) = ''
-               READ(list(i_list), *) this%list_periodic(:, k), this%vect_e(:, k)
-            END DO
-         ELSE
-            !=== default value if no Periodic BC detected
-            i_list = i_list+1
-            list(i_list) = string_default
-         END IF
-      ELSE
-         i_list = i_list+1
-         list(i_list) = string
-         i_list = i_list+1
-         list(i_list) = string_default
+            ELSE
+               !=== default value if no Periodic BC detected
+               list(i_list) = string_default
+            END IF
+            READ(list(i_list), *) this%list_periodic(:, k), this%vect_e(:, k)
+         END DO
+            
       END IF
 
+!      i_list = i_list+1
+!      list(i_list) = char_end
       i_list = i_list+1
       list(i_list) = end_section
+!      i_list = i_list+1
+!      list(i_list) = char_end
+      i_list = i_list+1
+      list(i_list) = ''
      
 
       !===Closing unit

@@ -125,6 +125,8 @@ CONTAINS
       INTEGER, PARAMETER :: list_length=200, length_begin=28, length_end=26
       CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: EULER %%%' 
       CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: EULER %%%'
+      CHARACTER(LEN=length_begin), PARAMETER :: char_begin ='%%%%%%%%%%%%%%%%%%%%%%%%%%%%' 
+      CHARACTER(LEN=length_end),   PARAMETER :: char_end   ='%%%%%%%%%%%%%%%%%%%%%%%%%%'
 
       CLASS(euler_type), INTENT(INOUT) :: this
       TYPE(argument_euler_type)        :: argument_data
@@ -147,7 +149,11 @@ CONTAINS
       !===Now we reorganize record
 
       i_list = 1
+      list(i_list) = char_begin
+      i_list = i_list + 1
       list(i_list) = begin_section
+      i_list = i_list + 1
+      list(i_list) = char_begin
 
       !===CFL
       WRITE(string_default,*) this%CFL
@@ -171,7 +177,13 @@ CONTAINS
       END IF
 
       i_list = i_list + 1
+      list(i_list) = char_end
+      i_list = i_list + 1
       list(i_list) = end_section
+      i_list = i_list + 1
+      list(i_list) = char_end
+      i_list = i_list + 1
+      list(i_list) = ''
 
       !===Closing unit
       CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
