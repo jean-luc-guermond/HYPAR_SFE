@@ -57,8 +57,8 @@ CONTAINS
     ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
     ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
 
-    char_begin = "%"
-    char_end = "%"
+    WRITE(char_begin,'(A)') REPEAT("%", length_begin)
+    WRITE(char_end,'(A)') REPEAT("%", length_end)
 
     begin_section = template_begin_section // trim(adjustl(this%name)) // template_tip
     end_section = template_end_section // trim(adjustl(this%name)) // template_tip
@@ -67,11 +67,13 @@ CONTAINS
 
     !===Now we reorganize record
     i_list = 1
-    !list(i_list) = char_begin
-    !i_list = i_list + 1
+    WRITE(list(i_list), '(A)') REPEAT('|',70)
+    i_list = i_list + 1
+    list(i_list) = char_begin
+    i_list = i_list + 1
     list(i_list) = begin_section
-    !i_list = i_list + 1
-    !list(i_list) = char_begin
+    i_list = i_list + 1
+    list(i_list) = char_begin
 
 
     WRITE(string_default,*) this%nb_sides
@@ -89,14 +91,13 @@ CONTAINS
        list(i_list) = "0" 
     END IF
 
-    !    i_list = i_list+1
-    !    list(i_list) = char_end
+    i_list = i_list+1
+    list(i_list) = char_end
     i_list = i_list+1
     list(i_list) = end_section
-    !    i_list = i_list+1
-    !    list(i_list) = char_end
     i_list = i_list+1
-    list(i_list) = ''
+    list(i_list) = char_end
+    i_list = i_list+1
 
     !===Closing unit
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)!!, .TRUE.)

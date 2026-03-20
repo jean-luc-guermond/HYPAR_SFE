@@ -98,6 +98,8 @@ CONTAINS
       !===Now we reorganize record
 
       i_list = 1
+      WRITE(list(i_list), *) REPEAT('|', 70)
+      i_list = i_list + 1
       list(i_list) = char_begin
       i_list = i_list + 1
       list(i_list) = begin_section
@@ -139,7 +141,6 @@ CONTAINS
       list(i_list) = end_section
       i_list = i_list + 1
       list(i_list) = char_end
-
       !===Closing unit
       CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
    END SUBROUTINE read_setup_data

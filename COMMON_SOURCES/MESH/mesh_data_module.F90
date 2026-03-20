@@ -49,16 +49,14 @@ CONTAINS
     !===Initialize data to zero and false by default
     list = ""
     record = ""
-    i_list = 0
-    i_list = i_list + 1
-    list(i_list) = ""
     CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     !===Initializing record
     CALL read_data_in_record(record_size, record, begin_section, end_section)
 
     !===Now we reorganize record
-
+    i_list = 1
+    WRITE(list(i_list), '(A)') REPEAT('|',70)
     i_list = i_list + 1
     list(i_list) = char_begin
     i_list = i_list + 1
@@ -123,7 +121,6 @@ CONTAINS
     i_list = i_list+1
     list(i_list) = char_end
     i_list = i_list+1
-    list(i_list) = ''
   
     !===Closing unit 
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)

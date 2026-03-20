@@ -202,6 +202,8 @@ CONTAINS
           READ(in_unit,'(A)',END=100) control
           IF (TRIM(ADJUSTL(control(1:8)))=="%%%%%%%%") THEN
              CYCLE
+          ELSE IF (TRIM(ADJUSTL(control(1:8)))=="||||||||") THEN
+             CYCLE
           ELSE
              record_size = record_size + 1
              record(record_size) = control

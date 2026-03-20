@@ -57,7 +57,7 @@ CONTAINS
       argument_data%list_periodic = '=== Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '? ==='
 
       !=== dynamic BEGIN/END in data
-      length_name = LEN(this%name)
+      length_name = LEN(TRIM(ADJUSTL(this%name)))
       length_begin = length_template_begin + length_name + LEN(template_tip) 
       length_end   = length_template_end   + length_name + LEN(template_tip)
       
@@ -66,8 +66,8 @@ CONTAINS
       ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
       ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
 
-      char_begin = '%'
-      char_end   = '%'
+      WRITE(char_begin,'(A)') REPEAT("%", length_begin)
+      WRITE(char_end,'(A)') REPEAT("%", length_end)
 
       begin_section = template_begin_section // TRIM(ADJUSTL(this%name)) // template_tip
       end_section = template_end_section // TRIM(ADJUSTL(this%name)) // template_tip
@@ -76,13 +76,14 @@ CONTAINS
       CALL read_data_in_record(record_size, record, begin_section, end_section)
 
       !===Now we reorganize record
-  
       i_list = 1
-!      list(i_list) = char_begin
-!      i_list = i_list + 1
+      WRITE(list(i_list), '(A)') REPEAT('|',70)
+      i_list = i_list + 1
+      list(i_list) = char_begin
+      i_list = i_list + 1
       list(i_list) = begin_section
-!      i_list = i_list + 1
-!      list(i_list) = char_begin
+      i_list = i_list + 1
+      list(i_list) = char_begin
 
       !===Initialize data to zero and false by default
       WRITE(string_default,*) this%nb_bords
@@ -123,14 +124,13 @@ CONTAINS
             
       END IF
 
-!      i_list = i_list+1
-!      list(i_list) = char_end
+      i_list = i_list+1
+      list(i_list) = char_end
       i_list = i_list+1
       list(i_list) = end_section
-!      i_list = i_list+1
-!      list(i_list) = char_end
       i_list = i_list+1
-      list(i_list) = ''
+      list(i_list) = char_end
+      i_list = i_list+1
      
 
       !===Closing unit
