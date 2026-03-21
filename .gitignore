@@ -1,6 +1,7 @@
 *.mod
 *.smod
 *.so
+*.plt
 BUILD
 EXECUTABLE
 LIBS/CMakeFiles/
