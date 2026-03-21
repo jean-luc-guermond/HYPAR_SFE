@@ -17,6 +17,7 @@ CONTAINS
       USE refine_mesh
       USE two_dim_metis_distribution
       USE gauss_points_2d
+      USE Dir_nodes
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab
       INTEGER, OPTIONAL :: opt_fe
@@ -91,6 +92,13 @@ CONTAINS
          CALL free_mesh(mesh)
          CALL copy_mesh(mesh_r, mesh)
          CALL free_mesh(mesh_r)
+
+         !===(JLG) Added March 21 2026 
+         ALLOCATE(mesh%iis(SIZE(mesh%jjs,1),mesh%mes))
+         CALL dirichlet_nodes(mesh%jjs, SPREAD(1,1,mesh%mes), SPREAD(.TRUE.,1,1), mesh%j_s)
+         CALL surf_nodes_i(mesh%jjs, mesh%j_s,  mesh%iis)
+         mesh%nps = SIZE(mesh%j_s)
+         !===END (JLG) Added March 21 2026 
 
          mesh%rank = rank  !=== petsc convention
          mesh%edge_stab = .false.

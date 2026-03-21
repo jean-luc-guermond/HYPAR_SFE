@@ -12,18 +12,28 @@ CONTAINS
       TYPE(euler_bc_type) :: euler_bc
       REAL(KIND = 8) :: time
       REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
+      REAL(KIND=8), DIMENSION(SIZE(euler_bc%udotn_bc%jsd)) :: mdotn
       INTEGER :: comp
 
       DO comp = 1, euler_bc%syst_dim
          SELECT CASE(comp)
          CASE(1)
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(2:k_dim + 1)
-            un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(k_dim + 2)
-            un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         CASE(2)
+            un(euler_bc%ux_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%ux_bc%jsd))
+         CASE(3)
+            un(euler_bc%uy_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%uy_bc%jsd))
          END SELECT
       END DO
+      IF (size(euler_bc%udotn_bc%jsd).NE.0) THEN
+         mdotn = euler_bc%udotn_normal_vtx(:,1)*un(euler_bc%udotn_bc%jsd,2) &
+              +  euler_bc%udotn_normal_vtx(:,2)*un(euler_bc%udotn_bc%jsd,3)
+         un(euler_bc%udotn_bc%jsd,2) = un(euler_bc%udotn_bc%jsd,2) - mdotn*euler_bc%udotn_normal_vtx(:,1)
+         un(euler_bc%udotn_bc%jsd,3) = un(euler_bc%udotn_bc%jsd,3) - mdotn*euler_bc%udotn_normal_vtx(:,2)
+
+          mdotn = euler_bc%udotn_normal_vtx(:,1)*un(euler_bc%udotn_bc%jsd,2) &
+               +  euler_bc%udotn_normal_vtx(:,2)*un(euler_bc%udotn_bc%jsd,3)
+      END IF
 
    END SUBROUTINE impose_bc_euler
 
@@ -94,7 +104,7 @@ CONTAINS
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       vv = press_anal(time, rr) / (gamma - 1.d0) &
-           + rho_anal(time, rr) * (vit_anal(1, time, rr)**2 * vit_anal(2, time, rr)**2) / 2
+          + rho_anal(time, rr) * (vit_anal(1, time, rr)**2 + vit_anal(2, time, rr)**2) / 2
    END FUNCTION E_anal
 
    FUNCTION mt_anal(comp, time, rr) RESULT(vv)

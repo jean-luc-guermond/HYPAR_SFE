@@ -8,9 +8,9 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
       vv = rho * e * (gamma - 1)
     END FUNCTION pressure
-    
+
     FUNCTION sound_speed(un) RESULT(vv)
-      IMPLICIT NONE 
+      IMPLICIT NONE
       REAL(KIND=8), DIMENSION(:,:),       INTENT(IN) :: un
       REAL(KIND=8), DIMENSION(SIZE(un,2))            :: rho, e, vv
       rho = un(1,:)
