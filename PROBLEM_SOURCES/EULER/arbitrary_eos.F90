@@ -42,7 +42,25 @@ CONTAINS
      REAL(KIND = NUMBER) :: p1, phi1, phi11, p2, phi2, phi22, phi12, phi112, phi221
      LOGICAL :: check
      INTEGER :: k
+     REAL(KIND = NUMBER), DIMENSION(2) :: x, gamma, a
+     REAL(KIND = NUMBER) :: diff, norm
+
      b_covolume=eos_param(1)
+
+     !===Check if two states are identical
+     diff = abs(in_rho(1)-in_rho(2))*((in_u(1)-in_u(2))**2+abs(in_e(1)-in_e(2))) + abs(in_p(1)-in_p(2))
+     norm = SUM(in_rho*(in_u**2+in_e) + in_p)
+     IF (diff/norm.LE.1.d-10) THEN
+        x = 1 - b_covolume * in_rho
+        gamma = 1 + in_p * x / (in_rho * in_e)
+        a = SQRT(gamma * in_p / (in_rho * x))
+        p2 = in_p(1)
+        pstar = p2
+        CALL no_iter_update_lambda(in_u(1), in_p(1), a(1), gamma(1), in_u(2), in_p(2), a(2), gamma(2), p2, lambda_max(1), lambda_max(2))
+        RETURN
+     END IF
+     !===End check
+     
      !===Initialization
      rhol = in_rho(1)
      ul = in_u(1)

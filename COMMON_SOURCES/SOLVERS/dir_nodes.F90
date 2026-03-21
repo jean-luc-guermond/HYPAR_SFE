@@ -550,5 +550,32 @@ CONTAINS
 
   END SUBROUTINE dirichlet_nodes_bloc
 
+    SUBROUTINE surf_nodes_i(jjs, j_s,  iis)
+
+    !  generation of the surface element connectivity matrix  iis
+    !  based on the surface node numbering, starting from the
+    !  connectivity matrix  jjs  of the surface elements according
+    !  to the volume node numbering, and from the array  j_s  of
+    !  the boundary nodes according to the volume node numbering
+
+    IMPLICIT NONE
+
+    INTEGER, DIMENSION(:,:), INTENT(IN)  :: jjs
+    INTEGER, DIMENSION(:),   INTENT(IN)  :: j_s
+    INTEGER, DIMENSION(:,:), INTENT(OUT) :: iis
+
+    INTEGER :: ms, ls, j, i
+
+    DO ms = 1, SIZE(jjs,2)
+       DO ls = 1, SIZE(jjs,1)
+          j = jjs(ls,ms)
+          DO i = 1, SIZE(j_s)
+             IF ( j == j_s(i) )  iis(ls,ms) = i
+          ENDDO
+       ENDDO
+    ENDDO
+
+  END SUBROUTINE surf_nodes_i
+
 
 END MODULE dir_nodes

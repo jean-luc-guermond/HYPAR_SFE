@@ -18,29 +18,25 @@ CONTAINS
     CLASS(euler_bc_type) :: this
     TYPE(mesh_type)      :: mesh
     LOGICAL,        DIMENSION(mesh%nps)        :: virgin
-    REAL(KIND = 8), DIMENSION(k_dim, mesh%nps) :: normal_vtx
+    REAL(KIND = 8), DIMENSION(mesh%nps, k_dim) :: normal_vtx
     REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
     INTEGER :: ms, ns, js, n
-
-    !CALL this%euler_bc%whole_bdy_js_D%set(mesh, "")
+!!$    CHARACTER(LEN=5) :: char
 
     CALL this%rho_bc%set(mesh, "density")
 
     CALL this%ux_bc%set(mesh, "ux")
-  write(*,*) ' OOO'
+ 
     IF (k_dim>1) THEN
        CALL this%uy_bc%set(mesh, "uy")
        CALL this%whole_bdy_bc%set(mesh, "whole boundary")
        CALL this%udotn_bc%set(mesh, "u.n=0")
     END IF
- 
-    !CALL this%DIR_js_D%set(mesh, "")
 
-    write(*,*) ' OOO'
-    STOP
     !===Normal at vertices
     SELECT CASE(k_dim)
     CASE(2)
+       normal_vtx = 0.d0
        virgin = .TRUE.
        n = 0
        DO ms = 1, mesh%mes
@@ -52,14 +48,12 @@ CONTAINS
                 n = n+1
                 this%udotn_bc%jsd(n) = mesh%jjs(ns,ms)
              END IF
-             normal_vtx(:,js) = normal_vtx(:,js) + mesh%gauss%rnorms_v(:,ns,ms)
+             normal_vtx(js,:) = normal_vtx(js,:) + mesh%gauss%rnorms_v(:,ns,ms)
           END DO
        END DO
-       DO ns = 1, mesh%nps
-          normal_vtx(:,ns) = &
-               normal_vtx(:,ns)/SQRT(SUM(normal_vtx(:,ns)**2))
-       END DO
-       ALLOCATE(this%udotn_normal_vtx(k_dim,SIZE(this%udotn_bc%jsd)))
+       ALLOCATE(this%udotn_normal_vtx(SIZE(this%udotn_bc%jsd),k_dim))
+       n = 0
+       virgin = .TRUE.
        DO ms = 1, mesh%mes
           IF (MINVAL(ABS(mesh%sides(ms) - this%udotn_bc%list_sides)).NE.0) CYCLE
           DO ns = 1, mesh%gauss%n_ws
@@ -67,21 +61,22 @@ CONTAINS
              IF (virgin(js)) THEN
                 virgin(js) =.FALSE.
                 n = n+1
-                this%udotn_normal_vtx(:,n) = normal_vtx(:,js)
+                this%udotn_normal_vtx(n,:) = normal_vtx(js,:)/SQRT(SUM(normal_vtx(js,:)**2))
              END IF
           END DO
        END DO
-    write(*,*) ' OOOJJJJJJ'   
-       !===Check normal vector
-       ALLOCATE(stuff(k_dim,mesh%np))
-       stuff = 0.d0
-       stuff(1,this%udotn_bc%jsd) = this%udotn_normal_vtx(1,:)
-       stuff(2,this%udotn_bc%jsd) = this%udotn_normal_vtx(2,:)
-       CALL plot_arrow_label(mesh%jj, mesh%rr, stuff, 'normal.plt')
-       DEALLOCATE(stuff)
+
+!!$       !===Check normal vector
+!!$       ALLOCATE(stuff(k_dim,mesh%np))
+!!$       stuff = 0.d0
+!!$       stuff(1,this%udotn_bc%jsd) = this%udotn_normal_vtx(:,1)
+!!$       stuff(2,this%udotn_bc%jsd) = this%udotn_normal_vtx(:,2)
+!!$       WRITE(char, '(I5)') mesh%rank    
+!!$       CALL plot_arrow_label(mesh%jj, mesh%rr, stuff, 'normal'//trim(adjustl(char))//'.plt')
+!!$       DEALLOCATE(stuff)
     CASE(1)
        ALLOCATE(this%udotn_bc%jsd(0))
-       ALLOCATE(this%udotn_normal_vtx(1,0))
+       ALLOCATE(this%udotn_normal_vtx(0,1))
     END SELECT
 
   END SUBROUTINE construct_euler_bc

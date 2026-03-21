@@ -33,7 +33,6 @@ MODULE euler_type_MODULE
       CHARACTER(LEN=rec_length) :: CFL       = '=== CFL ? ==='
       CHARACTER(LEN=rec_length) :: erk_sv
       CHARACTER(LEN=rec_length) :: eos_param 
-      
    END TYPE argument_euler_type
    
    TYPE euler_type
@@ -350,14 +349,14 @@ CONTAINS
 
                CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, ADD_VALUES, ierr)
                CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
+               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
             END IF
 
          END DO
 
       END DO
-
+      
       CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
 

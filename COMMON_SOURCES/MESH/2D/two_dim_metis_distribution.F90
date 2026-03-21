@@ -4,7 +4,6 @@ MODULE two_dim_metis_distribution
    USE mesh_tools
    PUBLIC :: part_mesh, extract_mesh
    PRIVATE
-   INTEGER, PARAMETER :: METIS_NOPTIONS = 40, METIS_OPTION_NUMBERING = 18
    REAL(KIND = 8) :: epsilon = 1.d-10
 CONTAINS
   SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part, my_periodics)
