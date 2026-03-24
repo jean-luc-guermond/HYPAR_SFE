@@ -46,7 +46,7 @@ PROGRAM test
         r_u(i)  = -ar(k)*(k-1)*SIN((k-1)*theta) + ai(k)*(k-1)*COS((k-1)*theta)
      END DO
   END DO
-  r_u = r_u/length
+  r_u = 2*pi*r_u/length
 
   WRITE(*,*) 'ERROR on Derivative', SUM(ABS(r_u-r_out))/SUM(ABS(r_u))
   DO i = 1, SIZE(r_u)

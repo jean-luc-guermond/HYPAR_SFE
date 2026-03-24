@@ -51,7 +51,7 @@ CONTAINS
        cs_out(i,1) =  (i-1)*cs_in(i,2)
        cs_out(i,2) = -(i-1)*cs_in(i,1)
     END DO
-    cs_out = cs_out/Length
+    cs_out = 2*pi*cs_out/Length
   END SUBROUTINE fourier_derivative
 
   SUBROUTINE real_derivative(r_in,r_out,Length)
