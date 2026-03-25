@@ -9,17 +9,24 @@ MODULE fourier_param_module
      REAL(KIND=8) :: Length=1.d0
      INTEGER :: Nmax_real
      REAL(KIND=8) :: dx
+      REAL(KIND=8), DIMENSION(:), POINTER :: rr
    CONTAINS
      PROCEDURE, PUBLIC :: init => init_fourier_param
      PROCEDURE, PUBLIC :: read => read_fourier_param
+     PROCEDURE, PUBLIC :: plot_1d => plot_1d_fourier_param
   END type fourier_param_type
 CONTAINS
   SUBROUTINE init_fourier_param(this)
     IMPLICIT NONE
     CLASS(fourier_param_type), INTENT(INOUT) :: this
+    INTEGER :: i
     CALL this%read()
     this%Nmax_real = 2*this%Nmax-1
     this%dx = this%length/this%Nmax_real
+    ALLOCATE(this%rr(this%Nmax_real))
+    DO i = 1, this%Nmax_real
+       this%rr(i) = (i-1)*this%dx
+    END DO
   END SUBROUTINE init_fourier_param
 
   SUBROUTINE read_fourier_param(this)
@@ -61,4 +68,27 @@ CONTAINS
     rank = 0
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)     
   END SUBROUTINE read_fourier_param
+
+  SUBROUTINE plot_1d_fourier_param(this,un,file)
+    IMPLICIT NONE
+    CLASS(fourier_param_type), INTENT(INOUT):: this
+    REAL(KIND=8), DIMENSION(:), INTENT(IN) :: un
+    CHARACTER(*) :: file
+    INTEGER :: n, unit=10
+    OPEN(unit,FILE=TRIM(ADJUSTL(file)),FORM='formatted')
+    !WRITE(unit,*) '%toplabel='' '''
+    !WRITE(unit,*) '%xlabel='' '''
+    !WRITE(unit,*) '%ylabel='' '''
+    !WRITE(unit,*) '%ymax=', MAXVAL(un)
+    !WRITE(unit,*) '%ymin=', MINVAL(un)
+    !WRITE(unit,*) '%xyratio=1'
+    !WRITE(unit,*) '%mt=4'
+    !WRITE(unit,*) '%mc=2'
+    !WRITE(unit,*) '%lc=2'
+    DO n = 1, SIZE(this%rr)
+       WRITE(unit,*) this%rr(n), un(n)
+    END DO
+    CLOSE(unit)
+  END SUBROUTINE plot_1d_fourier_param
+  
 END MODULE fourier_param_module

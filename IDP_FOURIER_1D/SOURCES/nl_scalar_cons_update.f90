@@ -172,6 +172,9 @@ CONTAINS
        this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL(1:this%Nmax_real)))
     END IF
 
+    dijL=0
+    
+    
     umax = r_out(1:this%Nmax_real)
     umin = r_out(1:this%Nmax_real)
     DO i = 1, this%Nmax_real

@@ -20,7 +20,7 @@ CONTAINS
     vv = 1.d0
   END FUNCTION lambda_max
 
-  FUNCTION exact_sol(fourier_param,time) RESULT(vv)
+  FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
     USE fourier_param_module
     IMPLICIT NONE
     TYPE(fourier_param_type) :: fourier_param
@@ -39,5 +39,27 @@ CONTAINS
           vv(i) = 1.d0
        END IF
     END DO
-  END FUNCTION exact_sol
+  END FUNCTION exact_sol_step_R
+
+  FUNCTION exact_sol_F(fourier_param,time,exact_sol_R) RESULT(cs_v)
+    USE fourier_param_module
+    USE fft_1D
+    IMPLICIT NONE
+    TYPE(fourier_param_type) :: fourier_param
+    REAL(KIND=8), DIMENSION(fourier_param%Nmax,2) :: cs_v
+    REAL(KIND=8), DIMENSION(fourier_param%Nmax_real) :: r_v
+    REAL(KIND=8) :: time
+    interface
+       function exact_sol_R(fourier_param,time) RESULT(vv)
+         USE fourier_param_module
+         IMPLICIT NONE
+         TYPE(fourier_param_type) :: fourier_param
+         REAL(KIND=8), DIMENSION(fourier_param%Nmax_real) :: vv
+         REAL(KIND=8) :: time
+       END FUNCTION exact_sol_R
+    end interface
+    r_v = exact_sol_R(fourier_param,time)
+    CALL real_to_fourier(r_v,cs_v)
+  END FUNCTION exact_sol_F
+  
 END MODULE setup_module

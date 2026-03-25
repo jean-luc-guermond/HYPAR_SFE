@@ -751,7 +751,7 @@ CONTAINS
              WRITE (unit_w, 100)
           END DO
        END IF
-       
+
     CASE(2)
        WRITE (unit_w, '(A)') '$ DATA = CONTCURVE'
        WRITE (unit_w, '(A)') '% contstyle = 2'
@@ -1297,7 +1297,8 @@ CONTAINS
     END DO
 
   END SUBROUTINE trace_profile
-SUBROUTINE plot_1d(rr,un,file)
+
+  SUBROUTINE plot_1d(rr,un,file)
     IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:), INTENT(IN) :: rr, un
     INTEGER :: n, unit=10

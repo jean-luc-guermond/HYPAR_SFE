@@ -14,6 +14,7 @@ MODULE start_setup_MODULE
      INTEGER :: syst_size
    CONTAINS 
      PROCEDURE, PUBLIC :: read => read_setup_data
+     PROCEDURE, PUBLIC :: init => init_setup_data
   END TYPE setup_data_type
   TYPE(setup_data_type)     :: setup_data
   TYPE(fourier_param_type)  :: fourier_param
@@ -27,10 +28,18 @@ CONTAINS
     INTEGER :: ierr
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     CALL fourier_param%init
+    CALL setup_data%init
     CALL nl_scalar_cons%init(flux,lambda_max,fourier_param,init_time)
   END SUBROUTINE start_setup
-  
-  SUBROUTINE read_setup_data(this, rank)
+
+  SUBROUTINE init_setup_data(this)
+    IMPLICIT NONE
+    CLASS(setup_data_type), INTENT(INOUT) :: this
+    INTEGER :: i
+    CALL this%read()
+  END SUBROUTINE init_setup_data
+
+  SUBROUTINE read_setup_data(this)
     USE character_strings
     IMPLICIT NONE
     INTEGER, PARAMETER :: in_unit = 21, list_length=200
@@ -47,7 +56,7 @@ CONTAINS
     list = ''
     record = ''
     i_list = 1
-    
+
     !===Initializing record
     CALL read_data_in_record(record_size, record, begin_section, end_section)
 
@@ -71,11 +80,11 @@ CONTAINS
     IF (okay) THEN
        READ(list(i_list),*) this%final_time
     END IF
-    
+
     !===Closing unit
     rank = 0
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
 
   END SUBROUTINE read_setup_data
-    
+
 END MODULE start_setup_MODULE
