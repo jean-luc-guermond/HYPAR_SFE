@@ -32,8 +32,8 @@ CONTAINS
     x1= fourier_param%length/2 + delta
     vv = 0.d0
     DO i = 1, fourier_param%Nmax_real
-       xi = (i-1)*fourier_param%dx - time
-       k = int(xi/fourier_param%length)
+       xi =  fourier_param%rr(i) - time
+       k = floor(xi/fourier_param%length)
        xi = xi- k*fourier_param%length
        IF (x0<xi .AND. xi<x1) THEN 
           vv(i) = 1.d0

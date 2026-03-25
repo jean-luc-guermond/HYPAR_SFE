@@ -132,9 +132,14 @@ CONTAINS
        cs_zz =  cs_zz + this%ERK%MatRK(stage,l)*flux_rk(:,:,l)
     END DO
     CALL fourier_derivative(cs_zz,cs_dflux,fourier_param%Length)
-    write(*,*) ' Visc', this%ERK%inc_C(stage), SUM(ABS(cs_diff))*fourier_param%dx
-    cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
+    !TEST
+    !cs_dflux=0.d0
+    !TEST
+    cs_dflux= -cs_dflux !+ this%ERK%C(stage)*cs_diff
     urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
+    !TEST
+    !urk(:,:,stage) = urk(:,:,stage-1)+this%dt*this%ERK%inc_C(stage)*cs_diff
+    !TEST
   END SUBROUTINE one_step_ERK
 
   SUBROUTINE compute_dt_viscous_flux_min_max(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
@@ -148,7 +153,7 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1,2) :: dijL
     REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1)   :: diag_dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin
-    REAL(KIND = 8) :: ul, ur, cij, lambda, dx
+    REAL(KIND = 8) :: ul, ur, cij, lambda
     INTEGER :: i, j, m
 
     CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
@@ -179,10 +184,12 @@ CONTAINS
        r_diff(i) = dijL(i,1)*(r_out(i-1)-r_out(i)) + dijL(i,2)*(r_out(i+1)-r_out(i))
        umax(i) = MAX(umax(i),r_out(i-1),r_out(i+1))
        umin(i) = MIN(umin(i),r_out(i-1),r_out(i+1))
+       !TEST
+       !r_diff(i) = r_diff(i) - (sin(r_out(i+1))-sin(r_out(i-1)))/2
+       !TEST
     END DO
     r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
-
     r_flux = this%flux(r_out(1:this%Nmax_real))
     CALL real_to_fourier(r_flux,cs_flux)
 
