@@ -25,7 +25,7 @@ MODULE nl_scalar_cons_module
      INTEGER :: Nmax, Nmax_real
      REAL(KIND=8) :: time, dt, lumped, dx
      REAL(KIND=8) , DIMENSION(:,:), POINTER :: un
-     PROCEDURE(flux_template), NOPASS, POINTER :: flux
+     PROCEDURE(flux_template),       NOPASS, POINTER :: flux
      PROCEDURE(lambda_max_template), NOPASS, POINTER :: lambda_max
    CONTAINS
      PROCEDURE, PUBLIC :: init => init_nl_scalar_cons
@@ -43,6 +43,8 @@ CONTAINS
     TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8) :: init_time
     INTEGER :: Nmax
+ 
+    
     CALL this%READ()
     CALL this%ERK%init(this%erk_sv)
     this%flux => flux
@@ -73,10 +75,11 @@ CONTAINS
     !===Initialize data to zero and false by default
     list = ''
     record = ''
-
+    i_list = 1
     !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+    !CALL read_data_in_record(record_size, record, begin_section, end_section)
     !===CFL
+    
     WRITE(string_default,*) this%CFL
     CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
     IF (okay) THEN
@@ -91,8 +94,8 @@ CONTAINS
     END IF
 
     !===Closing unit
-    rank = 0
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+    !rank = 0
+    !CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
   END SUBROUTINE read_nl_scalar_cons
 
   SUBROUTINE update(this, fourier_param)
@@ -111,6 +114,7 @@ CONTAINS
   END SUBROUTINE update
 
   SUBROUTINE one_step_ERK(this,stage,fourier_param,urk,flux_rk)
+    USE fft_1D
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
     TYPE(fourier_param_type) :: fourier_param
@@ -133,6 +137,7 @@ CONTAINS
   END SUBROUTINE one_step_ERK
 
   SUBROUTINE compute_dt_viscous_flux_min_max(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
+    USE fft_1D
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
     INTEGER, INTENT(IN) :: stage

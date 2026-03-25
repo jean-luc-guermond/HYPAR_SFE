@@ -176,7 +176,7 @@ CONTAINS
           RETURN
        END IF
     END DO
-    WRITE(*,*) ' File reading error for list(i_list) =   ', list(i_list)
+    WRITE(*,*) ' File reading error for list(i_list) =   ', TRIM(ADJUSTL(list(i_list)))
     i_list = i_list+1
     list(i_list) = string_default
     okay = .FALSE.

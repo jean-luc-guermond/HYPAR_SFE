@@ -38,9 +38,10 @@ CONTAINS
     !===Initialize data to zero and false by default
     list = ''
     record = ''
-
+    i_list = 1
+    
     !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+    !CALL read_data_in_record(record_size, record, begin_section, end_section)
 
     !===Nmax
     WRITE(string_default,*) this%Nmax
@@ -57,7 +58,7 @@ CONTAINS
     END IF
 
     !===Closing unit
-    rank = 0
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)     
+    !rank = 0
+    !CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)     
   END SUBROUTINE read_fourier_param
 END MODULE fourier_param_module

@@ -1,24 +1,24 @@
 MODULE setup_module
-  TYPE setup_type
-   CONTAINS
-     PROCEDURE, PUBLIC :: flux=>linear_flux
-     PROCEDURE, PUBLIC :: lambda_max=>linear_lambda_max  
-  END TYPE setup_type
+  !TYPE setup_type
+  ! CONTAINS
+  !    PROCEDURE, PUBLIC, NOPASS :: flux=>linear_flux
+  !   PROCEDURE, PUBLIC, NOPASS :: lambda_max=>linear_lambda_max  
+  !END TYPE setup_type
 CONTAINS
-  FUNCTION linear_flux(this,u) RESULT(vv)
+
+  FUNCTION flux(u) RESULT(vv)
     IMPLICIT NONE
-    CLASS(setup_type)             :: this
     REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: u
     REAL(KIND = 8), DIMENSION(SIZE(u)) :: vv
     vv = u
-  END FUNCTION  linear_flux
-  FUNCTION linear_lambda_max(this,ul,ur) RESULT(vv)
+  END FUNCTION  flux
+  
+  FUNCTION lambda_max(ul,ur) RESULT(vv)
     IMPLICIT NONE
-    CLASS(setup_type)             :: this
     REAL(KIND = 8), INTENT(IN) :: ul, ur
     REAL(KIND = 8) :: vv
     vv = 1.d0
-  END FUNCTION linear_lambda_max
+  END FUNCTION lambda_max
 
   FUNCTION exact_sol(fourier_param,time) RESULT(vv)
     USE fourier_param_module

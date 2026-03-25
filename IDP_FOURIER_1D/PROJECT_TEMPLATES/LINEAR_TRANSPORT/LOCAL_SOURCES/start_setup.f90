@@ -17,15 +17,17 @@ MODULE start_setup_MODULE
   END TYPE setup_data_type
 
   TYPE(setup_data_type)     :: setup_data
-  TYPE(setup_type)          :: setup
   TYPE(fourier_param_type)  :: fourier_param
   TYPE(nl_scalar_cons_type) :: nl_scalar_cons
 CONTAINS
   SUBROUTINE start_setup
     IMPLICIT NONE
     REAL(KIND = 8) :: init_time = 0.d0
+    write(*,*) 'ok'
     CALL fourier_param%init
-    CALL nl_scalar_cons%init(setup%flux,setup%lambda_max,fourier_param,init_time)
+     write(*,*) 'ok'
+    CALL nl_scalar_cons%init(flux,lambda_max,fourier_param,init_time)
+    !CALL nl_scalar_cons%init(flux,lambda_max,fourier_param,init_time)
   END SUBROUTINE start_setup
   
   SUBROUTINE read_setup_data(this, rank)
@@ -44,9 +46,10 @@ CONTAINS
     !===Initialize data to zero and false by default
     list = ''
     record = ''
-
+    i_list = 1
+    
     !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+    !CALL read_data_in_record(record_size, record, begin_section, end_section)
 
     !===Restart
     WRITE(string_default,*) this%if_restart
@@ -70,7 +73,7 @@ CONTAINS
     END IF
     
     !===Closing unit
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+    !CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
 
   END SUBROUTINE read_setup_data
     
