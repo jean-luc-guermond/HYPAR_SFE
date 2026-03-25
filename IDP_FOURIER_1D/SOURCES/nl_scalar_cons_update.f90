@@ -43,10 +43,10 @@ CONTAINS
     TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8) :: init_time
     INTEGER :: Nmax
- 
-    
+  
     CALL this%READ()
-    CALL this%ERK%init(this%erk_sv)
+    this%ERK%sv = this%erk_sv
+    CALL this%ERK%init
     this%flux => flux
     this%lambda_max => lambda_max
     this%time = init_time
@@ -132,6 +132,7 @@ CONTAINS
        cs_zz =  cs_zz + this%ERK%MatRK(stage,l)*flux_rk(:,:,l)
     END DO
     CALL fourier_derivative(cs_zz,cs_dflux,fourier_param%Length)
+    write(*,*) ' Visc', this%ERK%inc_C(stage), SUM(ABS(cs_diff))*fourier_param%dx
     cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
     urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
   END SUBROUTINE one_step_ERK
@@ -170,10 +171,7 @@ CONTAINS
 
     IF (stage==2) THEN
        this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL(1:this%Nmax_real)))
-    END IF
-
-    dijL=0
-    
+    END IF 
     
     umax = r_out(1:this%Nmax_real)
     umin = r_out(1:this%Nmax_real)
@@ -182,7 +180,7 @@ CONTAINS
        umax(i) = MAX(umax(i),r_out(i-1),r_out(i+1))
        umin(i) = MIN(umin(i),r_out(i-1),r_out(i+1))
     END DO
-    r_diff = r_diff*this%dx**2/this%lumped
+    r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
 
     r_flux = this%flux(r_out(1:this%Nmax_real))

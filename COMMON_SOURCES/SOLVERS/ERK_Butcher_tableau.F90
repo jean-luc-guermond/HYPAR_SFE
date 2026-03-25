@@ -2,7 +2,7 @@ MODULE Butcher_tableau
   IMPLICIT NONE
   PRIVATE
   TYPE, PUBLIC :: BT
-     INTEGER :: s=2, v=1, sv=21
+     INTEGER :: s, sv
      REAL(KIND=8), DIMENSION(:,:), POINTER :: A, inc_A, MatRK
      REAL(KIND=8), DIMENSION(:),   POINTER :: C, inc_C
      INTEGER,      DIMENSION(:),   POINTER :: lp_of_l
@@ -10,12 +10,11 @@ MODULE Butcher_tableau
      PROCEDURE :: init => init_bt
   END TYPE BT
 CONTAINS
-  SUBROUTINE init_bt(this, sv)
+  SUBROUTINE init_bt(this)
     IMPLICIT NONE
     CLASS(BT), INTENT(inout) :: this
-    INTEGER :: asv, sv
+    INTEGER :: asv
     REAL(KIND=8) :: gamma
-    this%sv = sv
     asv= ABS(this%sv)
     this%s = (asv-MODULO(asv,10))/10
     IF (ASSOCIATED(this%C)) THEN
@@ -27,16 +26,17 @@ CONTAINS
     ALLOCATE(this%C(this%s+1))
     ALLOCATE(this%inc_C(this%s+1))
     ALLOCATE(this%lp_of_l(this%s+1))
-
+    
     this%A =0.d0
     this%inc_A =0.d0
     this%C = 0.d0
     this%inc_C = 0.d0
     this%lp_of_l = 0
     this%C(this%s+1)=1.d0
+
     SELECT CASE(asv)
 
-    CASE(11) !===Equi RK2, ERK(2,2;1) two-stage, 2nd order
+    CASE(11) !===Equi RK1, ERK(1,1;1) one-stage, 1rst order
        this%C=(/0.d0,1.d0/)
        this%lp_of_l=(/1,1/)
        this%A(2,1)=this%C(2)
@@ -143,7 +143,7 @@ CONTAINS
    CASE(52) !=== Five stages, fourth-order, optimal, (AEJLG, ERK(5,4;1))
        this%C=(/0.d0,1.d0/5,2.d0/5,3.d0/5,4.d0/5,1.d0/)
        this%lp_of_l=(/1,1,2,3,4,5/)
-       this%A(2,:)=(/ 0.2d0,                 0.d0,                                         0.d0,                  0.d0/)
+       this%A(2,:)=(/ 0.2d0,                 0.d0,                  0.d0,                  0.d0,                  0.d0/)
        this%A(3,:)=(/ 0.26075582269554909d0, 0.13924417730445096d0, 0.d0,                  0.d0,                  0.d0/)
        this%A(4,:)=(/-0.25856517872570289d0, 0.91136274166280729d0,-0.05279756293710430d0, 0.d0,                  0.d0/)
        this%A(5,:)=(/ 0.21623276431503774d0, 0.51534223099602405d0,-0.81662794199265554d0, 0.88505294668159373d0, 0.d0/)
@@ -171,7 +171,7 @@ CONTAINS
        this%A(7,6)=1.d0/72
     CASE (62) !===Equi 1/6 Six stages, fourth-order (AEJLG, ERK(6,4;1))
        this%C=(/0.d0,1.d0/6,2.d0/6,3.d0/6,4.d0/6,5.d0/6,1.d0/)
-       this%lp_of_l=(/1,1,2,3,4,5,6,7/)
+       this%lp_of_l=(/1,1,2,3,4,5,6/)
        !===This is nonlinear 4th order and linear 5th order and IMEX compatibble 
        this%A(2,:) = (/ 0.1666666666666667d0, 0.d0,                 0.d0,                 0.d0,0.d0,0.d0/)
        this%A(3,:) = (/-0.4447518666866271d0, 0.7780852000199604d0, 0.d0,                 0.d0,0.d0,0.d0/)
@@ -228,14 +228,13 @@ CONTAINS
        this%A(8,:) = (/ 0.0979996468518429d0,-0.0044680013474942d0, 0.3592897484042626d0, 0.0225280828210270d0, &
              0.2680292384753062d0,-0.1064595934043306d0, 0.3630808781993861d0/)    
     CASE default
-       WRITE(*,*) ' BUG in init_bt: wrong sv'
+       WRITE(*,*) ' BUG in ERK init_bt: wrong sv ', asv, this%s, this%A
        STOP 'fail'
     END SELECT
+    CALL inc_bt(this)
     IF (this%sv>0) THEN
-       this%lp_of_l=1
        this%MatRK=>this%A
     ELSE
-       CALL inc_bt(this)
        this%MatRK=>this%inc_A
     END IF
   END SUBROUTINE init_bt
