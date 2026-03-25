@@ -77,9 +77,9 @@ CONTAINS
     record = ''
     i_list = 1
     !===Initializing record
-    !CALL read_data_in_record(record_size, record, begin_section, end_section)
+    CALL read_data_in_record(record_size, record, begin_section, end_section)
+
     !===CFL
-    
     WRITE(string_default,*) this%CFL
     CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
     IF (okay) THEN
@@ -94,8 +94,8 @@ CONTAINS
     END IF
 
     !===Closing unit
-    !rank = 0
-    !CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+    rank = 0
+    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
   END SUBROUTINE read_nl_scalar_cons
 
   SUBROUTINE update(this, fourier_param)
