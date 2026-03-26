@@ -37,7 +37,7 @@ CONTAINS
     REAL(KIND=8) :: mass_plus, mass_minus, &
          lambda_K_minus, lambda_K_plus, &
          lambda_star_minus, lambda_star_plus
- 
+
     me = SIZE(jj,2)
     nw = SIZE(jj,1)
     syst_size = SIZE(xx_in,2)
@@ -60,12 +60,12 @@ CONTAINS
        iplus  = 0
        DO n = 1, nw
           !===P2 fix
-          IF (abs(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
+          IF (ABS(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
              limit_zero(n) = 1
              CYCLE
           END IF
           !===END fix
-          
+
           loc_min_down = loc_min_loc(n) - epsilon*ABS(loc_min_loc(n))
           loc_min_up   = loc_min_loc(n) + epsilon*ABS(loc_min_loc(n))
           IF (psi(xx_loc(n,:),loc_min_down)<0) THEN
@@ -108,10 +108,10 @@ CONTAINS
        Lambda_star_plus  = MINVAL(lambda_plus)
        Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/mass_minus)
        Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/mass_plus)
-       
+
        DO n = 1, nw
           !===P2 fix
-          IF (abs(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
+          IF (ABS(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
              xx(n,m,:) = uk_plus
              CYCLE
           END IF
@@ -125,7 +125,7 @@ CONTAINS
     DO m = 1, me
        DO n = 1, nw
           i = jj(n,m)
-          IF (abs(masses%lumped_mass(i)).LE.masses%mass_eps) THEN
+          IF (ABS(masses%lumped_mass(i)).LE.masses%mass_eps) THEN
              xx_out(i,:) = xx(n,m,:)
              CYCLE
           END IF
@@ -138,7 +138,7 @@ CONTAINS
        END IF
     END DO
   END SUBROUTINE iterative_cell_limiting_procedure
-  
+
   SUBROUTINE iterative_GS_cell_limiting_procedure(masses,jj,xx_in,loc_min,psi,zero_of_psi,xx_out)  
     IMPLICIT NONE
     INTERFACE
@@ -234,7 +234,7 @@ CONTAINS
        DO n = 1, nw
           i = jj(n,m)
           !===P2 fix
-          IF (abs(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
+          IF (ABS(masses%lumped_mass(jloc(n))).LE.masses%mass_eps) THEN
              xx_in(i,:) = uk_plus
              CYCLE
           END IF
@@ -248,4 +248,73 @@ CONTAINS
     END DO
     xx_out=xx_in
   END SUBROUTINE iterative_GS_cell_limiting_procedure
+
+  SUBROUTINE relax_min_and_max(bound_relaxing,glob_min,glob_max,jj,un,maxn,minn)
+    IMPLICIT NONE
+    CHARACTER(*),               INTENT(IN) :: bound_relaxing
+    INTEGER, DIMENSION(:,:),    INTENT(IN) :: jj
+    REAL(KIND=8), DIMENSION(:), INTENT(IN) :: un
+    REAL(KIND=8), DIMENSION(:)             :: minn
+    REAL(KIND=8), DIMENSION(:)             :: maxn
+    REAL(KIND=8), INTENT(IN)               :: glob_min, glob_max
+    REAL(KIND=8), DIMENSION(SIZE(un))      :: alpha, denom
+    INTEGER, DIMENSION(SIZE(un)) ::   beta 
+    INTEGER      :: i, j, m, me, nw, n, np
+    REAL(KIND=8) :: norm
+ 
+    me = SIZE(jj,2)
+    nw = SIZE(jj,1)
+    alpha = 0.d0
+    beta = 0
+    DO m = 1, me
+       DO n = 1, nw
+          i = jj(n,m)
+          DO np = 1, nw
+             j = jj(np,m)
+             alpha(i) = alpha(i) + (un(i) - un(j))
+             beta(i) = beta(i) + 1
+          END DO
+       END DO
+    END DO
+    alpha = alpha/beta
+    SELECT CASE(TRIM(ADJUSTL(bound_relaxing)))
+    CASE('avg') !==Average
+       denom = 0.d0
+       beta = 0
+       DO m = 1, me
+          DO n = 1, nw
+             i = jj(n,m)
+             DO np = 1, nw
+                j = jj(np,m)
+                denom(i) = denom(i) + alpha(i) + alpha(j)
+                beta(i) = beta(i) + 1
+             END DO
+          END DO
+       END DO
+       denom = denom/(2*beta)
+    CASE('minmod') !===Minmod
+       denom = alpha 
+       DO m = 1, me
+          DO n = 1, nw
+             i = jj(n,m)
+             DO np = 1, nw
+                j = jj(np,m)
+
+                IF (denom(i)*alpha(j).LE.0.d0) THEN
+                   denom(i) = 0.d0
+                ELSE IF (ABS(denom(i)) > ABS(alpha(j))) THEN
+                   denom(i) = alpha(j)
+                END IF
+             END DO
+          END DO
+       END DO
+    CASE DEFAULT
+       WRITE(*,*) ' BUG in relax', TRIM(ADJUSTL(bound_relaxing))
+       STOP
+    END SELECT
+    maxn = maxn + 4*ABS(denom)
+    minn = minn - 4*ABS(denom)
+    maxn = MIN(glob_max,maxn)
+    minn = MAX(glob_min,minn)
+  END SUBROUTINE RELAX_MIN_AND_MAX
 END MODULE cell_limiting_engine_module
