@@ -136,24 +136,24 @@ CONTAINS
   END SUBROUTINE find_string
   !========================================================================
 
-  SUBROUTINE default_data(rank, in_unit, argument, opt_char)
-    IMPLICIT NONE
-    INTEGER :: rank, in_unit
-    CHARACTER(*), INTENT(IN) :: argument
-    CHARACTER(*), OPTIONAL, INTENT(IN) :: opt_char
-    IF (rank==0) THEN
-       WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found.'
-       IF (PRESENT(opt_char)) THEN
-          WRITE(*, *) 'Set to ' // TRIM(ADJUSTL(opt_char)) // ' by default and added to data file.'
-       END IF
-    END IF
-    CLOSE(in_unit)
-    OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position = 'append')
-    IF (rank==0) THEN
-       WRITE(in_unit, '(g0)') TRIM(ADJUSTL(argument))
-       IF (PRESENT(opt_char)) WRITE(in_unit, '(g0)') TRIM(ADJUSTL(opt_char))
-    END IF
-  END SUBROUTINE default_data
+!   SUBROUTINE default_data(rank, in_unit, argument, opt_char)
+!     IMPLICIT NONE
+!     INTEGER :: rank, in_unit
+!     CHARACTER(*), INTENT(IN) :: argument
+!     CHARACTER(*), OPTIONAL, INTENT(IN) :: opt_char
+!     IF (rank==0) THEN
+!        WRITE(*, *)  TRIM(ADJUSTL(argument)) // ' not found.'
+!        IF (PRESENT(opt_char)) THEN
+!           WRITE(*, *) 'Set to ' // TRIM(ADJUSTL(opt_char)) // ' by default and added to data file.'
+!        END IF
+!     END IF
+!     CLOSE(in_unit)
+!     OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown', position = 'append')
+!     IF (rank==0) THEN
+!        WRITE(in_unit, '(g0)') TRIM(ADJUSTL(argument))
+!        IF (PRESENT(opt_char)) WRITE(in_unit, '(g0)') TRIM(ADJUSTL(opt_char))
+!     END IF
+!   END SUBROUTINE default_data
 
   SUBROUTINE compare_string(record, list, string, string_default, okay, i_list, j)
     IMPLICIT NONE
@@ -173,6 +173,7 @@ CONTAINS
           i_list = i_list + 1
           list(i_list) = record(j+1)
           record(j+1) = ''
+          j = 0
           RETURN
        END IF
     END DO
@@ -181,6 +182,7 @@ CONTAINS
     list(i_list) = string_default
     okay = .FALSE.
     j = -1
+    j = 0
     RETURN
   END SUBROUTINE compare_string
 
@@ -204,6 +206,8 @@ CONTAINS
              CYCLE
           ELSE IF (TRIM(ADJUSTL(control(1:8)))=="||||||||") THEN
              CYCLE
+          ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
+             CYCLE
           ELSE
              record_size = record_size + 1
              record(record_size) = control
@@ -224,6 +228,19 @@ CONTAINS
     END IF
     CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
   END SUBROUTINE clean_data_once
+
+!   SUBROUTINE set_data_section(data_section, list, i_list)
+!     IMPLICIT NONE
+!     CHARACTER(LEN=*), DIMENSION(:) :: list
+!     CHARACTER(LEN=*), INTENT(IN) :: data_section
+!     INTEGER, INTENT(INOUT) :: i_list
+!     i_list = i_list + 1
+!     list(i_list) = '==============================='
+!     i_list = i_list + 1
+!     list(i_list) = data_section
+!     i_list = i_list + 1
+!     list(i_list) = '==============================='
+!   END SUBROUTINE set_data_section   
 
   SUBROUTINE read_data_in_record(record_size, record, begin_section, end_section)
     use petsc
@@ -285,12 +302,63 @@ CONTAINS
 
   END SUBROUTINE read_data_in_record
 
-  SUBROUTINE rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+  SUBROUTINE read_data_in_record_bis(record_size, record, section)
+    use petsc
+    IMPLICIT NONE
+    
+    INTEGER, INTENT(OUT)                        :: record_size
+    CHARACTER(LEN=*), DIMENSION(*), INTENT(OUT) :: record
+    CHARACTER(LEN=*), INTENT(IN)                :: section
+    
+    INTEGER, PARAMETER :: in_unit=21
+    CHARACTER(LEN=rec_length) :: control, string
+    CHARACTER(LEN=5)   :: fmt
+    INTEGER            :: length_begin, length_end, line_begin_section, line_end_section
+    INTEGER            :: code
+
+    line_begin_section = -1
+    line_end_section = -1
+
+  !  record(:) = ""
+    record_size = 0
+
+    OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+    length_begin = LEN(TRIM(ADJUSTL(section))) 
+    WRITE(*,*) "read_data_in_record_bis: section = ", TRIM(ADJUSTL(section))
+    
+    !===Read data file into record
+    DO
+       READ(in_unit,'(A)',END=100) control
+       IF (TRIM(ADJUSTL(control))=='') CYCLE
+       record_size = record_size+1
+       record(record_size)=control
+       WRITE(fmt, '("(A", I0, ")")') length_begin
+       WRITE(string,fmt) TRIM(ADJUSTL(control))
+       IF (string==section) THEN
+          line_begin_section = record_size
+       END IF
+    END DO
+100 CONTINUE
+    CLOSE(in_unit)
+    IF (line_begin_section .NE. -1) THEN
+        record(line_begin_section:record_size-1) = record(line_begin_section+1: record_size)
+        record_size = record_size -1
+    ELSE
+        line_begin_section = 1
+    END IF
+
+    CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
+
+  END SUBROUTINE read_data_in_record_bis
+
+  SUBROUTINE rewrite_data_from_list_record(rank, list, record, i_list, record_size, section_name)
     use petsc
     IMPLICIT NONE
     
     CHARACTER(LEN=*), DIMENSION(*), INTENT(IN) :: record, list
     INTEGER,                        INTENT(IN) :: rank, i_list, record_size
+    CHARACTER(LEN=*), OPTIONAL,     INTENT(IN) :: section_name
+    CHARACTER(LEN=rec_length)                  :: section_bounds
     INTEGER, PARAMETER                         :: in_unit=21
     INTEGER                                    :: j, code
 
@@ -302,6 +370,12 @@ CONTAINS
                 IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
                 WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
              END DO
+             IF (PRESENT(section_name)) THEN
+                section_bounds = REPEAT('=', LEN(TRIM(ADJUSTL(section_name)))+10)
+                WRITE(in_unit,'(A)') section_bounds
+                WRITE(in_unit,'(A)') TRIM(ADJUSTL(section_name))
+                WRITE(in_unit,'(A)') section_bounds
+             END IF
              DO j = 1, i_list
                 WRITE(in_unit,'(A)') TRIM(ADJUSTL(list(j)))
              END DO

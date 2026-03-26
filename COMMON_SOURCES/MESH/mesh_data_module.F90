@@ -1,7 +1,8 @@
 MODULE mesh_data_module
   IMPLICIT NONE
   !===chain of characters that should appear in data file
-   INTEGER, PARAMETER, PRIVATE :: rec_length=200
+   INTEGER, PARAMETER, PRIVATE :: rec_length=200, list_length=200
+
    TYPE argument_mesh_data_type                                                  
       CHARACTER(len = rec_length) :: directory         = '=== Name of directory for mesh file ==='
       CHARACTER(len = rec_length) :: file_name         = '=== Name of mesh file ==='         
@@ -32,11 +33,7 @@ CONTAINS
     USE petsc
     IMPLICIT NONE
     INTEGER, PARAMETER :: in_unit = 21
-    INTEGER, PARAMETER :: list_length=200, length_begin=27, length_end=25
-    CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: MESH %%%' 
-    CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: MESH %%%'
-    CHARACTER(LEN=length_begin), PARAMETER :: char_begin    ='%%%%%%%%%%%%%%%%%%%%%%%%%%%'
-    CHARACTER(LEN=length_end),   PARAMETER :: char_end      ='%%%%%%%%%%%%%%%%%%%%%%%%%'
+    CHARACTER(LEN=rec_length) :: section_name='!           MESH PARAMETERS'
     
     CLASS(mesh_data_type), INTENT(INOUT) :: this
     TYPE(argument_mesh_data_type)        :: argument_data
@@ -52,17 +49,12 @@ CONTAINS
     CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
     !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+    CALL read_data_in_record_bis(record_size, record, section_name)
+   !  CALL read_data_in_record(record_size, record, begin_section, end_section)
 
     !===Now we reorganize record
     i_list = 1
-    WRITE(list(i_list), '(A)') REPEAT('|',70)
-    i_list = i_list + 1
-    list(i_list) = char_begin
-    i_list = i_list + 1
-    list(i_list) = begin_section
-    i_list = i_list + 1
-    list(i_list) = char_begin
+    
 
     WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
     CALL compare_string(record, list, argument_data%directory, string_default, okay, i_list, j)
@@ -114,16 +106,8 @@ CONTAINS
        READ (list(i_list), *) this%list_dom
     END IF
 
-    i_list = i_list+1
-    list(i_list) = char_end
-    i_list = i_list+1
-    list(i_list) = end_section
-    i_list = i_list+1
-    list(i_list) = char_end
-    i_list = i_list+1
-  
     !===Closing unit 
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size, section_name)
   END SUBROUTINE read_mesh_data
 
 END MODULE mesh_data_module
