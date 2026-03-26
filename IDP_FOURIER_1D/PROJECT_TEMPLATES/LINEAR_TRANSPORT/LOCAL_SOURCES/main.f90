@@ -4,7 +4,7 @@ PROGRAM linear_transport
   USE my_util
   USE fft_1D
   IMPLICIT NONE
-  INTEGER :: n
+  INTEGER :: n, it
   REAL(KIND = 8) :: tps
   
   CALL start_setup

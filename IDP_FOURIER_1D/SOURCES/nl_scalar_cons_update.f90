@@ -1,6 +1,7 @@
 MODULE nl_scalar_cons_module
   USE Butcher_tableau
   USE fourier_param_module
+  USE cell_limiting_engine_module
   INTEGER, PARAMETER :: rec_length = 200, list_length=200
   ABSTRACT INTERFACE
      FUNCTION flux_template(u) RESULT(vv)
@@ -24,15 +25,19 @@ MODULE nl_scalar_cons_module
      TYPE(BT), PUBLIC :: ERK
      INTEGER :: Nmax, Nmax_real
      REAL(KIND=8) :: time, dt, lumped, dx
-     REAL(KIND=8) , DIMENSION(:,:), POINTER :: un
+     REAL(KIND=8), DIMENSION(:,:), POINTER :: un
+     !===limiting
+     INTEGER, DIMENSION(:,:), POINTER :: jj
+     TYPE(mass_for_limiting) :: mass
+     !===end limiting
      PROCEDURE(flux_template),       NOPASS, POINTER :: flux
      PROCEDURE(lambda_max_template), NOPASS, POINTER :: lambda_max
    CONTAINS
      PROCEDURE, PUBLIC :: init => init_nl_scalar_cons
      PROCEDURE, PUBLIC :: READ => read_nl_scalar_cons
      PROCEDURE, PUBLIC :: update
+     PROCEDURE, NOPASS, PRIVATE :: psi_min, zero_of_psi_min
   END TYPE nl_scalar_cons_type
-
 
 CONTAINS
   SUBROUTINE init_nl_scalar_cons(this, flux, lambda_max, fourier_param, init_time)
@@ -42,7 +47,7 @@ CONTAINS
     PROCEDURE(lambda_max_template) :: lambda_max
     TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8) :: init_time
-    INTEGER :: Nmax
+    INTEGER :: Nmax, m, n
   
     CALL this%READ()
     this%ERK%sv = this%erk_sv
@@ -56,6 +61,20 @@ CONTAINS
     this%dx = fourier_param%dx
     this%lumped = fourier_param%dx
     ALLOCATE (this%un(Nmax,2))
+
+    !===limiting objects
+    ALLOCATE(this%mass%localized_mass(2,this%Nmax_real))
+    ALLOCATE(this%mass%lumped_mass(this%Nmax_real+1))
+    this%mass%lumped_mass = this%dx
+    this%mass%localized_mass=this%dx/2
+    ALLOCATE(this%jj(2,this%Nmax_real))
+    DO m = 1, this%Nmax_real !===loop over cells
+       Do n = 1, 2
+          this%jj(1,m) = m
+          this%jj(2,m) = m+1
+       END DO
+    END DO
+    this%jj(2,this%Nmax_real) = 1
   END SUBROUTINE init_nl_scalar_cons
 
   SUBROUTINE read_nl_scalar_cons(this)
@@ -122,7 +141,8 @@ CONTAINS
     REAL(KIND=8), DIMENSION(This%Nmax,2,this%ERK%s) :: flux_rk
     REAL(KIND=8), DIMENSION(this%Nmax,2) :: cs_diff, cs_dflux, cs_zz
     REAL(KIND=8), DIMENSION(this%Nmax_real) :: u_max, u_min
-    INTEGER  :: stage, l
+    REAL(KIND=8), DIMENSION(this%Nmax_real,1) :: r_in, r_out
+    INTEGER  :: stage, l, it
     CALL compute_dt_viscous_flux_min_max(this,stage,urk(:,:,stage-1),flux_rk(:,:,stage-1),&
          cs_diff,u_max,u_min)
     !===u_max,u_min will be used to do the limiting (someday)
@@ -140,6 +160,16 @@ CONTAINS
     !TEST
     !urk(:,:,stage) = urk(:,:,stage-1)+this%dt*this%ERK%inc_C(stage)*cs_diff
     !TEST
+    
+    !===Limiting 
+!!$    CALL Fourier_to_real(urk(:,:,stage),r_in(:,1))
+!!$    DO it = 1, 4
+!!$       CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_min,psi_min,zero_of_psi_min,r_in)
+!!$    END DO
+!!$    DO it = 1, 4
+!!$       CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_max,psi_max,zero_of_psi_max,r_in)
+!!$    END DO    
+!!$    CALL real_to_fourier(r_in(:,1),urk(:,:,stage))
   END SUBROUTINE one_step_ERK
 
   SUBROUTINE compute_dt_viscous_flux_min_max(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
@@ -149,22 +179,21 @@ CONTAINS
     INTEGER, INTENT(IN) :: stage
     REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in
     REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
-    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1)   :: r_out
-    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1,2) :: dijL
-    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1)   :: diag_dijL
+    REAL(KIND = 8), DIMENSION(this%Nmax_real+1)   :: r_out
+    REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
+    REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin
     REAL(KIND = 8) :: ul, ur, cij, lambda
-    INTEGER :: i, j, m
+    INTEGER :: i, j, m, n, np
 
     CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
-    r_out(0) = r_out(this%Nmax_real)
     r_out(this%Nmax_real+1)=r_out(1)
 
     cij =0.5d0
     diag_dijL=0.d0
-    DO m = 0, this%Nmax_real
-       i = m
-       j = m+1
+    DO m = 1, this%Nmax_real !===loop over cells
+       i = this%jj(1,m)
+       j = this%jj(2,m) 
        ul = r_out(i)
        ur = r_out(j)
        lambda = this%lambda_max(ul,ur)
@@ -175,19 +204,25 @@ CONTAINS
     END DO
 
     IF (stage==2) THEN
-       this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL(1:this%Nmax_real)))
+       this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL))
     END IF 
     
     umax = r_out(1:this%Nmax_real)
-    umin = r_out(1:this%Nmax_real)
-    DO i = 1, this%Nmax_real
-       r_diff(i) = dijL(i,1)*(r_out(i-1)-r_out(i)) + dijL(i,2)*(r_out(i+1)-r_out(i))
-       umax(i) = MAX(umax(i),r_out(i-1),r_out(i+1))
-       umin(i) = MIN(umin(i),r_out(i-1),r_out(i+1))
+    umin = r_out(1:this%Nmax_real)    
+    r_diff = 0.d0
+    DO m = 1, this%Nmax_real !===loop over cells
+       DO n = 1, 2
+          i = this%jj(n,m)
+          np = MOD(n,2)+1
+          j = this%jj(np,m)
+          r_diff(i) = r_diff(i) + dijL(i,np)*(r_out(j)-r_out(i))
+          umax(i) = MAX(umax(i),r_out(i))
+       END DO
        !TEST
        !r_diff(i) = r_diff(i) - (sin(r_out(i+1))-sin(r_out(i-1)))/2
        !TEST
     END DO
+    
     r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
     r_flux = this%flux(r_out(1:this%Nmax_real))
@@ -195,4 +230,84 @@ CONTAINS
 
   END SUBROUTINE compute_dt_viscous_flux_min_max
 
+!!$  SUBROUTINE compute_dt_viscous_flux_min_max_remove_me(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
+!!$    USE fft_1D
+!!$    IMPLICIT NONE
+!!$    CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
+!!$    INTEGER, INTENT(IN) :: stage
+!!$    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in
+!!$    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
+!!$    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1)   :: r_out
+!!$    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1,2) :: dijL
+!!$    REAL(KIND = 8), DIMENSION(0:this%Nmax_real+1)   :: diag_dijL
+!!$    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin
+!!$    REAL(KIND = 8) :: ul, ur, cij, lambda
+!!$    INTEGER :: i, j, m
+!!$
+!!$    CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
+!!$    r_out(0) = r_out(this%Nmax_real)
+!!$    r_out(this%Nmax_real+1)=r_out(1)
+!!$
+!!$    cij =0.5d0
+!!$    diag_dijL=0.d0
+!!$    DO m = 0, this%Nmax_real
+!!$       i = m !this%jj(1,m) !m
+!!$       j = m+1! this%jj(2,m) !m+1
+!!$       ul = r_out(i)
+!!$       ur = r_out(j)
+!!$       lambda = this%lambda_max(ul,ur)
+!!$       dijL(i,2) = cij*lambda
+!!$       dijL(j,1) = cij*lambda
+!!$       diag_dijL(i) = diag_dijL(i) - dijL(i,2)
+!!$       diag_dijL(j) = diag_dijL(j) - dijL(j,1)
+!!$    END DO
+!!$
+!!$    IF (stage==2) THEN
+!!$       this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL(1:this%Nmax_real)))
+!!$    END IF 
+!!$    
+!!$    umax = r_out(1:this%Nmax_real)
+!!$    umin = r_out(1:this%Nmax_real)
+!!$    DO i = 1, this%Nmax_real
+!!$       r_diff(i) = dijL(i,1)*(r_out(i-1)-r_out(i)) + dijL(i,2)*(r_out(i+1)-r_out(i))
+!!$       umax(i) = MAX(umax(i),r_out(i-1),r_out(i+1))
+!!$       umin(i) = MIN(umin(i),r_out(i-1),r_out(i+1))
+!!$       !TEST
+!!$       !r_diff(i) = r_diff(i) - (sin(r_out(i+1))-sin(r_out(i-1)))/2
+!!$       !TEST
+!!$    END DO
+!!$    r_diff = r_diff/this%lumped
+!!$    CALL real_to_fourier(r_diff,cs_diff)
+!!$    r_flux = this%flux(r_out(1:this%Nmax_real))
+!!$    CALL real_to_fourier(r_flux,cs_flux)
+!!$  END SUBROUTINE compute_dt_viscous_flux_min_max_remove_me
+  
+    FUNCTION psi_min(x,psi_m) RESULT(v)
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:) :: x
+      REAL(KIND=8) :: psi_m, v
+      v = x(1)-psi_m
+    END FUNCTION psi_min
+    
+    FUNCTION zero_of_psi_min(psi_m,u0,P) RESULT(v)
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:) :: u0, P
+      REAL(KIND=8) :: psi_m, v
+      v = (psi_m-u0(1))/P(1)
+    END FUNCTION zero_of_psi_min
+
+    FUNCTION psi_max(x,psi_m) RESULT(v)
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:) :: x
+      REAL(KIND=8) :: psi_m, v
+      v = psi_m-x(1)
+    END FUNCTION psi_max
+    
+    FUNCTION zero_of_psi_max(psi_m,u0,P) RESULT(v)
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:) :: u0, P
+      REAL(KIND=8) :: psi_m, v
+      v = (psi_m-u0(1))/P(1)
+    END FUNCTION zero_of_psi_max
+    
 END MODULE nl_scalar_cons_module

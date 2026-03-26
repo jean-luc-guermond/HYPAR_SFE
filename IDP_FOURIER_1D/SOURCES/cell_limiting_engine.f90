@@ -88,7 +88,7 @@ CONTAINS
        END IF
        IF (iplus*iminus==0) THEN
           xx(:,m,:) = xx_loc
-          CYCLE !===No limiting is possible
+          CYCLE !===No limiting is possible/or no limiting necessary
        END IF
        uk_minus = uk_minus/mass_minus
        uk_plus  = uk_plus/mass_plus
