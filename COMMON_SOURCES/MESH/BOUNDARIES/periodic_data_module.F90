@@ -19,127 +19,67 @@ MODULE periodic_data_module
       TYPE(dyn_int_line), DIMENSION(20)        :: perlist
       INTEGER, POINTER, DIMENSION(:)           :: pnt
    CONTAINS
-      PROCEDURE, PUBLIC :: read => read_periodic_data
+      PROCEDURE, PUBLIC :: read => read_periodic_bc_data
+      PROCEDURE, PUBLIC :: init => init_periodic_bc_data
       PROCEDURE, PUBLIC :: set => prep_periodic
    END TYPE periodic_type
 
 CONTAINS
-   SUBROUTINE read_periodic_data(this, name)
+ 
+   SUBROUTINE init_periodic_bc_data(this, name, section_name)
+      CLASS(periodic_type), INTENT(INOUT) :: this
+      CHARACTER(LEN=*), INTENT(IN) :: name
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
+      IF (PRESENT(section_name)) THEN
+         CALL this%read(name, section_name)
+      ELSE
+         CALL this%read(name)
+      END IF
+   END SUBROUTINE init_periodic_bc_data
+
+   SUBROUTINE read_periodic_bc_data(this, name, section_name)
+      USE petsc
       USE character_strings
       USE space_dim
-      USE petsc
       IMPLICIT NONE
-      INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_template_begin=28, length_template_end=26
-      CHARACTER(LEN=length_template_begin), PARAMETER :: template_begin_section = '%%% BEGIN SECTION: PERIODIC '  
-      CHARACTER(LEN=length_template_end),   PARAMETER :: template_end_section   = '%%% END SECTION: PERIODIC '
-      CHARACTER(LEN=4),                     PARAMETER :: template_tip           = ' %%%'
-      CHARACTER(LEN=:), ALLOCATABLE                   :: begin_section, end_section, char_begin, char_end
-      
-      CHARACTER(LEN=rec_length), DIMENSION(list_length):: list, record
-      CHARACTER(*) :: name
-      CHARACTER(LEN=rec_length)       :: string, string_default
+      CHARACTER(*), INTENT(IN)            :: name
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
+
       
       CLASS(periodic_type), INTENT(INOUT) :: this
-      
-      LOGICAL :: okay
-      INTEGER :: k, length_begin, length_end, length_name
-      INTEGER :: rank, ierr, record_size, i_list, j, i
-
       TYPE(argument_periodic_type)        :: argument_data
-
-      !===Initialize data to zero and false by default
-      list = ""
-      record = ""
-      CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
       this%name = name
       argument_data%nb_bords = '=== How many pieces of periodic boundary on ' // trim(adjustl(this%name)) // '? ==='
       argument_data%list_periodic = '=== Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '? ==='
 
-      !=== dynamic BEGIN/END in data
-      length_name = LEN(TRIM(ADJUSTL(this%name)))
-      length_begin = length_template_begin + length_name + LEN(template_tip) 
-      length_end   = length_template_end   + length_name + LEN(template_tip)
-      
-      ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
-      ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
-      ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
-      ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
-
-      WRITE(char_begin,'(A)') REPEAT("%", length_begin)
-      WRITE(char_end,'(A)') REPEAT("%", length_end)
-
-      begin_section = template_begin_section // TRIM(ADJUSTL(this%name)) // template_tip
-      end_section = template_end_section // TRIM(ADJUSTL(this%name)) // template_tip
-      
-      !===Initializing record
-      CALL read_data_in_record(record_size, record, begin_section, end_section)
-
-      !===Now we reorganize record
-      i_list = 1
-      WRITE(list(i_list), '(A)') REPEAT('|',70)
-      i_list = i_list + 1
-      list(i_list) = char_begin
-      i_list = i_list + 1
-      list(i_list) = begin_section
-      i_list = i_list + 1
-      list(i_list) = char_begin
-
-      !===Initialize data to zero and false by default
-      WRITE(string_default,*) this%nb_bords
-      CALL compare_string(record, list, argument_data%nb_bords, string_default, okay, i_list, j)
-      IF (okay) THEN
-         READ(list(i_list),*) this%nb_bords  
+!================
+!=== MANDATORY Reading all data file
+!================
+      IF (PRESENT(section_name)) THEN
+         CALL read_data_init_list(section_name)
+      ELSE
+         CALL read_data_init_list()
       END IF
 
+!================
+!=== We now find the relevant information for this specific periodic BC
+!================
+
+   !=== Number of periodic boundaries 
+      CALL read_data(argument_data%nb_bords, this%nb_bords)
+
+   !=== List of periodic boundaries (has its specific subroutine, see character_strings.F90 module) 
       ALLOCATE(this%list_periodic(2, this%nb_bords))
       ALLOCATE(this%vect_e(k_dim, this%nb_bords))
-      string = argument_data%list_periodic
-      string_default = "0 0 0.d0 0.d0"
-      IF (this%nb_bords > 0) THEN
-         okay = .FALSE.
-         i_list = i_list+1
-         list(i_list) = string
-         DO i = 1, SIZE(record)
-            !=== detecting if there is Periodic BC
-            IF (TRIM(ADJUSTL(record(i)))==list(i_list)) THEN
-               j = i
-               record(j) = ''
-               okay = .TRUE.
-               EXIT
-            END IF
-         END DO
-            !=== reading all Periodic BC if detected
-         DO k=1, this%nb_bords
-            i_list = i_list + 1
-            IF (okay) THEN
-               list(i_list) = record(j+k)
-               record(j+k) = ''
-            ELSE
-               !=== default value if no Periodic BC detected
-               list(i_list) = string_default
-            END IF
-            READ(list(i_list), *) this%list_periodic(:, k), this%vect_e(:, k)
-         END DO
-            
-      END IF
+      CALL read_periodic_data(argument_data%list_periodic, this%nb_bords, this%list_periodic, this%vect_e)
 
-      i_list = i_list+1
-      list(i_list) = char_end
-      i_list = i_list+1
-      list(i_list) = end_section
-      i_list = i_list+1
-      list(i_list) = char_end
-      i_list = i_list+1
-     
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
 
-      !===Closing unit
-      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
-
-      DEALLOCATE(begin_section)
-      DEALLOCATE(end_section)
-
-   END SUBROUTINE read_periodic_data
+   END SUBROUTINE read_periodic_bc_data
 
    SUBROUTINE prep_periodic(this, mesh, opt_nb_bloc)
       IMPLICIT NONE

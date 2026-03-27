@@ -32,7 +32,7 @@ CONTAINS
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
-      CALL mesh_data%read()
+      CALL mesh_data%init
       CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
       CALL MPI_Comm_rank(communicator, rank, ierr)
 

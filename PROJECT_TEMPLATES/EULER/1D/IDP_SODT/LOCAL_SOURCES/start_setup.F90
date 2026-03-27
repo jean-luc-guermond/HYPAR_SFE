@@ -20,9 +20,10 @@ MODULE start_setup_MODULE
       LOGICAL        :: if_restart          = .FALSE. 
       REAL(KIND = 8) :: checkpointing_freq  = 1.d20
       REAL(KIND = 8) :: final_time          = 0.1d0
-      INTEGER :: syst_size
+      INTEGER        :: syst_size
    CONTAINS 
       PROCEDURE, PUBLIC :: read => read_setup_data
+      PROCEDURE, PUBLIC :: init => init_setup_data
    END TYPE setup_data_type
    
    TYPE(mesh_type), PUBLIC :: mesh
@@ -52,16 +53,16 @@ CONTAINS
       CALL MPI_Comm_rank(communicator, rank, ierr)
        
       !===Clean data once
-      CALL clean_data_once(rank)
+      CALL clean_data_once
 
       !===Construct mesh
-      CALL per(1)%read("global")
+      CALL per(1)%init("global", "PERIODIC BC PARAMETERS")
       CALL get_mesh(communicator, mesh, opt_pers = per)
       CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
       !===Read
-      CALL setup_data%read(rank)
+      CALL setup_data%init
 
       !===Start Euler
       !FIXE ME init_time too
@@ -70,79 +71,53 @@ CONTAINS
       !===Read data setup
    END SUBROUTINE start_setup
 
-   SUBROUTINE read_setup_data(this, rank)
+   SUBROUTINE init_setup_data(this)
+      CLASS(setup_data_type), INTENT(INOUT) :: this
+      CALL this%read
+   END SUBROUTINE init_setup_data
+
+   SUBROUTINE read_setup_data(this)
       USE character_strings
       IMPLICIT NONE
-      INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_begin=28, length_end=26
-      CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: SETUP %%%'
-      CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: SETUP %%%'
-      CHARACTER(LEN=length_begin), PARAMETER :: char_begin    ='%%%%%%%%%%%%%%%%%%%%%%%%%%%%'
-      CHARACTER(LEN=length_end),   PARAMETER :: char_end      ='%%%%%%%%%%%%%%%%%%%%%%%%%%'
-      
+
+    CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
+
       CLASS(setup_data_type)             :: this
       TYPE(argument_setup_data_type)     :: argument_data
 
-      CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-      CHARACTER(LEN=rec_length)     :: string_default
-      LOGICAL :: okay
-      INTEGER :: rank, record_size, i_list, j
+      CHARACTER(LEN=rec_length)     :: string
 
+!================
+!=== MANDATORY Reading all data file
+!================
+    CALL read_data_init_list(section_name)
 
-      !===Initialize data to zero and false by default
-      list = ''
-      record = ''
-      
-      !===Initializing record
-      CALL read_data_in_record(record_size, record, begin_section, end_section)
-
-      !===Now we reorganize record
-
-      i_list = 1
-      WRITE(list(i_list), *) REPEAT('|', 70)
-      i_list = i_list + 1
-      list(i_list) = char_begin
-      i_list = i_list + 1
-      list(i_list) = begin_section
-      i_list = i_list + 1
-      list(i_list) = char_begin
+!================
+!=== We now find the relevant information for this setup
+!================
 
       !===Restart
-      WRITE(string_default,*) this%if_restart
-      CALL compare_string(record, list, argument_data%if_restart, string_default, okay, i_list, j)
-      IF (okay) THEN
-          READ(list(i_list),*) this%if_restart
-      END IF
+    CALL read_data(argument_data%if_restart, this%if_restart)
 
       !===Checkpointing
-      WRITE(string_default,*) this%checkpointing_freq
-      CALL compare_string(record, list, argument_data%checkpointing_freq, string_default, okay, i_list, j)
-      IF (okay) THEN
-          READ(list(i_list),*) this%checkpointing_freq
-      END IF
+    CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
       !===Checkpointing
-      WRITE(string_default,*) this%final_time
-      CALL compare_string(record, list, argument_data%final_time, string_default, okay, i_list, j)
-      IF (okay) THEN
-          READ(list(i_list),*) this%final_time
-      END IF
+    CALL read_real_data(argument_data%final_time, this%final_time)
 
       !===Regression test
-      CALL getarg(1, string_default)
-      IF (trim(adjustl(string_default))=='regression') THEN
+      CALL getarg(1, string)
+      IF (trim(adjustl(string))=='regression') THEN
          this%if_regression_test = .true.
       ELSE
          this%if_regression_test = .false.
       END IF
 
-      i_list = i_list + 1
-      list(i_list) = char_end
-      i_list = i_list + 1
-      list(i_list) = end_section
-      i_list = i_list + 1
-      list(i_list) = char_end
-      !===Closing unit
-      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
+
    END SUBROUTINE read_setup_data
 
 

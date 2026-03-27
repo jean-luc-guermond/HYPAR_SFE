@@ -1,7 +1,7 @@
 MODULE mesh_data_module
   IMPLICIT NONE
   !===chain of characters that should appear in data file
-   INTEGER, PARAMETER, PRIVATE :: rec_length=200, list_length=200
+   INTEGER, PARAMETER, PRIVATE :: rec_length=200
 
    TYPE argument_mesh_data_type                                                  
       CHARACTER(len = rec_length) :: directory         = '=== Name of directory for mesh file ==='
@@ -24,90 +24,62 @@ MODULE mesh_data_module
       INTEGER                        :: type_fe           = 1                    
       INTEGER                        :: nb_refinement     = 0                    
    CONTAINS                                                                      
-      PROCEDURE, PUBLIC              :: read => read_mesh_data                   
+      PROCEDURE, PUBLIC              :: read => read_mesh_data
+      PROCEDURE, PUBLIC              :: init => init_mesh_data                   
    END TYPE mesh_data_type   
 CONTAINS
 
+  SUBROUTINE init_mesh_data(this)
+    CLASS(mesh_data_type), INTENT(INOUT) :: this
+    CALL this%read
+  END SUBROUTINE init_mesh_data
+
   SUBROUTINE read_mesh_data(this)
     USE character_strings
-    USE petsc
     IMPLICIT NONE
-    INTEGER, PARAMETER :: in_unit = 21
-    CHARACTER(LEN=rec_length) :: section_name='!           MESH PARAMETERS'
+    CHARACTER(LEN=rec_length)            :: section_name='MESH PARAMETERS'
     
     CLASS(mesh_data_type), INTENT(INOUT) :: this
     TYPE(argument_mesh_data_type)        :: argument_data
-    
-    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-    CHARACTER(LEN=rec_length)   :: string_default
-    LOGICAL :: okay
-    INTEGER :: rank, ierr, record_size, i_list, j
-  
-    !===Initialize data to zero and false by default
-    list = ""
-    record = ""
-    CALL MPI_COMM_RANK(PETSC_COMM_WORLD, rank, ierr)
 
-    !===Initializing record
-    CALL read_data_in_record_bis(record_size, record, section_name)
-   !  CALL read_data_in_record(record_size, record, begin_section, end_section)
+    !=== Reading all data file
+   CALL read_data_init_list(section_name)
 
-    !===Now we reorganize record
-    i_list = 1
-    
+!================
+!=== We now find the relevant information for the mesh
+!================
 
-    WRITE(string_default,*) TRIM(ADJUSTL(this%directory))
-    CALL compare_string(record, list, argument_data%directory, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%directory  
-    END IF
+    !=== directory
+    CALL read_data(argument_data%directory, this%directory)
     
-    WRITE(string_default,*) TRIM(ADJUSTL(this%file_name))
-    CALL compare_string(record, list, argument_data%file_name, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%file_name  
-    END IF
-    
-    WRITE(string_default,*) this%if_mesh_formatted
-    CALL compare_string(record, list, argument_data%if_mesh_formatted, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%if_mesh_formatted 
-    END IF
-    
-    WRITE(string_default,*) this%if_read_partition
-    CALL compare_string(record, list, argument_data%if_read_partition,string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%if_read_partition
-    END IF
-    
-    WRITE(string_default,*) this%type_fe
-    CALL compare_string(record, list, argument_data%type_fe, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%type_fe
-    END IF
-    
-    WRITE(string_default,*) this%nb_refinement
-    CALL compare_string(record, list, argument_data%nb_refinement, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%nb_refinement
-    END IF
-    
-    WRITE(string_default,*) this%nb_dom
-    CALL compare_string(record, list, argument_data%nb_dom, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%nb_dom
-    END IF
+    !=== mesh name
+    CALL read_data(argument_data%file_name, this%file_name)
 
+    !=== is mesh formatted
+    CALL read_data(argument_data%if_mesh_formatted, this%if_mesh_formatted)
+
+    !=== do we read metis partition
+    CALL read_data(argument_data%if_read_partition, this%if_read_partition)
+
+    !=== type of finite element
+    CALL read_data(argument_data%type_fe, this%type_fe)
+
+    !=== number of refinement steps
+    CALL read_data(argument_data%nb_refinement, this%nb_refinement)
+
+    !=== number of subdomains in the mesh
+    CALL read_data(argument_data%nb_dom, this%nb_dom)
+
+    !=== list of subdomains in the mesh (special treatment since it is an array)
     ALLOCATE(this%list_dom(this%nb_dom))
     this%list_dom(1) = 1
-    WRITE(string_default,*) this%list_dom
-    CALL compare_string(record, list, argument_data%list_dom, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ (list(i_list), *) this%list_dom
-    END IF
+    CALL read_data(argument_data%list_dom, this%list_dom)
 
-    !===Closing unit 
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size, section_name)
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+    CALL finalize_rewrite_data
+
   END SUBROUTINE read_mesh_data
 
 END MODULE mesh_data_module
