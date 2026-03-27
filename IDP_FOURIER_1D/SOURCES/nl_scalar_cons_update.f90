@@ -15,28 +15,32 @@ MODULE nl_scalar_cons_module
   END INTERFACE
 
   TYPE argument_nl_scalar_cons
-     CHARACTER(LEN=rec_length) :: CFL       = '=== CFL ? ==='
-     CHARACTER(LEN=rec_length) :: erk_sv    = '=== ERK ? ==='
+     CHARACTER(LEN=rec_length) :: CFL            = '=== CFL ? ==='
+     CHARACTER(LEN=rec_length) :: erk_sv         = '=== ERK ? ==='
+     CHARACTER(LEN=rec_length) :: method         = '=== Which method (viscous,high) ? ==='
      CHARACTER(LEN=rec_length) :: if_limiting    = '=== Limiting ? ==='
-     CHARACTER(LEN=rec_length) :: glob_min    = '=== Global min ? ==='
-     CHARACTER(LEN=rec_length) :: glob_max    = '=== Global max ? ==='
+     CHARACTER(LEN=rec_length) :: glob_min       = '=== Global min ? ==='
+     CHARACTER(LEN=rec_length) :: glob_max       = '=== Global max ? ==='
      CHARACTER(LEN=rec_length) :: bound_relaxing = '=== Bound relaxing method (avg,minmod) ? ==='
   END TYPE argument_nl_scalar_cons
 
   TYPE nl_scalar_cons_type
      REAL(KIND=8) :: CFL = 0.5d0, glob_min = -1.d20, glob_max = 1.d20
      LOGICAL :: if_limiting = .FALSE.
-     CHARACTER(LEN=6) :: bound_relaxing = 'minmod'
+     CHARACTER(LEN=40) :: bound_relaxing = 'minmod'
+     CHARACTER(LEN=40) :: method = 'viscous'
      INTEGER      :: erk_sv    = -21
      TYPE(BT), PUBLIC :: ERK
      INTEGER :: Nmax, Nmax_real
      REAL(KIND=8) :: time, dt, lumped, dx
      REAL(KIND=8), DIMENSION(:,:), POINTER :: un
+     REAL(KIND=8), DIMENSION(:,:), POINTER :: cij
      !===limiting
      INTEGER, DIMENSION(:,:), POINTER :: jj
      TYPE(mass_for_limiting) :: mass
      !===end limiting
      PROCEDURE(flux_template),       NOPASS, POINTER :: flux
+     PROCEDURE(flux_template),       NOPASS, POINTER :: flux_prime
      PROCEDURE(lambda_max_template), NOPASS, POINTER :: lambda_max
    CONTAINS
      PROCEDURE, PUBLIC :: init => init_nl_scalar_cons
@@ -46,19 +50,20 @@ MODULE nl_scalar_cons_module
   END TYPE nl_scalar_cons_type
 
 CONTAINS
-  SUBROUTINE init_nl_scalar_cons(this, flux, lambda_max, fourier_param, init_time)
+  SUBROUTINE init_nl_scalar_cons(this, flux, flux_prime, lambda_max, fourier_param, init_time)
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT) :: this
-    PROCEDURE(flux_template) :: flux
+    PROCEDURE(flux_template) :: flux, flux_prime
     PROCEDURE(lambda_max_template) :: lambda_max
     TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8) :: init_time
-    INTEGER :: Nmax, m, n
-  
+    INTEGER :: Nmax, m, n, i, j
+
     CALL this%READ()
     this%ERK%sv = this%erk_sv
     CALL this%ERK%init
     this%flux => flux
+    this%flux_prime => flux_prime
     this%lambda_max => lambda_max
     this%time = init_time
     Nmax = fourier_param%Nmax
@@ -81,6 +86,16 @@ CONTAINS
        END DO
     END DO
     this%jj(2,this%Nmax_real) = 1
+
+    !===cij
+    ALLOCATE(this%cij(this%Nmax_real,2))
+    this%cij = 0.d0
+    DO m = 1, this%Nmax_real !===loop over cells
+       i = this%jj(1,m)
+       j = this%jj(2,m)
+       this%cij(i,2) = 0.5d0
+       this%cij(j,1) = -0.5d0
+    END DO
   END SUBROUTINE init_nl_scalar_cons
 
   SUBROUTINE read_nl_scalar_cons(this)
@@ -118,7 +133,16 @@ CONTAINS
        READ(list(i_list),*) this%erk_sv
     END IF
 
-    !===Limiting parameters
+    !===Higher-order vs. low-order
+    WRITE(string_default,*) this%method
+    CALL compare_string(record, list, argument_data%method, string_default, okay, i_list, j)
+    IF (okay) THEN
+       READ(list(i_list),*) this%method
+    END IF
+
+    !=========================
+    !===Limiting parameters===
+    !=========================
     !===if_limiting
     WRITE(string_default,*) this%if_limiting
     CALL compare_string(record, list, argument_data%if_limiting, string_default, okay, i_list, j)
@@ -178,36 +202,51 @@ CONTAINS
     REAL(KIND=8), DIMENSION(this%Nmax_real) :: u_max, u_min
     REAL(KIND=8), DIMENSION(this%Nmax_real,1) :: r_in, r_out
     INTEGER  :: stage, l, it
+    !===Compute viscous flux, actual flux, and u_min, u_max (for limiting)
     CALL compute_dt_viscous_flux_min_max(this,stage,urk(:,:,stage-1),flux_rk(:,:,stage-1),&
          cs_diff,u_max,u_min)
-    !===u_max,u_min will be used to do the limiting (someday)
 
+    !===Low-order
+    IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
+       IF (this%erk_sv>0) THEN
+          cs_dflux=  this%ERK%C(stage)*cs_diff
+          urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
+       ELSE
+          cs_dflux= this%ERK%inc_C(stage)*cs_diff
+          urk(:,:,stage) = urk(:,:,stage-1)+this%dt*cs_dflux
+       END IF
+       RETURN
+    END IF
+    
+    !===Higher-order
+    IF (TRIM(ADJUSTL(this%method)).NE.'high') THEN
+       WRITE(*,*) 'Bug in one_step_ERK, wrong method', this%method
+       STOP
+    END IF
     cs_zz =0.d0
     DO l = 1, stage-1
        cs_zz =  cs_zz + this%ERK%MatRK(stage,l)*flux_rk(:,:,l)
     END DO
     CALL fourier_derivative(cs_zz,cs_dflux,fourier_param%Length)
 
-    !TEST
-    !cs_dflux=0.d0
-    !TEST
-    cs_dflux= -cs_dflux + this%ERK%C(stage)*cs_diff   /(this%Nmax)
-    urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
-    !TEST
-    !urk(:,:,stage) = urk(:,:,stage-1)+this%dt*this%ERK%inc_C(stage)*cs_diff
-    !TEST
+    IF (this%erk_sv>0) THEN
+       cs_dflux= -cs_dflux + this%ERK%C(stage)*cs_diff
+       urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
+    ELSE
+       cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
+       urk(:,:,stage) = urk(:,:,stage-1)+this%dt*cs_dflux
+    END IF
 
     !===Limiting
     IF (this%if_limiting) THEN
        !u_min = this%glob_min
-       !u_max = this%glob_max !3*ACOS(-1.d0) !1.d0
-       !write(*,*) minval(u_min)
+       !u_max = this%glob_max
        CALL Fourier_to_real(urk(:,:,stage),r_in(:,1))
-       DO it = 1, 4
+       DO it = 1, 1
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_min,&
                psi_min,zero_of_psi_min,r_in)
-       END DO
-       DO it = 1, 4
+       !END DO
+       !DO it = 1, 4
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_max,&
                psi_max,zero_of_psi_max,r_in)
        END DO
@@ -225,8 +264,8 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: r_out
     REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
-    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin
-    REAL(KIND = 8) :: ul, ur, cij, lambda
+    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta
+    REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
     INTEGER :: i, j, m, n, np
 
     CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
@@ -247,33 +286,94 @@ CONTAINS
 
     IF (stage==2) THEN
        this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL))
-    END IF 
-    
+    END IF
+
+    !===Only low-order 
+    IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
+       r_diff = 0.d0
+       cs_flux =0.d0
+       r_flux = this%flux(r_out)
+       DO m = 1, this%Nmax_real !===loop over cells
+          DO n = 1, 2
+             i = this%jj(n,m)
+             np = MOD(n,2)+1
+             j = this%jj(np,m)
+             r_diff(i) = r_diff(i) + dijL(i,np)*(r_out(j)-r_out(i))
+             r_diff(i) = r_diff(i) - this%cij(n,np)*(r_flux(j) - r_flux(i))
+          END DO
+       END DO
+       r_diff = r_diff/this%lumped
+       CALL real_to_fourier(r_diff,cs_diff)
+       RETURN
+    END IF
+
+    !===Higher-order
+!!$ !===Smootnes indicator
+!!$    alpha= 0.d0
+!!$    beta = 0.d0
+!!$    DO m = 1, this%Nmax_real
+!!$       DO n = 1, 2
+!!$          i = this%jj(n,m)
+!!$          DO np = 1, 2
+!!$             j = this%jj(np,m)
+!!$             alpha(i) = alpha(i) + abs(r_out(j)-r_out(i))**2
+!!$             beta(i) = beta(i) + abs(r_out(j))**2+ABS(r_out(i))**2
+!!$          END DO
+!!$       END DO
+!!$    END DO
+!!$    alpha = threshold((alpha/(beta+1.d-10)))
+
+
+    length=this%dx*this%Nmax_real
+    x = sum(r_out)/this%Nmax_real
+    !alpha = (r_out-1)*r_out
+    alpha= (r_out-x)**2/2
+    CALL real_to_fourier(alpha,cs_diff)
+    CALL fourier_derivative(cs_diff,cs_flux,length)
+    CALL Fourier_to_real(cs_flux,alpha) !<=derivative of entropy
+    beta = this%flux_prime(r_out) !<==f'
+    alpha = beta*alpha !<==multiply by f'
+
+    r_flux = this%flux(r_out)
+    CALL real_to_fourier(r_flux,cs_flux)
+    CALL fourier_derivative(cs_flux,cs_diff,length)
+    CALL Fourier_to_real(cs_diff,beta) !<=derivative of entropy
+    !beta = beta*(2*r_out-1)
+    beta= beta*(r_out-x) !multiply ny eta'
+
+    ul = SUM(ABS(alpha))/this%Nmax_real
+    alpha = min(abs(alpha - beta)/(ul),1.d0)
+    !write(*,*) MAXVAL(alpha)
+
     umax = r_out
     umin = r_out   
     r_diff = 0.d0
+    r_flux = this%flux(r_out)
     DO m = 1, this%Nmax_real !===loop over cells
        DO n = 1, 2
           i = this%jj(n,m)
           np = MOD(n,2)+1
           j = this%jj(np,m)
-          r_diff(i) = r_diff(i) + dijL(i,np)*(r_out(j)-r_out(i))
-          umax(i) = MAX(umax(i),r_out(i))
-          umin(i) = MIN(umin(i),r_out(i))
+          r_diff(i) = r_diff(i) + 0.5*(alpha(i)+alpha(j))*dijL(i,np)*(r_out(j)-r_out(i))
+
+          !uijbar = 0.5d0*((r_out(j)+r_out(i)) &
+          !     - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
+          !umax(i) = MAX(umax(i),uijbar)
+          !umin(i) = MIN(umin(i),uijbar)
+          umax(i) = MAX(umax(i),r_out(j))
+          umin(i) = MIN(umin(i),r_out(j))
        END DO
-       !TEST
-       !r_diff(i) = r_diff(i) - (sin(r_out(i+1))-sin(r_out(i-1)))/2
-       !TEST
     END DO
-    
-    IF (this%if_limiting) THEN
-       CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
-    END IF
-    
     r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
     r_flux = this%flux(r_out(1:this%Nmax_real))
     CALL real_to_fourier(r_flux,cs_flux)
+
+    IF (this%if_limiting) THEN
+       CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
+    END IF
+
+
 
   END SUBROUTINE compute_dt_viscous_flux_min_max
 
@@ -305,4 +405,25 @@ CONTAINS
     v = (psi_m-u0(1))/P(1)
   END FUNCTION zero_of_psi_max
 
+
+    FUNCTION threshold(x) RESULT(g)
+    IMPLICIT NONE
+    REAL(KIND=8), DIMENSION(:)  :: x
+    REAL(KIND=8), DIMENSION(SIZE(x))  :: z, t, zp, relu, f, g
+    !===Quadratic threshold
+!!$    REAL(KIND=8), PARAMETER :: x0 = 0.75d0, x1=SQRT(3.d0)*x0
+!!$    z = x-x0
+!!$    zp = x-2*x0
+!!$    relu = (zp+abs(zp))/2
+!!$    f = -z*(z**2-x1**2)  + relu*(z-x0)*(z+2*x0)
+!!$    g = (f + 2*x0**3)/(4*x0**3)
+!!$    !CALL plot_1d(x,g,'threshold1.plt') 
+!!$
+    !===Cubic threshold
+    REAL(KIND=8), PARAMETER :: x0 = 0.75d0 !x0=0.1 (cubic threshold)
+    relu = ((x-2*x0)+abs(x-2*x0))/2
+    t = x/(2*x0)
+    g = t**3*(10-15*t+6*t**2) - relu*(t-1)**2*(6*t**2+3*t+1)/(2*x0)
+    RETURN
+  END FUNCTION threshold
 END MODULE nl_scalar_cons_module
