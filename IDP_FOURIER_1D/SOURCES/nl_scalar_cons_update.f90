@@ -46,7 +46,6 @@ MODULE nl_scalar_cons_module
      PROCEDURE, PUBLIC :: init => init_nl_scalar_cons
      PROCEDURE, PUBLIC :: READ => read_nl_scalar_cons
      PROCEDURE, PUBLIC :: update
-     PROCEDURE, NOPASS, PRIVATE :: psi_min, zero_of_psi_min
   END TYPE nl_scalar_cons_type
 
 CONTAINS
@@ -203,18 +202,14 @@ CONTAINS
     REAL(KIND=8), DIMENSION(this%Nmax_real,1) :: r_in, r_out
     INTEGER  :: stage, l, it
     !===Compute viscous flux, actual flux, and u_min, u_max (for limiting)
-    CALL compute_dt_viscous_flux_min_max(this,stage,urk(:,:,stage-1),flux_rk(:,:,stage-1),&
-         cs_diff,u_max,u_min)
+    CALL compute_dt_viscous_flux_min_max(this,stage,&
+         urk(:,:,stage-1),urk(:,:,this%ERK%lp_of_l(stage)),&
+         flux_rk(:,:,stage-1),cs_diff,u_max,u_min)
 
     !===Low-order
     IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
-       IF (this%erk_sv>0) THEN
-          cs_dflux=  this%ERK%C(stage)*cs_diff
-          urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
-       ELSE
-          cs_dflux= this%ERK%inc_C(stage)*cs_diff
-          urk(:,:,stage) = urk(:,:,stage-1)+this%dt*cs_dflux
-       END IF
+       cs_dflux= this%ERK%inc_C(stage)*cs_diff
+       urk(:,:,stage) = urk(:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
        RETURN
     END IF
     
@@ -234,7 +229,7 @@ CONTAINS
        urk(:,:,stage) = urk(:,:,1)+this%dt*cs_dflux
     ELSE
        cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
-       urk(:,:,stage) = urk(:,:,stage-1)+this%dt*cs_dflux
+       urk(:,:,stage) = urk(:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
     END IF
 
     !===Limiting
@@ -252,7 +247,95 @@ CONTAINS
     END IF
   END SUBROUTINE one_step_ERK
 
-  SUBROUTINE compute_dt_viscous_flux_min_max(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
+  SUBROUTINE compute_dt_viscous_flux_min_max(this,stage,urk_in,u_visc,cs_flux,cs_diff,umax,umin)
+    USE fft_1D
+    IMPLICIT NONE
+    CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
+    INTEGER, INTENT(IN) :: stage
+    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in, u_visc
+    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
+    REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: r_out
+    REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
+    REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
+    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta, eta, etap
+    REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
+    INTEGER :: i, j, m, n, np
+
+    !CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
+    CALL Fourier_to_real(u_visc,r_out(1:this%Nmax_real))
+    cij =0.5d0
+    diag_dijL=0.d0
+    DO m = 1, this%Nmax_real !===loop over cells
+       i = this%jj(1,m)
+       j = this%jj(2,m) 
+       ul = r_out(i)
+       ur = r_out(j)
+       lambda = this%lambda_max(ul,ur)
+       dijL(i,2) = cij*lambda
+       dijL(j,1) = cij*lambda
+       diag_dijL(i) = diag_dijL(i) - dijL(i,2)
+       diag_dijL(j) = diag_dijL(j) - dijL(j,1)
+    END DO
+
+    IF (stage==2) THEN
+       this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL))
+    END IF
+
+    !===Only low-order 
+    IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
+       r_diff = 0.d0
+       cs_flux =0.d0
+       r_flux = this%flux(r_out)
+       DO m = 1, this%Nmax_real !===loop over cells
+          DO n = 1, 2
+             i = this%jj(n,m)
+             np = MOD(n,2)+1
+             j = this%jj(np,m)
+             r_diff(i) = r_diff(i) + dijL(i,np)*(r_out(j)-r_out(i))
+             r_diff(i) = r_diff(i) - this%cij(n,np)*(r_flux(j) - r_flux(i))
+          END DO
+       END DO
+       r_diff = r_diff/this%lumped
+       CALL real_to_fourier(r_diff,cs_diff)
+       RETURN
+    END IF
+    
+    !===High-order
+    CALL entropy_commutator(this,r_out,alpha)
+
+    IF (this%ERK%lp_of_l(stage).NE.stage-1) THEN
+       CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
+    END IF
+    umax = r_out
+    umin = r_out   
+    r_diff = 0.d0
+    r_flux = this%flux(r_out)
+    DO m = 1, this%Nmax_real !===loop over cells
+       DO n = 1, 2
+          i = this%jj(n,m)
+          np = MOD(n,2)+1
+          j = this%jj(np,m)
+          r_diff(i) = r_diff(i) + 0.5*(alpha(i)+alpha(j))*dijL(i,np)*(r_out(j)-r_out(i))
+
+          uijbar = 0.5d0*((r_out(j)+r_out(i)) &
+               - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
+          umax(i) = MAX(umax(i),uijbar)
+          umin(i) = MIN(umin(i),uijbar)
+          !umax(i) = MAX(umax(i),r_out(j))
+          !umin(i) = MIN(umin(i),r_out(j))
+       END DO
+    END DO
+    r_diff = r_diff/this%lumped
+    CALL real_to_fourier(r_diff,cs_diff)
+    r_flux = this%flux(r_out(1:this%Nmax_real))
+    CALL real_to_fourier(r_flux,cs_flux)
+
+    IF (this%if_limiting) THEN
+       CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
+    END IF
+  END SUBROUTINE compute_dt_viscous_flux_min_max
+
+    SUBROUTINE compute_dt_viscous_flux_min_max_copy(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
     USE fft_1D
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
@@ -334,7 +417,7 @@ CONTAINS
     IF (this%if_limiting) THEN
        CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
     END IF
-  END SUBROUTINE compute_dt_viscous_flux_min_max
+  END SUBROUTINE compute_dt_viscous_flux_min_max_copy
 
   FUNCTION psi_min(x,psi_m) RESULT(v)
     IMPLICIT NONE
