@@ -245,8 +245,6 @@ CONTAINS
        DO it = 1, 1
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_min,&
                psi_min,zero_of_psi_min,r_in)
-       !END DO
-       !DO it = 1, 4
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_max,&
                psi_max,zero_of_psi_max,r_in)
        END DO
@@ -264,7 +262,7 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: r_out
     REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
-    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta
+    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta, eta, etap
     REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
     INTEGER :: i, j, m, n, np
 
@@ -307,43 +305,7 @@ CONTAINS
        RETURN
     END IF
 
-    !===Higher-order
-!!$ !===Smootnes indicator
-!!$    alpha= 0.d0
-!!$    beta = 0.d0
-!!$    DO m = 1, this%Nmax_real
-!!$       DO n = 1, 2
-!!$          i = this%jj(n,m)
-!!$          DO np = 1, 2
-!!$             j = this%jj(np,m)
-!!$             alpha(i) = alpha(i) + abs(r_out(j)-r_out(i))**2
-!!$             beta(i) = beta(i) + abs(r_out(j))**2+ABS(r_out(i))**2
-!!$          END DO
-!!$       END DO
-!!$    END DO
-!!$    alpha = threshold((alpha/(beta+1.d-10)))
-
-
-    length=this%dx*this%Nmax_real
-    x = sum(r_out)/this%Nmax_real
-    !alpha = (r_out-1)*r_out
-    alpha= (r_out-x)**2/2
-    CALL real_to_fourier(alpha,cs_diff)
-    CALL fourier_derivative(cs_diff,cs_flux,length)
-    CALL Fourier_to_real(cs_flux,alpha) !<=derivative of entropy
-    beta = this%flux_prime(r_out) !<==f'
-    alpha = beta*alpha !<==multiply by f'
-
-    r_flux = this%flux(r_out)
-    CALL real_to_fourier(r_flux,cs_flux)
-    CALL fourier_derivative(cs_flux,cs_diff,length)
-    CALL Fourier_to_real(cs_diff,beta) !<=derivative of entropy
-    !beta = beta*(2*r_out-1)
-    beta= beta*(r_out-x) !multiply ny eta'
-
-    ul = SUM(ABS(alpha))/this%Nmax_real
-    alpha = min(abs(alpha - beta)/(ul),1.d0)
-    !write(*,*) MAXVAL(alpha)
+    CALL entropy_commutator(this,r_out,alpha)
 
     umax = r_out
     umin = r_out   
@@ -356,12 +318,12 @@ CONTAINS
           j = this%jj(np,m)
           r_diff(i) = r_diff(i) + 0.5*(alpha(i)+alpha(j))*dijL(i,np)*(r_out(j)-r_out(i))
 
-          !uijbar = 0.5d0*((r_out(j)+r_out(i)) &
-          !     - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
-          !umax(i) = MAX(umax(i),uijbar)
-          !umin(i) = MIN(umin(i),uijbar)
-          umax(i) = MAX(umax(i),r_out(j))
-          umin(i) = MIN(umin(i),r_out(j))
+          uijbar = 0.5d0*((r_out(j)+r_out(i)) &
+               - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
+          umax(i) = MAX(umax(i),uijbar)
+          umin(i) = MIN(umin(i),uijbar)
+          !umax(i) = MAX(umax(i),r_out(j))
+          !umin(i) = MIN(umin(i),r_out(j))
        END DO
     END DO
     r_diff = r_diff/this%lumped
@@ -372,9 +334,6 @@ CONTAINS
     IF (this%if_limiting) THEN
        CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
     END IF
-
-
-
   END SUBROUTINE compute_dt_viscous_flux_min_max
 
   FUNCTION psi_min(x,psi_m) RESULT(v)
@@ -405,7 +364,37 @@ CONTAINS
     v = (psi_m-u0(1))/P(1)
   END FUNCTION zero_of_psi_max
 
+  SUBROUTINE entropy_commutator(this,r_out,alpha)
+    USE fft_1D
+    IMPLICIT NONE
+    CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
+    REAL(KIND = 8), DIMENSION(this%Nmax_real):: r_out
+    REAL(KIND = 8), DIMENSION(this%Nmax,2)   :: cs_diff, cs_flux
+    REAL(KIND = 8), DIMENSION(this%Nmax_real):: alpha, beta, eta, etap, r_flux
+    REAL(KIND = 8) :: Length, x, avg
+    INTEGER :: i
+    !===Compute entropy commutator (eta'*dx(f(u))-f'(u)*dx(eta(u)))
+    length=this%dx*this%Nmax_real
+    x = sum(r_out)/this%Nmax_real
+    eta = (r_out-x)**2/2
+    etap = (r_out-x)
+    CALL real_to_fourier(eta,cs_diff)
+    CALL fourier_derivative(cs_diff,cs_flux,length)
+    CALL Fourier_to_real(cs_flux,alpha) !<==derivative of entropy
+    alpha = alpha*this%flux_prime(r_out) !<==multiply by f'
 
+    r_flux = this%flux(r_out)
+    CALL real_to_fourier(r_flux,cs_flux)
+    CALL fourier_derivative(cs_flux,cs_diff,length)
+    CALL Fourier_to_real(cs_diff,beta) !<=derivative of flux
+    beta= beta*etap !<==multiply by eta'
+
+    avg = SUM(ABS(alpha))/this%Nmax_real
+    alpha = min(abs(alpha - beta)/avg,1.d0)
+    alpha = threshold(alpha)
+
+  END SUBROUTINE entropy_commutator
+  
     FUNCTION threshold(x) RESULT(g)
     IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:)  :: x

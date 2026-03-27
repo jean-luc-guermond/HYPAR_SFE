@@ -20,6 +20,7 @@ PROGRAM linear_transport
      !write(*, *) n, nl_scalar_cons%time, nl_scalar_cons%dt
   END DO
   tps = user_time() - tps
+  WRITE(*,*) ' Time per time step per dof times', tps/(fourier_param%Nmax_real*n*nl_scalar_cons%ERK%s), tps, n
   CALL errors(nl_scalar_cons)
 CONTAINS
   SUBROUTINE errors(nl_scalar_cons)

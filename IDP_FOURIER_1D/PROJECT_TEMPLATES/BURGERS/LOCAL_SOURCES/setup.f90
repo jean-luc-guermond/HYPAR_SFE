@@ -1,9 +1,4 @@
 MODULE setup_module
-  !TYPE setup_type
-  ! CONTAINS
-  !    PROCEDURE, PUBLIC, NOPASS :: flux=>linear_flux
-  !   PROCEDURE, PUBLIC, NOPASS :: lambda_max=>linear_lambda_max
-  !END TYPE setup_type
 CONTAINS
 
   FUNCTION flux(u) RESULT(vv)
@@ -12,7 +7,14 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(SIZE(u)) :: vv
     vv = u**2/2
   END FUNCTION  flux
-
+  
+  FUNCTION flux_prime(u) RESULT(vv)
+    IMPLICIT NONE
+    REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: u
+    REAL(KIND = 8), DIMENSION(SIZE(u)) :: vv
+    vv = u
+  END FUNCTION  flux_prime
+  
   FUNCTION lambda_max(ul,ur) RESULT(vv)
     IMPLICIT NONE
     REAL(KIND = 8), INTENT(IN) :: ul, ur
@@ -24,7 +26,7 @@ CONTAINS
     END IF
   END FUNCTION lambda_max
 
-  FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
+  FUNCTION exact_sol_step_R1(fourier_param,time) RESULT(vv)
     USE fourier_param_module
     IMPLICIT NONE
     TYPE(fourier_param_type) :: fourier_param
@@ -32,9 +34,9 @@ CONTAINS
     REAL(KIND=8) :: time
     REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
     vv = SIN(2*pi*Fourier_param%rr/Fourier_param%Length)
-  END FUNCTION exact_sol_step_R
+  END FUNCTION exact_sol_step_R1
 
-  FUNCTION exact_sol_step_R_1(fourier_param,time) RESULT(vv)
+  FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
     USE fourier_param_module
     IMPLICIT NONE
     TYPE(fourier_param_type) :: fourier_param
@@ -49,7 +51,7 @@ CONTAINS
           vv(i) = (Fourier_param%rr(i)-Fourier_param%Length)/(1+time)
        END IF
     END DO
-  END FUNCTION exact_sol_step_R_1
+  END FUNCTION exact_sol_step_R
 
   FUNCTION exact_sol_F(fourier_param,time,exact_sol_R) RESULT(cs_v)
     USE fourier_param_module
