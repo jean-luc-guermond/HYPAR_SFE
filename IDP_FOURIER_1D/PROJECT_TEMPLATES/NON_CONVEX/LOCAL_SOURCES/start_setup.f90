@@ -29,7 +29,7 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     CALL fourier_param%init
     CALL setup_data%init
-    CALL nl_scalar_cons%init(flux,lambda_max,fourier_param,init_time)
+    CALL nl_scalar_cons%init(flux,flux_prime,lambda_max,fourier_param,init_time)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

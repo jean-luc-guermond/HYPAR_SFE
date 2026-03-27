@@ -1,9 +1,4 @@
 MODULE setup_module
-  !TYPE setup_type
-  ! CONTAINS
-  !    PROCEDURE, PUBLIC, NOPASS :: flux=>linear_flux
-  !   PROCEDURE, PUBLIC, NOPASS :: lambda_max=>linear_lambda_max
-  !END TYPE setup_type
 CONTAINS
 
   FUNCTION flux(u) RESULT(vv)
@@ -12,6 +7,13 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(SIZE(u)) :: vv
     vv = sin(u)
   END FUNCTION  flux
+
+  FUNCTION flux_prime(u) RESULT(vv)
+    IMPLICIT NONE
+    REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: u
+    REAL(KIND = 8), DIMENSION(SIZE(u)) :: vv
+    vv = cos(u)
+  END FUNCTION  flux_prime
 
   FUNCTION lambda_max(ul,ur) RESULT(vv)
     IMPLICIT NONE

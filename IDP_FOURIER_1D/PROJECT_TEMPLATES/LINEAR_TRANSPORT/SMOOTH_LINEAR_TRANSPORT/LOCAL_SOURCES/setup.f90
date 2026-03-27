@@ -1,9 +1,4 @@
 MODULE setup_module
-  !TYPE setup_type
-  ! CONTAINS
-  !    PROCEDURE, PUBLIC, NOPASS :: flux=>linear_flux
-  !   PROCEDURE, PUBLIC, NOPASS :: lambda_max=>linear_lambda_max
-  !END TYPE setup_type
 CONTAINS
 
   FUNCTION flux(u) RESULT(vv)

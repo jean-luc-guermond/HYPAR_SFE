@@ -29,8 +29,22 @@ CONTAINS
     type(nl_scalar_cons_type) :: nl_scalar_cons
     REAL(KIND = 8), DIMENSION(fourier_param%Nmax_real) :: r_un
     REAL(KIND=8) :: error, norm
-    
+    REAL(KIND=8) :: time, xi
+    REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0), a=1.d0, b=0.d0
+    INTEGER :: i
+    IF (nl_scalar_cons%time>0.36) RETURN
+
     CALL fourier_to_real(nl_scalar_cons%un,r_un)
+    time = nl_scalar_cons%time
+    DO i = 1, fourier_param%Nmax_real
+       xi = Fourier_param%rr(i)-Fourier_param%Length/2
+       IF (xi<time*COS((2+a)*pi)) THEN
+          r_un(i)=3*pi
+       ELSE IF (time*COS(b*pi)<xi) THEN
+          r_un(i)=0.d0
+       END IF
+    END DO
+    
     CALL fourier_param%plot_1d(r_un, 'u.plt')
     CALL fourier_param%plot_1d(exact_sol_step_R(fourier_param, nl_scalar_cons%time), 'ue.plt')
     error = SUM(ABS(r_un-exact_sol_step_R(fourier_param, nl_scalar_cons%time)))

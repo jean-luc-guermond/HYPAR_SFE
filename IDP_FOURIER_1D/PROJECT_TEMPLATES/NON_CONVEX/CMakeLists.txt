@@ -5,7 +5,7 @@ MESSAGE(STATUS "")
 include(variables.cmake)
 
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.31)
 
 # Project name and version
 project(euker)
