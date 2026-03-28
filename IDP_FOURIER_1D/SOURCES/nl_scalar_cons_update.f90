@@ -262,7 +262,7 @@ CONTAINS
     INTEGER :: i, j, m, n, np
 
     !CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
-    CALL Fourier_to_real(u_visc,r_out(1:this%Nmax_real))
+    CALL Fourier_to_real(u_visc,r_out)
     cij =0.5d0
     diag_dijL=0.d0
     DO m = 1, this%Nmax_real !===loop over cells
@@ -284,7 +284,6 @@ CONTAINS
     !===Only low-order 
     IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
        r_diff = 0.d0
-       cs_flux =0.d0
        r_flux = this%flux(r_out)
        DO m = 1, this%Nmax_real !===loop over cells
           DO n = 1, 2
@@ -334,90 +333,6 @@ CONTAINS
        CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
     END IF
   END SUBROUTINE compute_dt_viscous_flux_min_max
-
-    SUBROUTINE compute_dt_viscous_flux_min_max_copy(this,stage,urk_in,cs_flux,cs_diff,umax,umin)
-    USE fft_1D
-    IMPLICIT NONE
-    CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
-    INTEGER, INTENT(IN) :: stage
-    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in
-    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
-    REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: r_out
-    REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
-    REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
-    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta, eta, etap
-    REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
-    INTEGER :: i, j, m, n, np
-
-    CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
-
-    cij =0.5d0
-    diag_dijL=0.d0
-    DO m = 1, this%Nmax_real !===loop over cells
-       i = this%jj(1,m)
-       j = this%jj(2,m) 
-       ul = r_out(i)
-       ur = r_out(j)
-       lambda = this%lambda_max(ul,ur)
-       dijL(i,2) = cij*lambda
-       dijL(j,1) = cij*lambda
-       diag_dijL(i) = diag_dijL(i) - dijL(i,2)
-       diag_dijL(j) = diag_dijL(j) - dijL(j,1)
-    END DO
-
-    IF (stage==2) THEN
-       this%dt = this%ERK%s*0.5d0*this%CFL*this%lumped/MAXVAL(ABS(diag_dijL))
-    END IF
-
-    !===Only low-order 
-    IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
-       r_diff = 0.d0
-       cs_flux =0.d0
-       r_flux = this%flux(r_out)
-       DO m = 1, this%Nmax_real !===loop over cells
-          DO n = 1, 2
-             i = this%jj(n,m)
-             np = MOD(n,2)+1
-             j = this%jj(np,m)
-             r_diff(i) = r_diff(i) + dijL(i,np)*(r_out(j)-r_out(i))
-             r_diff(i) = r_diff(i) - this%cij(n,np)*(r_flux(j) - r_flux(i))
-          END DO
-       END DO
-       r_diff = r_diff/this%lumped
-       CALL real_to_fourier(r_diff,cs_diff)
-       RETURN
-    END IF
-
-    CALL entropy_commutator(this,r_out,alpha)
-
-    umax = r_out
-    umin = r_out   
-    r_diff = 0.d0
-    r_flux = this%flux(r_out)
-    DO m = 1, this%Nmax_real !===loop over cells
-       DO n = 1, 2
-          i = this%jj(n,m)
-          np = MOD(n,2)+1
-          j = this%jj(np,m)
-          r_diff(i) = r_diff(i) + 0.5*(alpha(i)+alpha(j))*dijL(i,np)*(r_out(j)-r_out(i))
-
-          uijbar = 0.5d0*((r_out(j)+r_out(i)) &
-               - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
-          umax(i) = MAX(umax(i),uijbar)
-          umin(i) = MIN(umin(i),uijbar)
-          !umax(i) = MAX(umax(i),r_out(j))
-          !umin(i) = MIN(umin(i),r_out(j))
-       END DO
-    END DO
-    r_diff = r_diff/this%lumped
-    CALL real_to_fourier(r_diff,cs_diff)
-    r_flux = this%flux(r_out(1:this%Nmax_real))
-    CALL real_to_fourier(r_flux,cs_flux)
-
-    IF (this%if_limiting) THEN
-       CALL relax_min_and_max(this%bound_relaxing,this%glob_min,this%glob_max,this%jj,r_out,umax,umin)
-    END IF
-  END SUBROUTINE compute_dt_viscous_flux_min_max_copy
 
   FUNCTION psi_min(x,psi_m) RESULT(v)
     IMPLICIT NONE
