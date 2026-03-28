@@ -252,8 +252,8 @@ CONTAINS
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
     INTEGER, INTENT(IN) :: stage
-    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in, u_visc
-    REAL(KIND=8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
+    REAL(KIND = 8), DIMENSION(this%Nmax,2), INTENT(IN) :: urk_in, u_visc
+    REAL(KIND = 8), DIMENSION(this%Nmax,2), INTENT(OUT) :: cs_diff, cs_flux
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: r_out
     REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
@@ -261,7 +261,6 @@ CONTAINS
     REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
     INTEGER :: i, j, m, n, np
 
-    !CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
     CALL Fourier_to_real(u_visc,r_out)
     cij =0.5d0
     diag_dijL=0.d0
@@ -303,7 +302,7 @@ CONTAINS
     CALL entropy_commutator(this,r_out,alpha)
 
     IF (this%ERK%lp_of_l(stage).NE.stage-1) THEN
-       CALL Fourier_to_real(urk_in,r_out(1:this%Nmax_real))
+       CALL Fourier_to_real(urk_in,r_out)
     END IF
     umax = r_out
     umin = r_out   
@@ -315,7 +314,6 @@ CONTAINS
           np = MOD(n,2)+1
           j = this%jj(np,m)
           r_diff(i) = r_diff(i) + 0.5*(alpha(i)+alpha(j))*dijL(i,np)*(r_out(j)-r_out(i))
-
           uijbar = 0.5d0*((r_out(j)+r_out(i)) &
                - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
           umax(i) = MAX(umax(i),uijbar)
@@ -326,7 +324,7 @@ CONTAINS
     END DO
     r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
-    r_flux = this%flux(r_out(1:this%Nmax_real))
+    r_flux = this%flux(r_out(1:this%Nmax_real)) !<-------FIX ME: remove this line
     CALL real_to_fourier(r_flux,cs_flux)
 
     IF (this%if_limiting) THEN

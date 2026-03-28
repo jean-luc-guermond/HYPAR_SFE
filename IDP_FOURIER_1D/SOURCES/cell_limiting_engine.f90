@@ -312,8 +312,8 @@ CONTAINS
        WRITE(*,*) ' BUG in relax', TRIM(ADJUSTL(bound_relaxing))
        STOP
     END SELECT
-    maxn = maxn + 4*ABS(denom)
-    minn = minn - 4*ABS(denom)
+    maxn = maxn + 4.*ABS(denom)
+    minn = minn - 4.*ABS(denom)
     maxn = MIN(glob_max,maxn)
     minn = MAX(glob_min,minn)
   END SUBROUTINE RELAX_MIN_AND_MAX
