@@ -97,9 +97,12 @@ CONTAINS
       !===CFL number
       !this%CFL = 0.5d0
 
-      CALL this%read_euler_data
+      CALL this%read_euler_data("EULER PARAMETERS")
+      !=== new Butcher module
       this%ERK%sv = this%erk_sv
-      CALL this%ERK%init
+      CALL this%ERK%init()
+      !CALL this%ERK%init(this%erk_sv)
+      !=== new Butcher module
       CALL this%euler_bc%construct_euler_bc(this%mesh)
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
       
@@ -118,76 +121,46 @@ CONTAINS
       
    END SUBROUTINE init_euler
 
-   SUBROUTINE read_euler_data(this)
+   SUBROUTINE read_euler_data(this, section_name)
       USE character_strings
       IMPLICIT NONE
-      INTEGER, PARAMETER :: in_unit = 21
-      INTEGER, PARAMETER :: list_length=200, length_begin=28, length_end=26
-      CHARACTER(LEN=length_begin), PARAMETER :: begin_section ='%%% BEGIN SECTION: EULER %%%' 
-      CHARACTER(LEN=length_end),   PARAMETER :: end_section   ='%%% END SECTION: EULER %%%'
-      CHARACTER(LEN=length_begin), PARAMETER :: char_begin ='%%%%%%%%%%%%%%%%%%%%%%%%%%%%' 
-      CHARACTER(LEN=length_end),   PARAMETER :: char_end   ='%%%%%%%%%%%%%%%%%%%%%%%%%%'
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
 
       CLASS(euler_type), INTENT(INOUT) :: this
       TYPE(argument_euler_type)        :: argument_data
 
-      CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-      CHARACTER(LEN=rec_length)                         :: string_default
-      LOGICAL :: okay
-      INTEGER :: rank, record_size, i_list, j
 
+    !===Initialize data arguments (depends on the name)
 
-      !===Initialize data to zero and false by default
-      rank = this%mesh%rank
-      list = ""
-      record = ""
       argument_data%eos_param = '===' // trim(adjustl(this%name)) // ': b_covolume ?==='
       argument_data%erk_sv = '===' // trim(adjustl(this%name)) // ': ERK ?==='
 
-      !===Initializing record
-      CALL read_data_in_record(record_size, record, begin_section, end_section)
-      !===Now we reorganize record
-
-      i_list = 1
-      WRITE(list(i_list), '(A)') REPEAT('|',70)
-      i_list = i_list + 1
-      list(i_list) = char_begin
-      i_list = i_list + 1
-      list(i_list) = begin_section
-      i_list = i_list + 1
-      list(i_list) = char_begin
-
-      !===CFL
-      WRITE(string_default,*) this%CFL
-      CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
-      IF (okay) THEN
-         READ(list(i_list),*) this%CFL
+!================
+!=== MANDATORY Reading all data file
+!================
+      IF (PRESENT(section_name)) THEN
+         CALL read_data_init_list(section_name)
+      ELSE
+         CALL read_data_init_list()
       END IF
+
+!================
+!=== We now find the relevant information for this specific Euler data
+!================
+      !===CFL
+    CALL read_data(argument_data%CFL, this%CFL)
 
       !===b_covolume
-      WRITE(string_default,*) this%eos_param(1)
-      CALL compare_string(record, list, argument_data%eos_param, string_default, okay, i_list, j)
-      IF (okay) THEN
-         READ(list(i_list),*) this%eos_param(1)
-      END IF
+    CALL read_data(argument_data%eos_param, this%eos_param(1))
 
       !===ERK
-      WRITE(string_default,*) this%erk_sv
-      CALL compare_string(record, list, argument_data%erk_sv, string_default, okay, i_list, j)
-      IF (okay) THEN
-         READ(list(i_list),*) this%erk_sv
-      END IF
+    CALL read_data(argument_data%erk_sv, this%erk_sv)
+   
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
 
-      i_list = i_list + 1
-      list(i_list) = char_end
-      i_list = i_list + 1
-      list(i_list) = end_section
-      i_list = i_list + 1
-      list(i_list) = char_end
-      i_list = i_list + 1
-
-      !===Closing unit
-      CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
    END SUBROUTINE read_euler_data
 
    SUBROUTINE update(this, un)

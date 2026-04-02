@@ -4,114 +4,83 @@ MODULE dirichlet_type_module
    INTEGER, PARAMETER, PRIVATE :: rec_length=200
 
    TYPE argument_dirichlet_bc
-      CHARACTER(200) :: nb_sides
-      CHARACTER(200) :: list_sides
+      CHARACTER(rec_length) :: nb_sides
+      CHARACTER(rec_length) :: list_sides
    END TYPE argument_dirichlet_bc
 
    TYPE dirichlet_bc
-      CHARACTER(100)                 :: name
+      CHARACTER(rec_length)          :: name
       INTEGER                        :: nb_sides   = 0
       INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
     CONTAINS
       PROCEDURE, PUBLIC :: set => dirichlet_nodes_local !===With ghosted nodes
-      PROCEDURE, PRIVATE :: read_dirichlet_data
+      PROCEDURE, PUBLIC :: read => read_dirichlet_data
+      PROCEDURE, PUBLIC :: init => init_dirichlet_data
       !!PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel !===Without ghosted nodes
    END type dirichlet_bc
 CONTAINS
 
-  SUBROUTINE read_dirichlet_data(this)
-    use petsc
+   SUBROUTINE init_dirichlet_data(this, section_name)
+      CLASS(dirichlet_bc), INTENT(INOUT) :: this
+      CHARACTER(LEN=rec_length), OPTIONAL, INTENT(IN) :: section_name
+      IF (PRESENT(section_name)) THEN
+         CALL this%read(section_name)
+      ELSE
+         CALL this%read
+      END IF
+   END SUBROUTINE init_dirichlet_data
+
+  SUBROUTINE read_dirichlet_data(this, section_name)
     USE character_strings
     IMPLICIT NONE
-    CLASS(dirichlet_bc) :: this
 
-    INTEGER, PARAMETER :: in_unit = 21, list_length=200, length_template_begin=32, length_template_end=30
-    CHARACTER(LEN=length_template_begin), PARAMETER :: template_begin_section = '%%% BEGIN SECTION: DIRICHLET BC '  
-    CHARACTER(LEN=length_template_end),   PARAMETER :: template_end_section   = '%%% END SECTION: DIRICHLET BC '
-    CHARACTER(LEN=4),                     PARAMETER :: template_tip             = ' %%%'
-    CHARACTER(LEN=:), ALLOCATABLE   :: begin_section, end_section, char_begin, char_end
-    INTEGER            :: length_begin, length_end, length_name
-    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-    CHARACTER(LEN=rec_length)       :: string_default
-    LOGICAL :: okay
-    INTEGER :: rank, ierr, record_size, i_list, j
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
 
-    TYPE(argument_dirichlet_bc)        :: argument_data
+    CLASS(dirichlet_bc), INTENT(INOUT)              :: this
+    TYPE(argument_dirichlet_bc)                     :: argument_data
 
-    !===Initialize data to zero and false by default
-    list = ""
-    record = ""
-    CALL MPI_Comm_rank(petsc_comm_world, rank, ierr)
-
+    !===Initialize data arguments (depends on the name of the BC)
     argument_data%nb_sides = '=== How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '? ==='
     argument_data%list_sides = '=== List of boundaries for bcs on ' // trim(adjustl(this%name)) // ' ==='
 
-    !=== dynamic BEGIN/END in data
-    length_name = LEN(trim(adjustl(this%name)))
-    length_begin = length_template_begin + length_name + len(template_tip) 
-    length_end   = length_template_end   + length_name + len(template_tip)
-
-    ALLOCATE(CHARACTER(LEN=length_begin) :: begin_section)
-    ALLOCATE(CHARACTER(LEN=length_end  ) :: end_section)
-    ALLOCATE(CHARACTER(LEN=length_begin) :: char_begin)
-    ALLOCATE(CHARACTER(LEN=length_end  ) :: char_end)
-
-    WRITE(char_begin,'(A)') REPEAT("%", length_begin)
-    WRITE(char_end,'(A)') REPEAT("%", length_end)
-
-    begin_section = template_begin_section // trim(adjustl(this%name)) // template_tip
-    end_section = template_end_section // trim(adjustl(this%name)) // template_tip
-
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
-
-    !===Now we reorganize record
-    i_list = 1
-    WRITE(list(i_list), '(A)') REPEAT('|',70)
-    i_list = i_list + 1
-    list(i_list) = char_begin
-    i_list = i_list + 1
-    list(i_list) = begin_section
-    i_list = i_list + 1
-    list(i_list) = char_begin
-
-
-    WRITE(string_default,*) this%nb_sides
-    CALL compare_string(record, list, argument_data%nb_sides, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%nb_sides  
-    END IF
-
-    ALLOCATE(this%list_sides(this%nb_sides))
-    WRITE(string_default,*) this%list_sides
-    CALL compare_string(record, list, argument_data%list_sides, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%list_sides
+!================
+!=== MANDATORY Reading all data file
+!================
+    IF (PRESENT(section_name)) THEN
+       CALL read_data_init_list(section_name)
     ELSE
-       list(i_list) = "0" 
+       CALL read_data_init_list()
     END IF
 
-    i_list = i_list+1
-    list(i_list) = char_end
-    i_list = i_list+1
-    list(i_list) = end_section
-    i_list = i_list+1
-    list(i_list) = char_end
-    i_list = i_list+1
+!================
+!=== We now find the relevant information for this specific DIRICHLET BC
+!================
 
-    !===Closing unit
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)!!, .TRUE.)
+    !=== number of sides where to impose the DIRICHLET BC 
+    CALL read_data(argument_data%nb_sides, this%nb_sides)
 
-    DEALLOCATE(begin_section)
-    DEALLOCATE(end_section)
+    !=== list of sides where to impose the DIRICHLET BC (special treatment if the list is empty)
+    ALLOCATE(this%list_sides(this%nb_sides))
+    IF (this%nb_sides>0) THEN
+      this%list_sides = 0
+      CALL read_data(argument_data%list_sides, this%list_sides)
+    END IF
+   
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+    CALL finalize_rewrite_data
+
   END SUBROUTINE read_dirichlet_data
 
-  SUBROUTINE dirichlet_nodes_local(this, mesh, name)
+  SUBROUTINE dirichlet_nodes_local(this, mesh, name, section_name)
     USE def_type_mesh
     IMPLICIT NONE
     CLASS(dirichlet_bc) :: this
     TYPE(mesh_type) :: mesh
     CHARACTER(*) :: name
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
     LOGICAL, DIMENSION(:), POINTER :: virgin
     INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
     LOGICAL :: test
@@ -119,7 +88,12 @@ CONTAINS
     this%name = name
 
     IF (this%name.NE.'whole boundary') THEN
-       CALL this%read_dirichlet_data
+         IF (PRESENT(section_name)) THEN
+            CALL this%read(section_name)
+         ELSE
+            CALL this%read
+         END IF
+      !  CALL this%read_dirichlet_data
     ELSE
        n = MINVAL(mesh%sides)
        p = MAXVAL(mesh%sides)
@@ -189,12 +163,13 @@ CONTAINS
     DEALLOCATE(virgin)
   END SUBROUTINE dirichlet_nodes_local
 
-  SUBROUTINE dirichlet_nodes_parallel(this, mesh, name)
+  SUBROUTINE dirichlet_nodes_parallel(this, mesh, name, section_name)
     USE def_type_mesh
     IMPLICIT NONE
     CLASS(dirichlet_bc) :: this
     TYPE(mesh_type) :: mesh
     CHARACTER(*) :: name
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
     LOGICAL, DIMENSION(:), POINTER :: virgin
     INTEGER :: nn, ms, n, p, n_D, nws, n_D_me, k
     LOGICAL :: test
@@ -202,7 +177,12 @@ CONTAINS
     this%name = name
 
     IF (this%name.NE.'whole boundary') THEN
-       CALL this%read_dirichlet_data
+      IF (PRESENT(section_name)) THEN
+         CALL this%read(section_name)
+      ELSE  
+          CALL this%read
+      END IF
+      !  CALL this%read_dirichlet_data
     ELSE
        n = MINVAL(mesh%sides)
        p = MAXVAL(mesh%sides)

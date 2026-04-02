@@ -23,7 +23,7 @@ CONTAINS
     INTEGER :: ms, ns, js, n
 !!$    CHARACTER(LEN=5) :: char
 
-    CALL this%rho_bc%set(mesh, "density")
+    CALL this%rho_bc%set(mesh, "density", "DIRICHLET BC PARAMETERS")
 
     CALL this%ux_bc%set(mesh, "ux")
  

@@ -1,20 +1,31 @@
 MODULE start_setup_MODULE
 #include "petsc/finclude/petsc.h"
-  USE petsc
+   USE petsc
    USE def_type_mesh
    USE eos
    USE euler_type_module
+   USE character_strings, ONLY : clean_data_once
    MPI_Comm        :: communicator
-   TYPE setup_data_type
-      LOGICAL :: if_regression_test
-      LOGICAL :: if_restart
-      REAL(KIND = 8) :: checkpointing_freq
-      REAL(KIND = 8) :: final_time
-      INTEGER :: syst_size
-   CONTAINS
-      PROCEDURE, PUBLIC :: init
-   END TYPE setup_data_type
+   
+   INTEGER, PARAMETER, PRIVATE :: rec_length = 200
 
+   TYPE argument_setup_data_type
+      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
+      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+   END TYPE argument_setup_data_type
+   
+   TYPE setup_data_type
+      LOGICAL        :: if_regression_test  = .FALSE.
+      LOGICAL        :: if_restart          = .FALSE. 
+      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
+      REAL(KIND = 8) :: final_time          = 0.1d0
+      INTEGER        :: syst_size
+   CONTAINS 
+      PROCEDURE, PUBLIC :: read => read_setup_data
+      PROCEDURE, PUBLIC :: init => init_setup_data
+   END TYPE setup_data_type
+   
    TYPE(mesh_type), PUBLIC :: mesh
    TYPE(petsc_csr_LA), PRIVATE :: LA
    TYPE(euler_type), PUBLIC :: euler
@@ -40,14 +51,18 @@ CONTAINS
       CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
       communicator = PETSC_COMM_WORLD
       CALL MPI_Comm_rank(communicator, rank, ierr)
+       
+      !===Clean data once
+      CALL clean_data_once
+
       !===Construct mesh
-      CALL per(1)%read("global")
+      CALL per(1)%init("global", "PERIODIC BC PARAMETERS")
       CALL get_mesh(communicator, mesh, opt_pers = per)
       CALL per(1)%set(mesh)
       !===Construct LA
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
       !===Read
-      CALL read_setup_data(rank)
+      CALL setup_data%init
 
       !===Start Euler
       !FIXE ME init_time too
@@ -55,70 +70,54 @@ CONTAINS
 
       !===Read data setup
    END SUBROUTINE start_setup
-  
-   SUBROUTINE init(this)
-      CLASS(setup_data_type), INTENT(INOUT) :: this
-      !===Logicals
-      this%if_regression_test = .FALSE.
-      this%if_restart = .FALSE.
-      !===Reals
-      this%checkpointing_freq = 1.d20
-      this%final_time = 0.d0
-      !===Characters
-      !===Integers
-   END SUBROUTINE init
 
-   SUBROUTINE read_setup_data(rank)
+   SUBROUTINE init_setup_data(this)
+      CLASS(setup_data_type), INTENT(INOUT) :: this
+      CALL this%read
+   END SUBROUTINE init_setup_data
+
+   SUBROUTINE read_setup_data(this)
       USE character_strings
       IMPLICIT NONE
-      INTEGER, PARAMETER :: in_unit = 21
-      CHARACTER(LEN = 100) :: argument
-      INTEGER :: rank
-      LOGICAL :: okay
-      !===Initialize data to zero and false by default
-      CALL setup_data%init
 
-      OPEN(UNIT = in_unit, FILE = "data", FORM = 'formatted', STATUS = 'unknown')
+    CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
+
+      CLASS(setup_data_type)             :: this
+      TYPE(argument_setup_data_type)     :: argument_data
+
+      CHARACTER(LEN=rec_length)     :: string
+
+!================
+!=== MANDATORY Reading all data file
+!================
+    CALL read_data_init_list(section_name)
+
+!================
+!=== We now find the relevant information for this setup
+!================
 
       !===Restart
-      argument = '===Restart (true/false)==='
-      CALL find_string(in_unit, argument, okay)
-      IF (okay) THEN
-         READ (in_unit, *) setup_data%if_restart
-      ELSE
-         CALL default_data(rank, in_unit, argument, '.F.')
-         setup_data%if_restart = .FALSE.
-      END IF
+    CALL read_data(argument_data%if_restart, this%if_restart)
 
       !===Checkpointing
-      argument = '===Checkpointing frequency==='
-      CALL find_string(in_unit, argument, okay)
-      IF (okay) THEN
-         READ (in_unit, *) setup_data%checkpointing_freq
-      ELSE
-         CALL default_data(rank, in_unit, argument, '1.d20')
-         setup_data%checkpointing_freq = 1.d20
-      END IF
+    CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
       !===Checkpointing
-      argument = '===Final time==='
-      CALL find_string(in_unit, argument, okay)
-      IF (okay) THEN
-         READ (in_unit, *) setup_data%final_time
-      ELSE
-         CALL default_data(rank, in_unit, argument, '0.1d0')
-          setup_data%final_time = 0.1d0
-      END IF
+    CALL read_real_data(argument_data%final_time, this%final_time)
 
       !===Regression test
-      CALL getarg(1, argument)
-      IF (TRIM(ADJUSTL(argument))=='regression') THEN
-         setup_data%if_regression_test = .TRUE.
+      CALL getarg(1, string)
+      IF (trim(adjustl(string))=='regression') THEN
+         this%if_regression_test = .true.
       ELSE
-         setup_data%if_regression_test = .FALSE.
+         this%if_regression_test = .false.
       END IF
 
-      CLOSE(in_unit)
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
+
    END SUBROUTINE read_setup_data
 
 
