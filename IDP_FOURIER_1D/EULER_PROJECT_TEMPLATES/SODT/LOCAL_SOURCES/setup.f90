@@ -1,5 +1,5 @@
 MODULE setup_module
-  USE eos
+  USE eos_module
   PUBLIC ::  init, rho_r, press_r, mt_r, E_r
   REAL(KIND = 8), PARAMETER, PUBLIC :: rhoL=1.d0, rhor=0.125d0, pl=1.d0, pr=0.1d0, ul=0.d0, ur=0.d0
   PRIVATE
@@ -7,7 +7,7 @@ MODULE setup_module
   REAL(KIND = 8) :: long
   REAL(KIND = 8), PARAMETER :: l1m=-1.183215956619923d0, l1p=-0.07027281256118334d0, &
        l3=1.7521557320301779, ustar=0.92745262004894991d0,rhoLstar=0.4263194281784952d0, &
-       rhoRstar=0.26557371170530708d0, pstar=0.3031301780506468, cL=SQRT(gamma*pL/rhoL) 
+       rhoRstar=0.26557371170530708d0, pstar=0.3031301780506468, cL=SQRT(gamma*pL/rhoL)
 CONTAINS
 
   FUNCTION init(fourier_param,time) RESULT(vv)

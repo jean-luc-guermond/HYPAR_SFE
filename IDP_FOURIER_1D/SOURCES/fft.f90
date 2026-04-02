@@ -29,18 +29,37 @@ CONTAINS
     REAL(KIND=8),    DIMENSION(:,:)            :: cs_in !===(N,2)
     COMPLEX(KIND=8), DIMENSION(SIZE(cs_in,1))  :: cin !===Complex size N
     REAL(KIND=8), DIMENSION(2*SIZE(cs_in,1)-1) :: r_out !===size 2N-1
-    REAL(KIND=8) :: scaling
     INTEGER(kind=8) :: plan
     INTEGER :: N
     N = 2*SIZE(cs_in,1)-1
-    scaling = 2.d0/N
     cin = 0.5d0*CMPLX(cs_in(:,1),-cs_in(:,2),KIND=8)
     cin(1) = 2*cin(1)
     CALL dfftw_plan_dft_c2r_1d(plan,N,cin,r_out,FFTW_ESTIMATE)
     CALL dfftw_execute_dft_c2r(plan, cin, r_out)
     CALL dfftw_destroy_plan(plan)
   END SUBROUTINE fourier_to_real
-  
+
+  SUBROUTINE fourier_to_real_padded(cs_in,r_out,Nmax_pad)
+    IMPLICIT NONE
+    INCLUDE 'fftw3.f'
+    REAL(KIND=8),    DIMENSION(:,:)            :: cs_in !===(N,2)
+    COMPLEX(KIND=8), DIMENSION(SIZE(cs_in,1))  :: cin !===Complex size N
+    INTEGER, INTENT(IN) :: Nmax_pad
+    REAL(KIND=8), DIMENSION(2*Nmax_pad-1) :: r_out !===size 2N-1
+    !REAL(KIND=8) :: scaling
+    INTEGER(kind=8) :: plan
+    INTEGER :: Nmax, N
+    Nmax = SIZE(cs_in,1)
+    N = 2*SIZE(cs_in,1)-1
+    !scaling = 2.d0/N
+    cin = 0.d0
+    cin(1:Nmax) = 0.5d0*CMPLX(cs_in(:,1),-cs_in(:,2),KIND=8)
+    cin(1) = 2*cin(1)
+    CALL dfftw_plan_dft_c2r_1d(plan,N,cin,r_out,FFTW_ESTIMATE)
+    CALL dfftw_execute_dft_c2r(plan, cin, r_out)
+    CALL dfftw_destroy_plan(plan)
+  END SUBROUTINE fourier_to_real_padded
+
   SUBROUTINE fourier_derivative(cs_in,cs_out,Length)
     IMPLICIT NONE
     REAL(KIND=8),    DIMENSION(:,:) :: cs_in 

@@ -18,12 +18,13 @@ MODULE start_setup_MODULE
   END TYPE setup_data_type
   TYPE(setup_data_type)     :: setup_data
   TYPE(fourier_param_type)  :: fourier_param
+  TYPE(eos_type)            :: eos            
   TYPE(euler_type) :: euler
 CONTAINS
   SUBROUTINE start_setup
 #include "petsc/finclude/petsc.h"
     USE petsc
-    USE euler_flux
+    !USE euler_flux
     USE arbitrary_eos_lambda_module
     IMPLICIT NONE
     REAL(KIND = 8) :: init_time = 0.d0
@@ -31,7 +32,8 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     CALL fourier_param%init
     CALL setup_data%init
-    CALL euler%init(flux,pressure,lambda_arbitrary_eos,fourier_param,init_time,setup_data%final_time)
+    !CALL euler%init(flux,pressure,lambda_arbitrary_eos,fourier_param,init_time,setup_data%final_time)
+    CALL euler%init(eos,lambda_arbitrary_eos,fourier_param,init_time,setup_data%final_time)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

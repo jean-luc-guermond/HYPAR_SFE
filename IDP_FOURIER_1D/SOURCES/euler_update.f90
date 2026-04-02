@@ -2,7 +2,9 @@ MODULE euler_module
   USE Butcher_tableau
   USE fourier_param_module
   USE cell_limiting_engine_module
+  USE eos_module
   INTEGER, PARAMETER :: rec_length = 200, list_length=200
+  
   ABSTRACT INTERFACE
      FUNCTION pressure_template(rho,e) RESULT(vv)
        REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
@@ -24,6 +26,7 @@ MODULE euler_module
        REAL(KIND = 8), DIMENSION(2), INTENT(OUT) :: lambda_max
      END SUBROUTINE lambda_max_template
   END INTERFACE
+  
   TYPE argument_euler
      CHARACTER(LEN=rec_length) :: CFL            = '=== CFL ? ==='
      CHARACTER(LEN=rec_length) :: erk_sv         = '=== ERK ? ==='
@@ -31,53 +34,54 @@ MODULE euler_module
      CHARACTER(LEN=rec_length) :: if_limiting    = '=== Limiting ? ==='
      CHARACTER(LEN=rec_length) :: glob_rho_min       = '=== Global rho min ? ==='
      CHARACTER(LEN=rec_length) :: glob_rho_max       = '=== Global rho max ? ==='
-     CHARACTER(LEN=rec_length) :: bound_relaxing = '=== Bound relaxing method (avg,minmod) ? ==='
+     CHARACTER(LEN=rec_length) :: bound_relaxing = '=== Bound relaxing method (avg,minmod,none) ? ==='
   END TYPE argument_euler
 
   TYPE euler_type
-     INTEGER :: syst_size=3, nb_bounds=2
+     INTEGER :: syst_size=3, nb_bounds=3
      REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
-     REAL(KIND=8) :: CFL = 0.5d0, glob_rho_min = 0.d0, glob_rho_max = 1.d20
-     LOGICAL :: if_limiting = .FALSE.
-     CHARACTER(LEN=40) :: bound_relaxing = 'minmod'
+     REAL(KIND = 8) :: CFL = 0.5d0, glob_rho_min = 0.d0, glob_rho_max = 1.d20
+     CHARACTER(LEN=40) :: bound_relaxing = 'none'
      CHARACTER(LEN=40) :: method = 'viscous'
-     INTEGER      :: erk_sv    = -21
-     TYPE(BT), PUBLIC :: ERK
+     INTEGER :: erk_sv    = -21
      INTEGER :: Nmax, Nmax_real
-     REAL(KIND=8) :: time, dt, lumped, dx, in_tol, final_time
-     LOGICAL :: if_no_iter = .TRUE.
-     REAL(KIND=8), DIMENSION(:,:,:), POINTER :: un
-     REAL(KIND=8), DIMENSION(:,:), POINTER :: cij
-     TYPE(fourier_param_type), POINTER :: FP
+     REAL(KIND = 8) :: time, dt, lumped, dx, in_tol, final_time
+     REAL(KIND = 8), DIMENSION(:,:,:), POINTER :: un
+     REAL(KIND = 8), DIMENSION(:,:),   POINTER :: cij
      !===limiting
+     LOGICAL :: if_limiting = .FALSE. !<===To be read
+     LOGICAL :: if_no_iter = .TRUE.   !<===To be read
+     INTEGER :: it_limiting_max = 2
      INTEGER, DIMENSION(:,:), POINTER :: jj
      TYPE(mass_for_limiting) :: mass
      !===end limiting
+     TYPE(BT),                  PUBLIC :: ERK
+     TYPE(fourier_param_type), POINTER :: FP
+     TYPE(eos_type),           POINTER :: eos
      PROCEDURE(pressure_template),   NOPASS, POINTER :: pressure
-     PROCEDURE(flux_template),       NOPASS, POINTER :: flux
+     PROCEDURE(pressure_template),   NOPASS, POINTER :: entropy
      PROCEDURE(lambda_max_template), NOPASS, POINTER :: lambda_max
    CONTAINS
      PROCEDURE, PUBLIC :: init => init_euler
      PROCEDURE, PUBLIC :: READ => read_euler
      PROCEDURE, PUBLIC :: update
+     PROCEDURE, PRIVATE :: flux
   END TYPE euler_type
 
 CONTAINS
-  SUBROUTINE init_euler(this, flux, pressure, lambda_max, fourier_param, init_time, final_time)
+  SUBROUTINE init_euler(this, eos, lambda_max, fourier_param, init_time, final_time)
     IMPLICIT NONE
     CLASS(euler_type), INTENT(INOUT) :: this
     PROCEDURE(flux_template) :: flux
-    PROCEDURE(pressure_template) :: pressure
     PROCEDURE(lambda_max_template) :: lambda_max
     TYPE(fourier_param_type), TARGET :: fourier_param
+    TYPE(eos_type), TARGET :: eos
     REAL(KIND=8) :: init_time, final_time
     INTEGER :: Nmax, m, n, i, j
 
     CALL this%READ()
     this%ERK%sv = this%erk_sv
     CALL this%ERK%init
-    this%flux => flux
-    this%pressure => pressure
     this%lambda_max => lambda_max
     this%time = init_time
     this%final_time = final_time
@@ -206,7 +210,8 @@ CONTAINS
     REAL(KIND=8), DIMENSION(This%Nmax,2,this%syst_size,this%ERK%s)   :: flux_rk
     REAL(KIND=8), DIMENSION(this%Nmax,2,this%syst_size) :: cs_diff, cs_dflux, cs_zz
     REAL(KIND=8), DIMENSION(this%Nmax_real,this%nb_bounds) :: bounds
-    REAL(KIND=8), DIMENSION(this%Nmax_real,1) :: r_in, r_out
+    REAL(KIND=8), DIMENSION(this%Nmax_real,this%syst_size) :: r_in, r_out
+    REAL(KIND = 8) :: test
     INTEGER  :: stage, k, l, it
     !===Compute viscous flux, actual flux, and u_min, u_max (for limiting)
     CALL compute_dt_viscous_flux_min_max(this,stage,&
@@ -217,6 +222,25 @@ CONTAINS
     IF (TRIM(ADJUSTL(this%method))=='viscous') THEN
        cs_dflux= this%ERK%inc_C(stage)*cs_diff
        urk(:,:,:,stage) = urk(:,:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
+
+       !TESTTTT
+       DO k = 1, this%syst_size
+          CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
+       END DO
+       test=1.d20
+       Do k =1, this%Nmax_real
+          test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
+       END DO
+       write(*,*) ' NEW TIME STEP', test
+!!$       if (test<-1.d-7) THEN
+!!$          write(*,*) 'complex vel', MAXVAL(ABS(urk(:,:,2,stage)))
+!!$          Do k =1, this%Nmax_real
+!!$             write(*,*) r_in(k,:)
+!!$             write(*,*) entropy_min(r_in(k,:),bounds(k,3))
+!!$          END DO
+!!$          stop
+!!$       END if
+       !TESTTTT
        RETURN
     END IF
 
@@ -234,7 +258,7 @@ CONTAINS
        CALL fourier_derivative(cs_zz(:,:,k),cs_dflux(:,:,k),fourier_param%Length)
     END DO
 
- 
+
     IF (this%erk_sv>0) THEN
        cs_dflux= -cs_dflux + this%ERK%C(stage)*cs_diff
        urk(:,:,:,stage) = urk(:,:,:,1)+this%dt*cs_dflux
@@ -242,15 +266,49 @@ CONTAINS
        cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
        urk(:,:,:,stage) = urk(:,:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
     END IF
-  
+
+
+    !TESTTTT
+    DO k = 1, this%syst_size
+       CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
+    END DO
+    test=1.d20
+    Do k =1, this%Nmax_real
+       test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
+    END DO
+    write(*,*) ' NEW TIME STEP', test
+!!$    if (test<-1.d-7) THEN
+!!$       write(*,*) 'complex vel', MAXVAL(ABS(urk(:,:,2,stage)))
+!!$       Do k =1, this%Nmax_real
+!!$          write(*,*) r_in(k,:)
+!!$          write(*,*) entropy_min(r_in(k,:),bounds(k,3))
+!!$       END DO
+!!$       stop
+!!$    END if
+    !TESTTTT
+
+    
     !===Limiting on density
     IF (this%if_limiting) THEN
-       CALL Fourier_to_real(urk(:,:,1,stage),r_in(:,1))
-       DO it = 1, 1
-          CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,1),&
-               psi_min,zero_of_psi_min,r_in)
-          CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,2),&
-               psi_max,zero_of_psi_max,r_in)
+       DO k = 1, this%syst_size
+          CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
+       END DO
+       DO it = 1, this%it_limiting_max      
+          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in(:,1),bounds(:,1),&
+          !     psi_min,zero_of_psi_min,r_in)
+       END DO
+       DO it = 1, this%it_limiting_max
+          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in(:1,),bounds(:,2),&
+          !     psi_max,zero_of_psi_max,r_in)
+          !write(*,*) 'mass after', sum(this%lumped*r_in)
+
+          r_out = r_in
+          CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,3),&
+               entropy_min,zero_of_specific_entropy,r_in)
+          write(*,*) 'AFTER'
+          Do k =1, this%Nmax_real
+             write(*,*) entropy_min(r_in(k,:),bounds(k,3)), entropy_min(r_out(k,:),bounds(k,3))
+          END DO
        END DO
        CALL real_to_fourier(r_in(:,1),urk(:,:,1,stage))
     END IF
@@ -267,15 +325,19 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(this%Nmax_real,this%syst_size)  :: r_out
     REAL(KIND = 8), DIMENSION(this%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(this%Nmax_real)   :: diag_dijL
-    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, rhomax, rhomin, alpha, eta
+    REAL(KIND = 8), DIMENSION(this%Nmax_real) :: r_diff, r_flux, rhomax, rhomin, alpha, eta, rho, e
     REAL(KIND = 8), DIMENSION(this%Nmax_real,this%nb_bounds) :: bounds
     REAL(KIND = 8), DIMENSION(2) :: in_rho, in_u, in_e, in_p, lambda
     REAL(KIND = 8) :: x, y, ul, ur, cij, nij, uijbar, length, pstar
     INTEGER :: i, j, k, m, n, np
 
+    bounds(:,3) = 1.d20
     DO k = 1, this%syst_size
        CALL Fourier_to_real(u_visc(:,:,k),r_out(:,k))
     END DO
+    rho = r_out(:,1)
+    e = r_out(:,3)/rho - 0.5d0*(r_out(:,2)/rho)**2
+    
     cij =0.5d0
     diag_dijL=0.d0
     DO m = 1, this%Nmax_real !===loop over cells
@@ -288,8 +350,8 @@ CONTAINS
        in_u(2) = r_out(j,2)*nij/in_rho(2)
        in_e(1) = r_out(i,this%syst_size)/in_rho(1) - 0.5d0*in_u(1)*in_u(1)
        in_e(2) = r_out(j,this%syst_size)/in_rho(2) - 0.5d0*in_u(2)*in_u(2)
-       in_p = this%pressure(in_rho, in_e)
-       eta(i) = in_p(1) !<==pressure for commutator
+       in_p = this%eos%pressure(in_rho, in_e)       
+       bounds(i,3) = MIN(bounds(i,3),MINVAL(this%eos%entropy(in_rho,in_e))) !<===entropy lower bound
        CALL this%lambda_max(this%eos_param, in_rho, in_u, in_e, in_p, &
             this%in_tol, this%if_no_iter, lambda, pstar)
        dijL(i,2) = cij*MAXVAL(lambda)
@@ -326,8 +388,11 @@ CONTAINS
     END IF
 
     !===High-order
+    !eta=this%eos%entropy(rho,e)
+    eta=this%eos%pressure(rho,e)
+    !eta = rho
     CALL entropy_commutator(this,stage,eta,alpha)
-    !CALL entropy_commutator(this,stage,r_out(:,1),alpha)
+    !CALL entropy_commutator_pad(this,stage,2*this%Nmax,u_visc,eta,alpha)
     
     IF (this%ERK%lp_of_l(stage).NE.stage-1) THEN
        DO k = 1, this%syst_size
@@ -350,8 +415,6 @@ CONTAINS
                      - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
                 bounds(i,1) = MIN(bounds(i,1),uijbar)
                 bounds(i,2) = MAX(bounds(i,2),uijbar)
-                !umax(i) = MAX(umax(i),r_out(j))
-                !umin(i) = MIN(umin(i),r_out(j))
              END IF
           END DO
        END DO
@@ -360,12 +423,39 @@ CONTAINS
        CALL real_to_fourier(r_flux,cs_flux(:,:,k))
     END DO
 
-    IF (this%if_limiting) THEN
+    IF (this%if_limiting .AND. TRIM(ADJUSTL(this%bound_relaxing)).NE.'none') THEN
        CALL relax_min_and_max(this%bound_relaxing,this%glob_rho_min,this%glob_rho_max,&
             this%jj,r_out(:,1),bounds(:,2),bounds(:,1))
+       CALL relax_cmin(this,r_out,bounds(:,3))
     END IF
   END SUBROUTINE compute_dt_viscous_flux_min_max
 
+  FUNCTION flux(this, comp, un) RESULT(vv)
+    IMPLICIT NONE
+    CLASS(euler_type), INTENT(INOUT):: this
+    REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
+    INTEGER, INTENT(IN) :: comp
+    REAL(KIND = 8), DIMENSION(SIZE(un, 1)) :: vv
+    REAL(KIND = 8), DIMENSION(SIZE(un, 1)) :: u, ie
+    SELECT CASE(comp)
+    CASE(1)
+       vv(:) = un(:,2)
+    CASE(2)
+       u = un(:,2)/un(:,1)
+       vv(:) = un(:,2)*u
+       ie = un(:,3)/un(:,1)
+       ie = ie - 0.5d0*u**2
+       vv(:) = vv(:) + this%eos%pressure(un(:,1), ie)
+    CASE(3)
+       ie = un(:,3)/un(:,1)
+       ie = ie - 0.5d0 *(un(:,2)/un(:,1))**2
+       vv(:) = (un(:,2)/un(:,1)) * (un(:,3) + this%eos%pressure(un(:,1), ie))
+    CASE DEFAULT
+       WRITE(*, *) ' BUG in flux'
+       STOP
+    END SELECT
+  END FUNCTION flux
+  
   FUNCTION psi_min(x,psi_m) RESULT(v)
     IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:) :: x
@@ -394,6 +484,71 @@ CONTAINS
     v = (psi_m-u0(1))/P(1)
   END FUNCTION zero_of_psi_max
 
+ FUNCTION entropy_min(u,cmin) RESULT(psi)
+    IMPLICIT NONE
+    REAL(KIND=8), DIMENSION(:) :: u
+    REAL(KIND=8) :: cmin, psi
+    psi = u(3) - u(2)**2/(2.d0*u(1)) - cmin*u(1)**gamma
+  END FUNCTION entropy_min
+  
+  FUNCTION zero_of_specific_entropy(cmin,u0,Pij) RESULT(v)
+    IMPLICIT NONE
+    REAL(KIND=8), DIMENSION(:) :: u0, Pij
+    REAL(KIND=8)   :: cmin, v
+    REAL(KIND=8), DIMENSION(SIZE(u0)) :: ul, ur
+    REAL(KIND=8), PARAMETER :: small=1.d-8
+    REAL(KIND=8) :: Esmall, psir, psil, ll, lr, llold, lrold
+
+    Esmall= small*u0(3)
+    ur = u0 + Pij 
+
+    psir = entropy_min(ur,cmin)
+    IF (psir.GE.-Esmall) THEN
+       write(*,*) ' OK', psir, -Esmall
+       v = 1.d0
+       RETURN
+    END IF
+    ll = 0.d0
+    ul = u0
+    psil = entropy_min(ul,cmin)
+    write(*,*) 'psil', psil, psir, ABS(psil-psir), Esmall
+    DO WHILE (ABS(psil-psir) .GT. Esmall)
+       llold = ll
+       lrold = lr
+       ll = ll - psil*(lr-ll)/(psir-psil)
+       lr = lr - psir/psi_prime_func(Pij,ur,cmin)
+       IF (ll.GE.lr) THEN
+          ll = lr
+          EXIT
+       END IF
+       IF (ll< llold) THEN
+          ll = llold
+          EXIT
+       END IF
+       IF (lr > lrold) THEN
+          lr = lrold
+          EXIT
+       END IF
+       ul = u0 + ll*Pij
+       ur = u0 + lr*Pij
+       psil = entropy_min(ul,cmin)
+       psir = entropy_min(ur,cmin)
+    END DO
+    IF (psir.GE.-Esmall) THEN
+       v = lr
+    ELSE
+       v = ll
+    END IF
+  END FUNCTION zero_of_specific_entropy
+  
+  FUNCTION psi_prime_func(Pij,u,cmin) RESULT(psi)
+    IMPLICIT NONE
+    REAL(KIND=8), DIMENSION(:) :: u, Pij
+    REAL(KIND=8)               :: cmin, psi
+    psi = Pij(3) - u(2)*Pij(2)/u(1) + Pij(1)*u(2)**2/(2*u(1)**2) &
+         - cmin*gamma*Pij(1)*u(1)**(gamma-1)
+  END FUNCTION psi_prime_func
+
   SUBROUTINE entropy_commutator(this,stage,r_eta,alpha)
     USE fft_1D
     IMPLICIT NONE
@@ -405,43 +560,93 @@ CONTAINS
     REAL(KIND = 8) :: Length, x, avg
     INTEGER :: i
 
-
-    !TEST
-    !r_eta = SIN(2*ACOS(-1.d0)*this%FP%rr)**2+1.01
-    !TEST
-    !FIX ME . Add padding to compute entropy commutator.
-    
+    !DO i = 1, this%Nmax_real
+    !   IF (this%FP%rr(i) <0.5) THEN
+    !      r_eta(i) = 1.d0
+    !   ELSE
+    !      r_eta(i) = .1d0
+    !   END IF
+    !END DO
+    !===Padding does not improve the computation of the commutator
     !===Compute entropy commutator (eta*dx(log(eta(u)))-dx(eta(u)))
-    length=this%dx*this%Nmax_real
+    length = this%dx*this%Nmax_real
     log_eta = LOG(ABS(r_eta))
     CALL real_to_fourier(log_eta,cs_diff)
     CALL fourier_derivative(cs_diff,cs_flux,length)
     CALL Fourier_to_real(cs_flux,alpha) !<==derivative of entropy
     alpha = r_eta*alpha !<==multiply by eta
-
     CALL real_to_fourier(r_eta,cs_flux)
     CALL fourier_derivative(cs_flux,cs_diff,length)
     CALL Fourier_to_real(cs_diff,beta) !<=derivative of flux
-
-    avg = SUM(ABS(alpha))/this%Nmax_real
+    !avg = SUM(ABS(alpha))/this%Nmax_real
+    avg= MAXVAL(ABS(alpha))
     alpha = min(abs(alpha - beta)/avg,1.d0)
-    alpha = threshold(alpha)
-    
-    write(*,*) this%time+1.1*this%dt, this%final_time
+    !alpha = threshold(alpha) 
     IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
-       write(*,*) 'commutator', stage, this%ERK%s
        CALL this%FP%plot_1d(alpha, 'commutator.plt')
     END IF
-
-    
+    !TESTTTTTTTTTTTTT
+    alpha =1.
   END SUBROUTINE entropy_commutator
+
+  SUBROUTINE entropy_commutator_pad(this,stage,Nmax_pad,cs_u,r_eta,alpha)
+    USE fft_1D
+    IMPLICIT NONE
+    CLASS(euler_type), INTENT(INOUT):: this
+    INTEGER :: stage
+    INTEGER :: Nmax_pad
+    REAL(KIND = 8), DIMENSION(this%Nmax,2,3)   :: cs_u
+    REAL(KIND = 8), DIMENSION(2*Nmax_pad-1,3) :: ru_pad
+    REAL(KIND = 8), DIMENSION(this%Nmax_real):: r_eta
+    REAL(KIND = 8), DIMENSION(this%Nmax,2)   :: cs1
+    REAL(KIND = 8), DIMENSION(Nmax_pad,2)   :: cs1_pad, cs2_pad
+    REAL(KIND = 8), DIMENSION(2*Nmax_pad-1) :: r_eta_pad, log_eta_pad, alpha_pad, beta_pad
+    REAL(KIND = 8), DIMENSION(this%Nmax_real):: alpha
+    REAL(KIND = 8) :: Length, x, avg
+    INTEGER :: i, k
+    length=this%dx*this%Nmax_real
+    !r_eta = SIN(2*ACOS(-1.d0)*20*this%FP%rr)**2+1.01
+    !CALL real_to_fourier(r_eta,cs1)
+    !cs1_pad = 0.d0
+    !cs1_pad(1:this%Nmax,:) = cs1
+    !CALL fourier_to_real_padded(cs1_pad,r_eta_pad,Nmax_pad)
+    cs1_pad = 0.d0
+    DO k = 1, 3
+       cs1_pad(1:this%Nmax,:) = cs_u(:,:,k)
+       CALL fourier_to_real_padded(cs1_pad,ru_pad(:,k),Nmax_pad)
+    END DO
+    !r_eta_pad = ru_pad(:,1) 
+    r_eta_pad = ru_pad(:,3) - 0.5d0*ru_pad(:,2)**2/ru_pad(:,1)
+    !r_eta_pad = (ru_pad(:,3) - 0.5d0*ru_pad(:,2)**2/ru_pad(:,1))/ru_pad(:,1)**1.4
+    !===Compute entropy commutator (eta*dx(log(eta(u)))-dx(eta(u)))
+    log_eta_pad = LOG(ABS(r_eta_pad))
+    CALL real_to_fourier(log_eta_pad,cs1_pad)
+    CALL fourier_derivative(cs1_pad,cs2_pad,length)
+    CALL Fourier_to_real(cs2_pad,alpha_pad) !<==derivative of entropy
+    alpha_pad = r_eta_pad*alpha_pad !<==multiply by eta
+    CALL real_to_fourier(r_eta_pad,cs1_pad)
+    CALL fourier_derivative(cs1_pad,cs2_pad,length)
+    CALL Fourier_to_real(cs2_pad,beta_pad) !<=derivative of flux
+    avg = SUM(ABS(alpha_pad))/size(alpha_pad)
+    alpha_pad = min(abs(alpha_pad - beta_pad)/avg,1.d0)
+    !alpha = threshold(alpha)
+    IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
+       DO i = 1, 2*Nmax_pad-1
+          write(10,*) (i-1)*this%FP%length/(2*Nmax_pad-1), alpha_pad(i)
+          write(11,*) (i-1)*this%FP%length/(2*Nmax_pad-1), r_eta_pad(i)
+       END DO
+    END IF
+    !alpha = alpha_pad
+    alpha = alpha_pad(1::2)
+    !alpha=1
+  END SUBROUTINE entropy_commutator_pad
 
   FUNCTION threshold(x) RESULT(g)
     IMPLICIT NONE
     INTEGER, PARAMETER :: exp=3
     REAL(KIND=8), DIMENSION(:)  :: x
     REAL(KIND=8), DIMENSION(SIZE(x))  :: z, t, zp, relu, f, g
-    REAL(KIND=8), PARAMETER :: x0 = 0.75d0, x1=SQRT(3.d0)*x0
+    REAL(KIND=8), PARAMETER :: x0 = 0.25d0, x1=SQRT(3.d0)*x0
     SELECT CASE(exp)
     CASE(2)
        !===Quadratic threshold    
@@ -458,4 +663,33 @@ CONTAINS
     END SELECT
     RETURN
   END FUNCTION threshold
+
+  SUBROUTINE relax_cmin(this,un,cmin)
+    IMPLICIT NONE
+    CLASS(euler_type), INTENT(INOUT):: this
+    REAL(KIND=8), DIMENSION(:,:), INTENT(IN) :: un
+    REAL(KIND=8), DIMENSION(:)             :: cmin
+    REAL(KIND=8), DIMENSION(SIZE(cmin))    :: dc
+    REAL(KIND=8), DIMENSION(SIZE(cmin))    :: ul
+    INTEGER      :: i, j, m, n, np, me, nw
+    REAL(KIND=8), DIMENSION(1) :: e, rho, cl
+    dc = 0.d0
+    me = SIZE(this%jj,2)
+    nw = SIZE(this%jj,1)
+    DO m = 1, me
+       DO n = 1, nw
+          i = this%jj(n,m)
+          DO np = 1, nw
+             j = this%jj(np,m)
+             IF (i==j) CYCLE
+             ul(:) = (un(i,:)+un(j,:))/2
+             rho(1) = ul(1)
+             e(1) = ul(3)/ul(1) - 0.5d0*(ul(2)/ul(1))**2
+             cl = this%eos%entropy(rho, e)
+             dc(i) = MAX(dc(i),cl(1)-cmin(i))
+          END DO
+       END DO
+    END DO
+    cmin = cmin - dc
+  END SUBROUTINE RELAX_cmin
 END MODULE euler_module

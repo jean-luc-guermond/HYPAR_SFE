@@ -98,7 +98,8 @@ CONTAINS
       !this%CFL = 0.5d0
 
       CALL this%read_euler_data
-      CALL this%ERK%init(this%erk_sv)
+      this%ERK%sv = this%erk_sv
+      CALL this%ERK%init
       CALL this%euler_bc%construct_euler_bc(this%mesh)
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
       

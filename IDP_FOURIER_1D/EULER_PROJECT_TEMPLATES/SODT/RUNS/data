@@ -1,5 +1,5 @@
 === Number of Fourier modes ? ===
-100
+50
 === Fourier periodic domain Length ? ===
 1.0
 === Restart (true/false) ===
@@ -7,15 +7,15 @@ F
 === Checkpointing frequency ===
 1.0000000000000000E+020
 === Final time ===
-0.14
+0.10
 
 === CFL ? ===
 0.25
 === ERK ? ===
--31
+-11
 === Which method (viscous,high) ? ===
 high
 === Limiting ? ===
-t
-=== Bound relaxing method (avg,minmod) ? ===
-avg
+f
+=== Bound relaxing method (avg,minmod,none) ? ===
+none
