@@ -371,7 +371,7 @@ CONTAINS
     !===Compute entropy commutator (eta'*dx(f(u))-f'(u)*dx(eta(u)))
     length=this%dx*this%Nmax_real
     x = sum(r_out)/this%Nmax_real
-    eta =  (r_out-x)**2
+    eta =  (r_out-x)**2/2
     etap = (r_out-x)
     CALL real_to_fourier(eta,cs_diff)
     CALL fourier_derivative(cs_diff,cs_flux,length)
@@ -397,7 +397,7 @@ CONTAINS
     INTEGER, PARAMETER :: exp=3
     REAL(KIND=8), DIMENSION(:)  :: x
     REAL(KIND=8), DIMENSION(SIZE(x))  :: z, t, zp, relu, f, g
-    REAL(KIND=8), PARAMETER :: x0 = 0.25d0, x1=SQRT(3.d0)*x0
+    REAL(KIND=8), PARAMETER :: x0 = 0.75d0, x1=SQRT(3.d0)*x0
     SELECT CASE(exp)
     CASE(2)
        !===Quadratic threshold    
