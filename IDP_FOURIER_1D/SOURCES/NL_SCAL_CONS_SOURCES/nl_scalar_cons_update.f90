@@ -2,6 +2,7 @@ MODULE nl_scalar_cons_module
   USE Butcher_tableau
   USE fourier_param_module
   USE cell_limiting_engine_module
+  PRIVATE
   INTEGER, PARAMETER :: rec_length = 200, list_length=200
   ABSTRACT INTERFACE
      FUNCTION flux_template(u) RESULT(vv)
@@ -24,18 +25,20 @@ MODULE nl_scalar_cons_module
      CHARACTER(LEN=rec_length) :: bound_relaxing = '=== Bound relaxing method (avg,minmod) ? ==='
   END TYPE argument_nl_scalar_cons
 
-  TYPE nl_scalar_cons_type
+  TYPE, PUBLIC :: nl_scalar_cons_type
      REAL(KIND=8) :: CFL = 0.5d0, glob_min = -1.d20, glob_max = 1.d20
      LOGICAL :: if_limiting = .FALSE.
      CHARACTER(LEN=40) :: bound_relaxing = 'minmod'
      CHARACTER(LEN=40) :: method = 'viscous'
      INTEGER      :: erk_sv    = -21
      TYPE(BT), PUBLIC :: ERK
+     TYPE(fourier_param_type), POINTER :: FP
      INTEGER :: Nmax, Nmax_real
-     REAL(KIND=8) :: time, dt, lumped, dx
+     REAL(KIND=8) :: time, dt, lumped, dx, final_time
      REAL(KIND=8), DIMENSION(:,:), POINTER :: un
      REAL(KIND=8), DIMENSION(:,:), POINTER :: cij
      !===limiting
+     INTEGER :: it_limiting_max = 2
      INTEGER, DIMENSION(:,:), POINTER :: jj
      TYPE(mass_for_limiting) :: mass
      !===end limiting
@@ -49,13 +52,13 @@ MODULE nl_scalar_cons_module
   END TYPE nl_scalar_cons_type
 
 CONTAINS
-  SUBROUTINE init_nl_scalar_cons(this, flux, flux_prime, lambda_max, fourier_param, init_time)
+  SUBROUTINE init_nl_scalar_cons(this, flux, flux_prime, lambda_max, fourier_param, init_time, final_time)
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT) :: this
     PROCEDURE(flux_template) :: flux, flux_prime
     PROCEDURE(lambda_max_template) :: lambda_max
-    TYPE(fourier_param_type) :: fourier_param
-    REAL(KIND=8) :: init_time
+    TYPE(fourier_param_type), TARGET :: fourier_param
+    REAL(KIND=8) :: init_time, final_time
     INTEGER :: Nmax, m, n, i, j
 
     CALL this%READ()
@@ -65,11 +68,13 @@ CONTAINS
     this%flux_prime => flux_prime
     this%lambda_max => lambda_max
     this%time = init_time
-    Nmax = fourier_param%Nmax
+    this%final_time = final_time
+    this%FP => fourier_param !<===FIXE ME: clear redundance with fourier_para
+    Nmax = this%FP%Nmax
     this%Nmax  = Nmax
     this%Nmax_real = 2*Nmax-1
-    this%dx = fourier_param%dx
-    this%lumped = fourier_param%dx
+    this%dx = this%FP%dx
+    this%lumped = this%FP%dx
     ALLOCATE (this%un(Nmax,2))
 
     !===limiting objects
@@ -110,7 +115,7 @@ CONTAINS
     CHARACTER(LEN=rec_length)                         :: string_default
     LOGICAL :: okay
     INTEGER :: rank, record_size, i_list, j
-    
+
     !===Initialize data to zero and false by default
     list = ''
     record = ''
@@ -168,33 +173,31 @@ CONTAINS
     CALL compare_string(record, list, argument_data%bound_relaxing, string_default, okay, i_list, j)
     IF (okay) THEN
        READ(list(i_list),*) this%bound_relaxing
-    END IF 
-    
+    END IF
+
     !===Closing unit
     rank = 0
     CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
   END SUBROUTINE read_nl_scalar_cons
 
-  SUBROUTINE update(this, fourier_param)
+  SUBROUTINE update(this)
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
-    TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8), DIMENSION(This%Nmax,2,this%ERK%s+1) :: urk
     REAL(KIND=8), DIMENSION(This%Nmax,2,this%ERK%s) :: flux_rk
     INTEGER  :: stage
     urk(:,:,1) = this%un
     DO stage = 2, this%ERK%s+1
-       CALL one_step_ERK(this,stage,fourier_param,urk,flux_rk)
+       CALL one_step_ERK(this,stage,urk,flux_rk)
     END DO
     this%un = urk(:,:,this%ERK%s+1)
     this%time = this%time + this%dt
   END SUBROUTINE update
 
-  SUBROUTINE one_step_ERK(this,stage,fourier_param,urk,flux_rk)
+  SUBROUTINE one_step_ERK(this,stage,urk,flux_rk)
     USE fft_1D
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
-    TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8), DIMENSION(this%Nmax,2,this%ERK%s+1) :: urk
     REAL(KIND=8), DIMENSION(This%Nmax,2,this%ERK%s) :: flux_rk
     REAL(KIND=8), DIMENSION(this%Nmax,2) :: cs_diff, cs_dflux, cs_zz
@@ -212,7 +215,7 @@ CONTAINS
        urk(:,:,stage) = urk(:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
        RETURN
     END IF
-    
+
     !===Higher-order
     IF (TRIM(ADJUSTL(this%method)).NE.'high') THEN
        WRITE(*,*) 'Bug in one_step_ERK, wrong method', this%method
@@ -222,7 +225,7 @@ CONTAINS
     DO l = 1, stage-1
        cs_zz =  cs_zz + this%ERK%MatRK(stage,l)*flux_rk(:,:,l)
     END DO
-    CALL fourier_derivative(cs_zz,cs_dflux,fourier_param%Length)
+    CALL fourier_derivative(cs_zz,cs_dflux,this%FP%Length)
 
     IF (this%erk_sv>0) THEN
        cs_dflux= -cs_dflux + this%ERK%C(stage)*cs_diff
@@ -234,10 +237,8 @@ CONTAINS
 
     !===Limiting
     IF (this%if_limiting) THEN
-       !u_min = this%glob_min
-       !u_max = this%glob_max
        CALL Fourier_to_real(urk(:,:,stage),r_in(:,1))
-       DO it = 1, 1
+       DO it = 1, this%it_limiting_max   
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_min,&
                psi_min,zero_of_psi_min,r_in)
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,u_max,&
@@ -297,9 +298,9 @@ CONTAINS
        CALL real_to_fourier(r_diff,cs_diff)
        RETURN
     END IF
-    
+
     !===High-order
-    CALL entropy_commutator(this,r_out,alpha)
+    CALL entropy_commutator(this,stage,r_out,alpha)
 
     IF (this%ERK%lp_of_l(stage).NE.stage-1) THEN
        CALL Fourier_to_real(urk_in,r_out)
@@ -318,13 +319,10 @@ CONTAINS
                - (r_flux(j) - r_flux(i))*this%cij(n,np)/dijL(i,np))
           umax(i) = MAX(umax(i),uijbar)
           umin(i) = MIN(umin(i),uijbar)
-          !umax(i) = MAX(umax(i),r_out(j))
-          !umin(i) = MIN(umin(i),r_out(j))
        END DO
     END DO
     r_diff = r_diff/this%lumped
     CALL real_to_fourier(r_diff,cs_diff)
-    r_flux = this%flux(r_out(1:this%Nmax_real)) !<-------FIX ME: remove this line
     CALL real_to_fourier(r_flux,cs_flux)
 
     IF (this%if_limiting) THEN
@@ -360,10 +358,11 @@ CONTAINS
     v = (psi_m-u0(1))/P(1)
   END FUNCTION zero_of_psi_max
 
-  SUBROUTINE entropy_commutator(this,r_out,alpha)
+  SUBROUTINE entropy_commutator(this,stage,r_out,alpha)
     USE fft_1D
     IMPLICIT NONE
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
+    INTEGER :: stage
     REAL(KIND = 8), DIMENSION(this%Nmax_real):: r_out
     REAL(KIND = 8), DIMENSION(this%Nmax,2)   :: cs_diff, cs_flux
     REAL(KIND = 8), DIMENSION(this%Nmax_real):: alpha, beta, eta, etap, r_flux
@@ -372,7 +371,7 @@ CONTAINS
     !===Compute entropy commutator (eta'*dx(f(u))-f'(u)*dx(eta(u)))
     length=this%dx*this%Nmax_real
     x = sum(r_out)/this%Nmax_real
-    eta = (r_out-x)**2/2
+    eta =  (r_out-x)**2/2
     etap = (r_out-x)
     CALL real_to_fourier(eta,cs_diff)
     CALL fourier_derivative(cs_diff,cs_flux,length)
@@ -388,27 +387,32 @@ CONTAINS
     avg = SUM(ABS(alpha))/this%Nmax_real
     alpha = min(abs(alpha - beta)/avg,1.d0)
     alpha = threshold(alpha)
-
+    IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
+       CALL this%FP%plot_1d(alpha, 'commutator.plt')
+    END IF
   END SUBROUTINE entropy_commutator
-  
-    FUNCTION threshold(x) RESULT(g)
+
+  FUNCTION threshold(x) RESULT(g)
     IMPLICIT NONE
+    INTEGER, PARAMETER :: exp=3
     REAL(KIND=8), DIMENSION(:)  :: x
     REAL(KIND=8), DIMENSION(SIZE(x))  :: z, t, zp, relu, f, g
-    !===Quadratic threshold
-!!$    REAL(KIND=8), PARAMETER :: x0 = 0.75d0, x1=SQRT(3.d0)*x0
-!!$    z = x-x0
-!!$    zp = x-2*x0
-!!$    relu = (zp+abs(zp))/2
-!!$    f = -z*(z**2-x1**2)  + relu*(z-x0)*(z+2*x0)
-!!$    g = (f + 2*x0**3)/(4*x0**3)
-!!$    !CALL plot_1d(x,g,'threshold1.plt') 
-!!$
-    !===Cubic threshold
-    REAL(KIND=8), PARAMETER :: x0 = 0.75d0 !x0=0.1 (cubic threshold)
-    relu = ((x-2*x0)+abs(x-2*x0))/2
-    t = x/(2*x0)
-    g = t**3*(10-15*t+6*t**2) - relu*(t-1)**2*(6*t**2+3*t+1)/(2*x0)
+    REAL(KIND=8), PARAMETER :: x0 = 0.75d0, x1=SQRT(3.d0)*x0
+    SELECT CASE(exp)
+    CASE(2)
+       !===Quadratic threshold    
+       z = x-x0
+       zp = x-2*x0
+       relu = (zp+abs(zp))/2
+       f = -z*(z**2-x1**2)  + relu*(z-x0)*(z+2*x0)
+       g = (f + 2*x0**3)/(4*x0**3)
+    CASE(3)
+       !===Cubic threshold
+       relu = ((x-2*x0)+abs(x-2*x0))/2
+       t = x/(2*x0)
+       g = t**3*(10-15*t+6*t**2) - relu*(t-1)**2*(6*t**2+3*t+1)/(2*x0)
+    END SELECT
     RETURN
   END FUNCTION threshold
+
 END MODULE nl_scalar_cons_module

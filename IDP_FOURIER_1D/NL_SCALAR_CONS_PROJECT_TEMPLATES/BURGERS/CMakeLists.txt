@@ -5,7 +5,7 @@ MESSAGE(STATUS "")
 include(variables.cmake)
 
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.31)
 
 # Project name and version
 project(euker)
@@ -52,11 +52,12 @@ ADD_CUSTOM_TARGET(native
 
 # Create local sources from local dir
 file(GLOB_RECURSE sources
-	${ROOT_DIR}/../COMMON_SOURCES/TOOLS/character_strings.F90
-	${ROOT_DIR}/../COMMON_SOURCES/SOLVERS/ERK_Butcher_tableau.F90
-        ${ROOT_DIR}/../COMMON_SOURCES/TOOLS/my_util.F90
-	${ROOT_DIR}/SOURCES/*.f90
-	${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.f90)
+  ${ROOT_DIR}/../COMMON_SOURCES/TOOLS/character_strings.F90
+  ${ROOT_DIR}/../COMMON_SOURCES/SOLVERS/ERK_Butcher_tableau.F90
+  ${ROOT_DIR}/../COMMON_SOURCES/TOOLS/my_util.F90
+  ${ROOT_DIR}/SOURCES/COMMON_SOURCES/*.f90
+  ${ROOT_DIR}/SOURCES/NL_SCAL_CONS_SOURCES/*.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.f90)
 
 # Define runtime output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/EXECUTABLE)

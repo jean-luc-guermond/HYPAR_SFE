@@ -270,6 +270,7 @@ CONTAINS
        DO n = 1, nw
           i = jj(n,m)
           DO np = 1, nw
+             IF (n==np) CYCLE
              j = jj(np,m)
              alpha(i) = alpha(i) + (un(i) - un(j))
              beta(i) = beta(i) + 1
@@ -285,7 +286,8 @@ CONTAINS
           DO n = 1, nw
              i = jj(n,m)
              DO np = 1, nw
-                j = jj(np,m)
+                IF (n==np) CYCLE
+                j = jj(np,m) 
                 denom(i) = denom(i) + alpha(i) + alpha(j)
                 beta(i) = beta(i) + 1
              END DO
@@ -299,7 +301,6 @@ CONTAINS
              i = jj(n,m)
              DO np = 1, nw
                 j = jj(np,m)
-
                 IF (denom(i)*alpha(j).LE.0.d0) THEN
                    denom(i) = 0.d0
                 ELSE IF (ABS(denom(i)) > ABS(alpha(j))) THEN
