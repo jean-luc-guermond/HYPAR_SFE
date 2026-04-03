@@ -2,17 +2,18 @@ MODULE start_setup_MODULE
   USE setup_module
   USE fourier_param_module
   USE nl_scalar_cons_module
+  INTEGER, PRIVATE, PARAMETER :: rec_length = 200, list_length=200
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
   END TYPE argument_setup_data_type
   TYPE setup_data_type
-     LOGICAL        :: if_restart          = .FALSE. 
+     LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
      INTEGER :: syst_size
-   CONTAINS 
+   CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
   END TYPE setup_data_type
@@ -29,7 +30,7 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     CALL fourier_param%init
     CALL setup_data%init
-    CALL nl_scalar_cons%init(flux,flux_prime,lambda_max,fourier_param,init_time)
+    CALL nl_scalar_cons%init(flux,flux_prime,lambda_max,fourier_param,init_time,setup_data%final_time)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

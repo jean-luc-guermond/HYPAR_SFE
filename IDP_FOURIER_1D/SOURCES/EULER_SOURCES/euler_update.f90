@@ -213,6 +213,7 @@ CONTAINS
     REAL(KIND=8), DIMENSION(this%Nmax_real,this%syst_size) :: r_in, r_out
     REAL(KIND = 8) :: test
     INTEGER  :: stage, k, l, it
+    REAL(KIND = 8) :: mass(3)
     !===Compute viscous flux, actual flux, and u_min, u_max (for limiting)
     CALL compute_dt_viscous_flux_min_max(this,stage,&
          urk(:,:,:,stage-1),urk(:,:,:,this%ERK%lp_of_l(stage)),&
@@ -224,14 +225,22 @@ CONTAINS
        urk(:,:,:,stage) = urk(:,:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
 
        !TESTTTT
-       DO k = 1, this%syst_size
-          CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
-       END DO
-       test=1.d20
-       Do k =1, this%Nmax_real
-          test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
-       END DO
-       write(*,*) ' NEW TIME STEP', test
+!!$       DO k = 1, this%syst_size
+!!$          CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
+!!$       END DO
+!!$       test=1.d20
+!!$       Do k =1, this%Nmax_real
+!!$          test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
+!!$          if (entropy_min(r_in(k,:),bounds(k,3)).LT. -1.d-7) THEN
+!!$             write(*,*) 'k, Nreal', k, this%Nmax_real
+!!$             write(*,*) 'entropy and bound at 55', entropy_min(r_in(k,:),bounds(k,3)), bounds(k,3)
+!!$             write(*,*) r_in(k-1,:)
+!!$             write(*,*) 'HERE 45 =>', r_in(k,:)
+!!$             write(*,*) r_in(k+1,:)
+!!$             stop
+!!$          END IF
+!!$       END DO
+!!$       write(*,*) ' NEW TIME STEP', test
 !!$       if (test<-1.d-7) THEN
 !!$          write(*,*) 'complex vel', MAXVAL(ABS(urk(:,:,2,stage)))
 !!$          Do k =1, this%Nmax_real
@@ -258,7 +267,6 @@ CONTAINS
        CALL fourier_derivative(cs_zz(:,:,k),cs_dflux(:,:,k),fourier_param%Length)
     END DO
 
-
     IF (this%erk_sv>0) THEN
        cs_dflux= -cs_dflux + this%ERK%C(stage)*cs_diff
        urk(:,:,:,stage) = urk(:,:,:,1)+this%dt*cs_dflux
@@ -266,50 +274,54 @@ CONTAINS
        cs_dflux= -cs_dflux + this%ERK%inc_C(stage)*cs_diff
        urk(:,:,:,stage) = urk(:,:,:,this%ERK%lp_of_l(stage))+this%dt*cs_dflux
     END IF
-
-
-    !TESTTTT
-    DO k = 1, this%syst_size
-       CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
-    END DO
-    test=1.d20
-    Do k =1, this%Nmax_real
-       test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
-    END DO
-    write(*,*) ' NEW TIME STEP', test
-!!$    if (test<-1.d-7) THEN
-!!$       write(*,*) 'complex vel', MAXVAL(ABS(urk(:,:,2,stage)))
-!!$       Do k =1, this%Nmax_real
-!!$          write(*,*) r_in(k,:)
-!!$          write(*,*) entropy_min(r_in(k,:),bounds(k,3))
-!!$       END DO
-!!$       stop
-!!$    END if
-    !TESTTTT
-
     
     !===Limiting on density
     IF (this%if_limiting) THEN
+ 
        DO k = 1, this%syst_size
           CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
        END DO
+
+       !<==TESTTTTTT
+!!$       r_out = r_in
+!!$       test=1.d20
+!!$       Do k =1, this%Nmax_real
+!!$          test = min(test,entropy_min(r_out(k,:),bounds(k,3)))
+!!$       END DO
+!!$       write(*,*) ' min before limiting entropy limiting', test
+       do k = 1, 3
+          mass(k) = SUM(this%lumped*r_in(:,k))
+       end do
+       !write(*,*) 'before density limiting'
+       !write(*,*) minval(r_in(:,1)-bounds(:,1))/maxval(r_in(:,1)),  &
+       !          mINval(bounds(:,2)-r_in(:,1))/maxval(r_in(:,1))
+       !TEST
+       
        DO it = 1, this%it_limiting_max      
-          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in(:,1),bounds(:,1),&
-          !     psi_min,zero_of_psi_min,r_in)
+          CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,1),&
+               psi_min,zero_of_psi_min,r_in)
        END DO
        DO it = 1, this%it_limiting_max
-          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in(:1,),bounds(:,2),&
+          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,2),&
           !     psi_max,zero_of_psi_max,r_in)
-          !write(*,*) 'mass after', sum(this%lumped*r_in)
-
-          r_out = r_in
-          CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,3),&
-               entropy_min,zero_of_specific_entropy,r_in)
-          write(*,*) 'AFTER'
-          Do k =1, this%Nmax_real
-             write(*,*) entropy_min(r_in(k,:),bounds(k,3)), entropy_min(r_out(k,:),bounds(k,3))
-          END DO
+          !CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,3),&
+          !     entropy_min,zero_of_specific_entropy,r_in)
        END DO
+       !TESTTTT
+       !write(*,*) 'after density limiting'
+       !write(*,*) minval(r_in(:,1)-bounds(:,1))/maxval(r_in(:,1)),  &
+       !           mINval(bounds(:,2)-r_in(:,1))/maxval(r_in(:,1))
+!!$       test=1.d20
+!!$       Do k =1, this%Nmax_real
+!!$          test = min(test,entropy_min(r_in(k,:),bounds(k,3)))
+!!$       END DO
+!!$       write(*,*) ' min after limiting entropy limiting', test
+!!$       !if (test<1.d-7) STOP
+       !do k = 1, 3
+       !   mass(k) = mass(k) - SUM(this%lumped*r_in(:,k))
+       !   write(*,*) ' mass default', k, mass(k)
+       !end do
+       !TESTTTT
        CALL real_to_fourier(r_in(:,1),urk(:,:,1,stage))
     END IF
   END SUBROUTINE one_step_ERK
@@ -330,13 +342,12 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(2) :: in_rho, in_u, in_e, in_p, lambda
     REAL(KIND = 8) :: x, y, ul, ur, cij, nij, uijbar, length, pstar
     INTEGER :: i, j, k, m, n, np
-
-    bounds(:,3) = 1.d20
+    !REAL(KIND = 8), DIMENSION(2,3) :: utest
+    !REAL(KIND = 8), DIMENSION(3) :: update
+    
     DO k = 1, this%syst_size
        CALL Fourier_to_real(u_visc(:,:,k),r_out(:,k))
     END DO
-    rho = r_out(:,1)
-    e = r_out(:,3)/rho - 0.5d0*(r_out(:,2)/rho)**2
     
     cij =0.5d0
     diag_dijL=0.d0
@@ -351,7 +362,6 @@ CONTAINS
        in_e(1) = r_out(i,this%syst_size)/in_rho(1) - 0.5d0*in_u(1)*in_u(1)
        in_e(2) = r_out(j,this%syst_size)/in_rho(2) - 0.5d0*in_u(2)*in_u(2)
        in_p = this%eos%pressure(in_rho, in_e)       
-       bounds(i,3) = MIN(bounds(i,3),MINVAL(this%eos%entropy(in_rho,in_e))) !<===entropy lower bound
        CALL this%lambda_max(this%eos_param, in_rho, in_u, in_e, in_p, &
             this%in_tol, this%if_no_iter, lambda, pstar)
        dijL(i,2) = cij*MAXVAL(lambda)
@@ -381,13 +391,28 @@ CONTAINS
                 r_diff(i) = r_diff(i) - this%cij(n,np)*(r_flux(j) - r_flux(i))
              END DO
           END DO
-          r_diff = r_diff/this%lumped
           CALL real_to_fourier(r_diff,cs_diff(:,:,k))
        END DO
        RETURN
     END IF
 
+    
     !===High-order
+    rho = r_out(:,1)
+    e = r_out(:,3)/rho - 0.5d0*(r_out(:,2)/rho)**2
+    bounds(:,1) = rho
+    bounds(:,2) = rho
+    bounds(:,3) = this%eos%entropy(rho,e)
+    DO m = 1, this%Nmax_real !===loop over cells
+       DO n = 1, 2
+          i = this%jj(n,m)
+          np = MOD(n,2)+1
+          j = this%jj(np,m)
+          bounds(i,3) = MIN(bounds(i,3),bounds(j,3))
+          bounds(j,3) = MIN(bounds(i,3),bounds(j,3))
+       END DO
+    END Do
+    
     !eta=this%eos%entropy(rho,e)
     eta=this%eos%pressure(rho,e)
     !eta = rho
@@ -399,12 +424,11 @@ CONTAINS
           CALL Fourier_to_real(urk_in(:,:,k),r_out(:,k))
        END DO
     END IF
-    bounds(:,1) = r_out(:,1)
-    bounds(:,2) = r_out(:,1)
+
     DO k = 1, this%syst_size
        r_diff = 0.d0
        r_flux = this%flux(k,r_out)
-       DO m = 1, this%Nmax_real !===loop over cells
+       DO m = 1, this%Nmax_real !=== loop over cells
           DO n = 1, 2
              i = this%jj(n,m)
              np = MOD(n,2)+1
@@ -498,47 +522,82 @@ CONTAINS
     REAL(KIND=8), DIMENSION(SIZE(u0)) :: ul, ur
     REAL(KIND=8), PARAMETER :: small=1.d-8
     REAL(KIND=8) :: Esmall, psir, psil, ll, lr, llold, lrold
-
+!!$    INTEGER :: it 
     Esmall= small*u0(3)
-    ur = u0 + Pij 
+    ur = u0 + Pij
+    lr = 1.d0
 
     psir = entropy_min(ur,cmin)
     IF (psir.GE.-Esmall) THEN
-       write(*,*) ' OK', psir, -Esmall
+!!$       write(*,*) ' OK', psir, -Esmall
        v = 1.d0
        RETURN
     END IF
     ll = 0.d0
     ul = u0
     psil = entropy_min(ul,cmin)
-    write(*,*) 'psil', psil, psir, ABS(psil-psir), Esmall
+!!$    it =0
     DO WHILE (ABS(psil-psir) .GT. Esmall)
+       !TEST
+!!$       it = it +1
+!!$       write(*,*) 'BEGIN LOOP', it, psil, psir
+!!$       !do it = 1, 100
+!!$       !   ll = ll + (i-1)
+!!$       !    ul = u0 + ll*Pij
+!!$       !end do
+!!$       !stop
+       !TEST
        llold = ll
        lrold = lr
        ll = ll - psil*(lr-ll)/(psir-psil)
        lr = lr - psir/psi_prime_func(Pij,ur,cmin)
        IF (ll.GE.lr) THEN
           ll = lr
+          !TEST
+!!$          ul = u0 + ll*Pij
+!!$          ur = u0 + lr*Pij
+!!$          psil = entropy_min(ul,cmin)
+!!$          psir = entropy_min(ur,cmin)
+!!$          write(*,*) 'll.ge.lr', ll,lr, psil, psir
+          !TEST
           EXIT
        END IF
        IF (ll< llold) THEN
           ll = llold
+          !TEST
+!!$          ul = u0 + ll*Pij
+!!$          ur = u0 + lr*Pij
+!!$          psil = entropy_min(ul,cmin)
+!!$          psir = entropy_min(ur,cmin)
+!!$          write(*,*) 'll.ge.lr', ll,lr, psil, psir
+          !TEST
           EXIT
        END IF
        IF (lr > lrold) THEN
           lr = lrold
+          !TEST
+!!$          ul = u0 + ll*Pij
+!!$          ur = u0 + lr*Pij
+!!$          psil = entropy_min(ul,cmin)
+!!$          psir = entropy_min(ur,cmin)
+!!$          write(*,*) 'll.ge.lr', ll,lr, psil, psir
+          !TEST
           EXIT
        END IF
        ul = u0 + ll*Pij
        ur = u0 + lr*Pij
        psil = entropy_min(ul,cmin)
        psir = entropy_min(ur,cmin)
+       !TEST
+!!$       write(*,*) 'in loop', psil, psir
+       !TEST
     END DO
     IF (psir.GE.-Esmall) THEN
        v = lr
     ELSE
        v = ll
     END IF
+!!$       write(*,*) 'psil after', psil, psir, ABS(psil-psir), Esmall
   END FUNCTION zero_of_specific_entropy
   
   FUNCTION psi_prime_func(Pij,u,cmin) RESULT(psi)
@@ -586,7 +645,7 @@ CONTAINS
        CALL this%FP%plot_1d(alpha, 'commutator.plt')
     END IF
     !TESTTTTTTTTTTTTT
-    alpha =1.
+    !alpha =1.
   END SUBROUTINE entropy_commutator
 
   SUBROUTINE entropy_commutator_pad(this,stage,Nmax_pad,cs_u,r_eta,alpha)
