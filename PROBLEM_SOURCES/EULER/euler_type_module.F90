@@ -5,7 +5,10 @@ MODULE euler_type_MODULE
    USE euler_bc_arrays
    USE Butcher_tableau
    USE euler_matrices_module
-   USE space_dim
+!VB 2/04/2026
+   USE mesh_parameters
+   ! USE space_dim
+!VB 2/04/2026
    USE periodic_data_module
    IMPLICIT NONE
 
@@ -53,7 +56,8 @@ MODULE euler_type_MODULE
       TYPE(euler_matrices_type) :: matrices
       REAL(KIND = 8) :: dt, time, in_tol
       LOGICAL :: no_iter
-      INTEGER :: syst_dim = k_dim + 2
+      ! INTEGER :: syst_dim = mesh_data_info%k_dim + 2
+      INTEGER :: syst_dim
       
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost, vec_loc
       INTEGER, DIMENSION(:), POINTER :: tab
@@ -79,6 +83,8 @@ CONTAINS
       PROCEDURE(function_template_pressure) :: pressure
       PROCEDURE(function_template_impose_bc) :: impose_bc
       INTEGER, POINTER, DIMENSION(:) :: ifrom
+
+      this%syst_dim = mesh_data_info%k_dim + 2
 
       this%name = name
       this%mesh => mesh
@@ -170,7 +176,7 @@ CONTAINS
       CLASS(euler_type) :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim) :: un_temp
-      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
+      REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dij_diag
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
@@ -187,7 +193,7 @@ CONTAINS
          ff = flux(comp, un_temp)
 
          CALL VecSet(this%x3vec, 0.d0, ierr)
-         DO k = 1, k_dim
+         DO k = 1, mesh_data_info%k_dim
             !=== set flux_k in x1vec
             CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
             !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
@@ -239,7 +245,8 @@ CONTAINS
 
 
    SUBROUTINE compute_dij(this, un)
-      USE space_dim
+      USE mesh_parameters
+      ! USE space_dim
       USE petsc
       USE my_util
       USE def_type_mesh
@@ -252,7 +259,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:, :) :: un
       INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
-      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
+      REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
       REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
       REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
       REAL(KIND = 8) :: pstar
@@ -279,18 +286,18 @@ CONTAINS
                i_t = i
                j_t = j
 
-               DO k = 1, k_dim
+               DO k = 1, mesh_data_info%k_dim
                   CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
                END DO
 
                rho(1) = un(i, 1)
                rho(2) = un(j, 1)
 
-               u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
-               u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
+               u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
+               u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
 
-               ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
-               ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
+               ie(1) = un(i, mesh_data_info%k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
+               ie(2) = un(j, mesh_data_info%k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
 
                p = this%pressure(rho, ie)
 
@@ -301,12 +308,12 @@ CONTAINS
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
-                  DO k = 1, k_dim
+                  DO k = 1, mesh_data_info%k_dim
                      CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
                   END DO
 
-                  u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
-                  u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
+                  u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
+                  u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
 
                   rho = (/rho(2), rho(1)/)
                   ie = (/ie(2), ie(1)/)

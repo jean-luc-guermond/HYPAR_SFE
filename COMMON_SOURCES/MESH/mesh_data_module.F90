@@ -11,6 +11,7 @@ MODULE mesh_data_module
       CHARACTER(len = rec_length) :: nb_dom            = '=== Number of subdomains in the mesh ==='
       CHARACTER(len = rec_length) :: list_dom          = '=== List of subdomains in the mesh ==='
       CHARACTER(len = rec_length) :: type_fe           = '=== Type of finite element ===' 
+      CHARACTER(len = rec_length) :: k_dim             = '=== FE Space dimension ==='
       CHARACTER(len = rec_length) :: nb_refinement     = '=== Number of refinement steps ==='
    END TYPE argument_mesh_data_type
    !===default value in simulation                       
@@ -21,7 +22,8 @@ MODULE mesh_data_module
       LOGICAL                        :: if_read_partition = .false.              
       INTEGER                        :: nb_dom            = 1                    
       INTEGER, DIMENSION(:), POINTER :: list_dom                                 
-      INTEGER                        :: type_fe           = 1                    
+      INTEGER                        :: type_fe           = 1    
+      INTEGER                        :: k_dim             = -1
       INTEGER                        :: nb_refinement     = 0                    
    CONTAINS                                                                      
       PROCEDURE, PUBLIC              :: read => read_mesh_data
@@ -63,6 +65,9 @@ CONTAINS
 
     !=== type of finite element
     CALL read_data(argument_data%type_fe, this%type_fe)
+
+    !=== FE space dimension
+    CALL read_data(argument_data%k_dim, this%k_dim)
 
     !=== number of refinement steps
     CALL read_data(argument_data%nb_refinement, this%nb_refinement)

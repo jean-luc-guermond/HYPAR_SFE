@@ -3,7 +3,8 @@
 !
 MODULE def_type_mesh
    USE dyn_line_type
-   USE space_dim
+   USE mesh_parameters
+
    IMPLICIT NONE
 
    TYPE aij_type
@@ -143,7 +144,7 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER :: n, m
       LOGICAL :: out
-      SELECT CASE(k_dim)
+      SELECT CASE(mesh_data_info%k_dim)
       CASE(1)
          out = this%neigh(1, m) == 0 .or. this%neigh(2, m) == 0
       CASE(2)

@@ -1,7 +1,7 @@
 MODULE construct_mesh
 #include "petsc/finclude/petsc.h"
    USE def_type_mesh
-   USE space_dim
+   ! USE space_dim
    USE st_matrix
    USE petsc
    USE mesh_data_module
@@ -18,11 +18,16 @@ CONTAINS
       USE two_dim_metis_distribution
       USE gauss_points_2d
       USE Dir_nodes
+! VB 2/04/2026
+      ! USE space_dim
+      USE mesh_parameters
+! VB 2/04/2026
+
       IMPLICIT NONE
       LOGICAL, OPTIONAL :: opt_edge_stab
       INTEGER, OPTIONAL :: opt_fe
       TYPE(periodic_type), DIMENSION(:), OPTIONAL :: opt_pers
-      TYPE(mesh_data_type) :: mesh_data
+      ! TYPE(mesh_data_type) :: mesh_data
       INTEGER, DIMENSION(1) :: list_dom = 1
       INTEGER, DIMENSION(0) :: list_inter
       INTEGER, DIMENSION(:), ALLOCATABLE :: part
@@ -32,7 +37,7 @@ CONTAINS
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
       MPI_Comm       :: communicator
 
-      CALL mesh_data%init
+      CALL mesh_data_info%init
       CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
       CALL MPI_Comm_rank(communicator, rank, ierr)
 
@@ -46,15 +51,16 @@ CONTAINS
       !=== create_iso_grid_distributed, copy_mesh
       mesh_glob%rank = -1
 
-      SELECT CASE(k_dim)
+      SELECT CASE(mesh_data_info%k_dim)
+      ! SELECT CASE(k_dim)
       CASE(2)
          !===load and re order mesh
-         CALL load_dg_mesh_free_format(mesh_data%directory, mesh_data%file_name, &
-              list_dom, list_inter, mesh_glob, mesh_data%if_mesh_formatted)
+         CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &
+              list_dom, list_inter, mesh_glob, mesh_data_info%if_mesh_formatted)
          ALLOCATE(part(mesh_glob%me))
 
-         mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data%file_name))
-         IF (mesh_data%if_read_partition) THEN
+         mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data_info%file_name))
+         IF (mesh_data_info%if_read_partition) THEN
             IF (rank == 0) WRITE(*, *) 'read partition'
             OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'unknown', FORM = 'formatted')
             READ(51, *) part
@@ -73,14 +79,14 @@ CONTAINS
          CALL free_mesh(mesh_glob)
          DEALLOCATE(part)
          !===mesh refinements
-         DO n = 1, mesh_data%nb_refinement
+         DO n = 1, mesh_data_info%nb_refinement
             !===Create refined mesh
             CALL refinement_iso_grid_distributed(mesh)
             IF(rank == 0) write(*, *) 'refinement done', n
          END DO
 
          !===special meshes
-         !      IF(mesh_data%if_HCT) THEN
+         !      IF(mesh_data_info%if_HCT) THEN
          !         CALL HCT_iso_grid_distributed(mesh_p1, HCT_mesh_p1)
          !         CALL deallocate_mesh(mesh_p1)
          !         CALL copy_mesh(HCT_mesh_p1, mesh_p1)
@@ -88,7 +94,7 @@ CONTAINS
          !      END IF
 
          !===create finite elements polynome on mesh
-         CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data%type_fe)
+         CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data_info%type_fe)
          CALL free_mesh(mesh)
          CALL copy_mesh(mesh_r, mesh)
          CALL free_mesh(mesh_r)
@@ -103,15 +109,19 @@ CONTAINS
          mesh%rank = rank  !=== petsc convention
          mesh%edge_stab = .false.
          !===gauss points on mesh
-         CALL create_gauss_points_2d(mesh, mesh_data%type_fe)
+         CALL create_gauss_points_2d(mesh, mesh_data_info%type_fe)
 
       CASE(1)
-         CALL load_mesh_1d(mesh_data%directory, mesh_data%file_name, mesh_glob, mesh_data%if_mesh_formatted)
+         CALL load_mesh_1d(mesh_data_info%directory, mesh_data_info%file_name, mesh_glob, mesh_data_info%if_mesh_formatted)
          CALL extract_mesh_1d(communicator, mesh_glob, mesh, opt_pers)
          CALL free_mesh(mesh_glob)
          mesh%edge_stab = .false.
          CALL GAUSS_POINT_1d(mesh)
          mesh%rank = rank
+
+      CASE(-1)
+         IF (rank == 0) WRITE(*, *) 'BUG in construct_mesh: k_dim = -1 => you did not set k_dim in the data file'
+         STOP
 
       CASE DEFAULT
          IF(rank == 0) write(*, *) ' BUG in construct_mesh, k_dim not correct'

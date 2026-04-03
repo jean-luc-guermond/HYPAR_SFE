@@ -13,12 +13,13 @@ CONTAINS
     USE sub_plot
     USE dir_nodes_petsc
     USE def_type_mesh
-    USE space_dim
+    USE mesh_parameters
+   !  USE space_dim
     IMPLICIT NONE
     CLASS(euler_bc_type) :: this
     TYPE(mesh_type)      :: mesh
     LOGICAL,        DIMENSION(mesh%nps)        :: virgin
-    REAL(KIND = 8), DIMENSION(mesh%nps, k_dim) :: normal_vtx
+    REAL(KIND = 8), DIMENSION(mesh%nps, mesh_data_info%k_dim) :: normal_vtx
     REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
     INTEGER :: ms, ns, js, n
 !!$    CHARACTER(LEN=5) :: char
@@ -27,14 +28,14 @@ CONTAINS
 
     CALL this%ux_bc%set(mesh, "ux")
  
-    IF (k_dim>1) THEN
+    IF (mesh_data_info%k_dim>1) THEN
        CALL this%uy_bc%set(mesh, "uy")
        CALL this%whole_bdy_bc%set(mesh, "whole boundary")
        CALL this%udotn_bc%set(mesh, "u.n=0")
     END IF
 
     !===Normal at vertices
-    SELECT CASE(k_dim)
+    SELECT CASE(mesh_data_info%k_dim)
     CASE(2)
        normal_vtx = 0.d0
        virgin = .TRUE.
@@ -51,7 +52,7 @@ CONTAINS
              normal_vtx(js,:) = normal_vtx(js,:) + mesh%gauss%rnorms_v(:,ns,ms)
           END DO
        END DO
-       ALLOCATE(this%udotn_normal_vtx(SIZE(this%udotn_bc%jsd),k_dim))
+       ALLOCATE(this%udotn_normal_vtx(SIZE(this%udotn_bc%jsd),mesh_data_info%k_dim))
        n = 0
        virgin = .TRUE.
        DO ms = 1, mesh%mes
@@ -67,7 +68,7 @@ CONTAINS
        END DO
 
 !!$       !===Check normal vector
-!!$       ALLOCATE(stuff(k_dim,mesh%np))
+!!$       ALLOCATE(stuff(mesh_data_info%k_dim,mesh%np))
 !!$       stuff = 0.d0
 !!$       stuff(1,this%udotn_bc%jsd) = this%udotn_normal_vtx(:,1)
 !!$       stuff(2,this%udotn_bc%jsd) = this%udotn_normal_vtx(:,2)
