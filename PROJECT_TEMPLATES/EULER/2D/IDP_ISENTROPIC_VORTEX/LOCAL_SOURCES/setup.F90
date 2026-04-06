@@ -1,12 +1,29 @@
 MODULE setup
-  USE space_dim
-  USE eos
-  PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
+  USE mesh_parameters
+  PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
   PRIVATE
   REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
-  REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0
+  REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
   REAL(KIND=8) :: chi, beta
 CONTAINS
+
+!==========================================================================
+!================= INIT EOS FOR SETUP  ====================================
+!==========================================================================
+   SUBROUTINE init_eos_for_setup
+      USE eos_examples
+      USE eos
+      IMPLICIT NONE
+      TYPE(eos_pointer_type) :: eos_type
+
+      eos_type%pressure => pressure_ideal_diatomic_gas
+      
+      CALL assign_eos(eos_type)
+   END SUBROUTINE init_eos_for_setup
+
+!==========================================================================
+!================= ANALYTICAL SOLUTIONS ===================================
+!==========================================================================
 
   SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
     USE euler_bc_arrays
@@ -18,21 +35,25 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
     INTEGER :: comp
     DO comp = 1, euler_bc%syst_dim
-       SELECT CASE(comp)
-       CASE(1)
-          un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-       CASE(2:k_dim + 1)
-          un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-       CASE(k_dim + 2)
-          un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-       END SELECT
+      !  SELECT CASE(comp)
+      !  CASE(1)
+      IF (comp == 1) THEN
+         un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         !  CASE(2:k_dim + 1)
+      ELSE IF (comp > 1 .AND. comp <= mesh_data_info%k_dim + 1) THEN
+         un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         !  CASE(k_dim + 2)
+      ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
+         un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
+         !  END SELECT
+      END IF
     END DO
   END SUBROUTINE impose_bc_euler
 
   SUBROUTINE init(un, time, rr)
     IMPLICIT NONE
     REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-    REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
+    REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
     REAL(KIND = 8), INTENT(IN) :: time
     INTEGER :: comp
     REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
@@ -40,15 +61,19 @@ CONTAINS
     beta = beta0/(2*pi)
     chi=((gamma-1)/(2*gamma))*beta**2
 
-    DO comp = 1, k_dim+2
-       SELECT CASE(comp)
-       CASE(1)
+    DO comp = 1, mesh_data_info%k_dim+2
+      !  SELECT CASE(comp)
+      !  CASE(1)
+      IF (comp == 1) THEN
           un(:, comp) = rho_anal(time, rr)
-       CASE(2:k_dim + 1)
+      !  CASE(2:k_dim + 1)
+      ELSE IF (comp > 1 .AND. comp <= mesh_data_info%k_dim + 1) THEN
           un(:, comp) = mt_anal(comp - 1, time, rr)
-       CASE(k_dim + 2)
+      !  CASE(k_dim + 2)
+      ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
           un(:, comp) = E_anal(time, rr)
-       END SELECT
+      !  END SELECT
+      END IF
     END DO
   END SUBROUTINE init
 

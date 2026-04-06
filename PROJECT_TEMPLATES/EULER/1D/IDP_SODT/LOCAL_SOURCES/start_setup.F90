@@ -2,7 +2,6 @@ MODULE start_setup_MODULE
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
-   USE eos
    USE euler_type_module
    USE character_strings, ONLY : clean_data_once
    MPI_Comm        :: communicator
@@ -41,6 +40,7 @@ CONTAINS
       USE construct_mesh
       USE st_matrix
       USE setup
+      USE eos
       IMPLICIT NONE
       PetscErrorCode :: ierr
       REAL(KIND = 8) :: init_time = 0.d0
@@ -64,9 +64,9 @@ CONTAINS
       !===Read
       CALL setup_data%init
 
-      CALL init_eos_for_setup
       !===Start Euler
       !FIXE ME init_time too
+      CALL init_eos_for_setup
       CALL euler%init(communicator, name, mesh, LA, per(1), pressure, impose_bc_euler, init_time)
 
       !===Read data setup
@@ -104,7 +104,7 @@ CONTAINS
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
       !===Checkpointing
-    CALL read_real_data(argument_data%final_time, this%final_time)
+    CALL read_data(argument_data%final_time, this%final_time)
 
       !===Regression test
       CALL getarg(1, string)

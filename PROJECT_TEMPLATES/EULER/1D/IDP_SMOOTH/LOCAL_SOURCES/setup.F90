@@ -1,10 +1,28 @@
 MODULE setup
-   USE space_dim
-   USE eos
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
+   USE mesh_parameters
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
    PRIVATE
-   REAL(KIND = 8) :: x0, x1
+   REAL(KIND = 8), PARAMETER :: x0 = 0.1d0, x1 = 0.3d0, gamma = 1.4d0
 CONTAINS
+
+!==========================================================================
+!================= INIT EOS FOR SETUP  ====================================
+!==========================================================================
+
+   SUBROUTINE init_eos_for_setup
+      USE eos_examples
+      USE eos
+      IMPLICIT NONE
+      TYPE(eos_pointer_type) :: eos_type
+
+      eos_type%pressure => pressure_ideal_diatomic_gas
+      
+      CALL assign_eos(eos_type)
+   END SUBROUTINE init_eos_for_setup
+
+!==========================================================================
+!================= ANALYTICAL SOLUTIONS ===================================
+!==========================================================================
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
@@ -16,14 +34,18 @@ CONTAINS
       INTEGER :: comp
 
       DO comp = 1, euler_bc%syst_dim
-         SELECT CASE(comp)
-         CASE(1)
+         ! SELECT CASE(comp)
+         ! CASE(1)
+         IF (comp == 1) THEN
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(2:k_dim + 1)
+         ! CASE(2:k_dim + 1)
+         ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
             un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(k_dim + 2)
+         ! CASE(k_dim + 2)
+         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
             un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         END SELECT
+         ! END SELECT
+         END IF
       END DO
 
    END SUBROUTINE impose_bc_euler
@@ -33,11 +55,9 @@ CONTAINS
       USE lambda_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
+      ! REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
-      gamma = 1.4d0
-      x0 = 0.1
-      x1 = 0.3
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)
       un(:, 3) = E_anal(time, rr)

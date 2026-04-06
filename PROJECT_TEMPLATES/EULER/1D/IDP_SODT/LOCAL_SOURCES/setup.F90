@@ -1,6 +1,5 @@
 MODULE setup
    USE mesh_parameters
-   USE eos
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
    PRIVATE
    REAL(KIND = 8) :: x0, x1

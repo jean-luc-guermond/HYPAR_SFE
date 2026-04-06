@@ -1,8 +1,7 @@
 MODULE setup
-   USE space_dim
-   USE eos
+   USE mesh_parameters
    USE vdw
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
    PRIVATE
    REAL(KIND = 8) :: x0, x1
    INTEGER :: VdW_test_case = 0
@@ -10,6 +9,25 @@ MODULE setup
    REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
 CONTAINS
+
+!==========================================================================
+!================= INIT EOS FOR SETUP  ====================================
+!==========================================================================
+
+   SUBROUTINE init_eos_for_setup
+      USE eos
+      USE vdw
+      IMPLICIT NONE
+      TYPE(eos_pointer_type) :: eos_type
+
+      eos_type%pressure => pressure_vdw
+      
+      CALL assign_eos(eos_type)
+   END SUBROUTINE init_eos_for_setup
+
+!==========================================================================
+!================= ANALYTICAL SOLUTIONS ===================================
+!==========================================================================
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
@@ -21,14 +39,18 @@ CONTAINS
       INTEGER :: comp
 
       DO comp = 1, euler_bc%syst_dim
-         SELECT CASE(comp)
-         CASE(1)
+         ! SELECT CASE(comp)
+         ! CASE(1)
+         IF (comp == 1) THEN
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(2:k_dim + 1)
+         ! CASE(2:k_dim + 1)
+         ELSE IF (comp > 1 .AND. comp <= mesh_data_info%k_dim + 1) THEN
             un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(k_dim + 2)
+         ! CASE(k_dim + 2)
+         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
             un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         END SELECT
+         ! END SELECT
+         END IF
       END DO
 
    END SUBROUTINE impose_bc_euler
@@ -38,7 +60,7 @@ CONTAINS
       USE lambda_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8) :: cl, cr, rho_plus
       REAL(KIND = 8) :: in_state(2), in_data(3), out_state(4)

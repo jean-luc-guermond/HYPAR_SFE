@@ -1,9 +1,27 @@
 MODULE setup
-   USE space_dim
-   USE eos
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler
+   USE mesh_parameters
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
    PRIVATE
+   REAL(KIND=8), PARAMETER :: gamma = 1.4d0
 CONTAINS
+
+!==========================================================================
+!================= INIT EOS FOR SETUP  ====================================
+!==========================================================================
+   SUBROUTINE init_eos_for_setup
+      USE eos_examples
+      USE eos
+      IMPLICIT NONE
+      TYPE(eos_pointer_type) :: eos_type
+
+      eos_type%pressure => pressure_ideal_diatomic_gas
+      
+      CALL assign_eos(eos_type)
+   END SUBROUTINE init_eos_for_setup
+
+!==========================================================================
+!================= ANALYTICAL SOLUTIONS ===================================
+!==========================================================================
 
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
@@ -42,7 +60,7 @@ CONTAINS
       USE lambda_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)
