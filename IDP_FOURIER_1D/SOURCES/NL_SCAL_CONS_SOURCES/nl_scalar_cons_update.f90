@@ -28,8 +28,8 @@ MODULE nl_scalar_cons_module
   TYPE, PUBLIC :: nl_scalar_cons_type
      REAL(KIND=8) :: CFL = 0.5d0, glob_min = -1.d20, glob_max = 1.d20
      LOGICAL :: if_limiting = .FALSE.
-     CHARACTER(LEN=40) :: bound_relaxing = 'minmod'
-     CHARACTER(LEN=40) :: method = 'viscous'
+     CHARACTER(LEN=rec_length) :: bound_relaxing = 'minmod'
+     CHARACTER(LEN=rec_length) :: method = 'viscous'
      INTEGER      :: erk_sv    = -21
      TYPE(BT), PUBLIC :: ERK
      TYPE(fourier_param_type), POINTER :: FP
@@ -106,78 +106,50 @@ CONTAINS
     USE character_strings
     IMPLICIT NONE
 
-    CHARACTER(1), PARAMETER :: begin_section ='~'
-    CHARACTER(1), PARAMETER :: end_section   ='~'
-    INTEGER, PARAMETER :: in_unit = 21
+    CHARACTER(LEN=rec_length) :: section_name='NL SCALAR CONS PARAMETERS'
+
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
     TYPE(argument_nl_scalar_cons)  :: argument_data
-    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-    CHARACTER(LEN=rec_length)                         :: string_default
-    LOGICAL :: okay
-    INTEGER :: rank, record_size, i_list, j
+    CHARACTER(LEN=rec_length)                         :: string
 
-    !===Initialize data to zero and false by default
-    list = ''
-    record = ''
-    i_list = 1
-    !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+!================
+!=== MANDATORY Reading all data file
+!================
+    CALL read_data_init_list(section_name)
+
+!================
+!=== We now find the relevant information for this setup
+!================
 
     !===CFL
-    WRITE(string_default,*) this%CFL
-    CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%CFL
-    END IF
+    CALL read_data(argument_data%CFL, this%CFL)
 
     !===ERK
-    WRITE(string_default,*) this%erk_sv
-    CALL compare_string(record, list, argument_data%erk_sv, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%erk_sv
-    END IF
+    CALL read_data(argument_data%erk_sv, this%erk_sv)
 
     !===Higher-order vs. low-order
-    WRITE(string_default,*) this%method
-    CALL compare_string(record, list, argument_data%method, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%method
-    END IF
+    CALL read_data(argument_data%method, this%method)
 
     !=========================
     !===Limiting parameters===
     !=========================
     !===if_limiting
-    WRITE(string_default,*) this%if_limiting
-    CALL compare_string(record, list, argument_data%if_limiting, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%if_limiting
-    END IF
+    CALL read_data(argument_data%if_limiting, this%if_limiting)
 
     !===Glob min
-    WRITE(string_default,*) this%glob_min
-    CALL compare_string(record, list, argument_data%glob_min, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%glob_min
-    END IF
+    CALL read_data(argument_data%glob_min, this%glob_min)
 
     !===Glob max
-    WRITE(string_default,*) this%glob_max
-    CALL compare_string(record, list, argument_data%glob_max, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%glob_max
-    END IF
+    CALL read_data(argument_data%glob_max, this%glob_max)
 
     !===Bound_relaxing
-    WRITE(string_default,*) this%bound_relaxing
-    CALL compare_string(record, list, argument_data%bound_relaxing, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%bound_relaxing
-    END IF
+    CALL read_data(argument_data%bound_relaxing, this%bound_relaxing)
 
-    !===Closing unit
-    rank = 0
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
+
   END SUBROUTINE read_nl_scalar_cons
 
   SUBROUTINE update(this)

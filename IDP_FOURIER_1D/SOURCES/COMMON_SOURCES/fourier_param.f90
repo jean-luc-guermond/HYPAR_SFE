@@ -32,41 +32,33 @@ CONTAINS
   SUBROUTINE read_fourier_param(this)
     USE character_strings
     IMPLICIT NONE
-    CHARACTER(1), PARAMETER :: begin_section ='~'
-    CHARACTER(1), PARAMETER :: end_section   ='~'
-    INTEGER, PARAMETER :: in_unit = 21
+
+    CHARACTER(LEN=rec_length) :: section_name='FOURIER PARAMETERS'
+
     CLASS(fourier_param_type), INTENT(INOUT):: this
     TYPE(argument_fourier_param_type)  :: argument_data
-    CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
-    CHARACTER(LEN=rec_length)                         :: string_default
-    LOGICAL :: okay
-    INTEGER :: rank, record_size, i_list, j
+    CHARACTER(LEN=rec_length)                         :: string
 
-    !===Initialize data to zero and false by default
-    list = ''
-    record = ''
-    i_list = 1
+!================
+!=== MANDATORY Reading all data file
+!================
+    CALL read_data_init_list(section_name)
     
-    !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
+!================
+!=== We now find the relevant information for this setup
+!================
 
-    !===Nmax
-    WRITE(string_default,*) this%Nmax
-    CALL compare_string(record, list, argument_data%Nmax, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%Nmax
-    END IF
+    !===nb Fourier modes
+    CALL read_data(argument_data%Nmax, this%Nmax)
 
     !===Length
-    WRITE(string_default,*) this%Length
-    CALL compare_string(record, list, argument_data%Length, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%Length
-    END IF
+    CALL read_data(argument_data%Length, this%Length)
 
-    !===Closing unit
-    rank = 0
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)     
+!================
+!=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+!================
+     CALL finalize_rewrite_data
+     
   END SUBROUTINE read_fourier_param
 
   SUBROUTINE plot_1d_fourier_param(this,un,file)
