@@ -64,6 +64,7 @@ CONTAINS
       !===Read
       CALL setup_data%init
 
+      CALL init_eos_for_setup
       !===Start Euler
       !FIXE ME init_time too
       CALL euler%init(communicator, name, mesh, LA, per(1), pressure, impose_bc_euler, init_time)

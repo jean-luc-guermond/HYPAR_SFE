@@ -39,7 +39,6 @@ END MODULE eos
 MODULE eos_examples
     USE eos_interface
     IMPLICIT NONE
-    ! PROCEDURE(pressure_template) :: pressure_ideal_diatomic_gas, pressure_ideal_monoatomic_gas
 
   CONTAINS
 

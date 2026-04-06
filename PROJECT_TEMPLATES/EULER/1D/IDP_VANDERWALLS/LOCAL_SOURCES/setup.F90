@@ -54,7 +54,7 @@ CONTAINS
          in_data(3) = 1.02d0
          CALL initialize_vdw(rho_plus, in_state, in_data, out_state)
          uL = out_state(1)
-         uR = out_state(2)
+         uR = out_state(2) 
          pL = out_state(3)
          pR = out_state(4)
       CASE(1) !===Stability test 1, Eq. (6.4) section 6.2, SISC Vol. 44, No. 1, pp. A444-A470
