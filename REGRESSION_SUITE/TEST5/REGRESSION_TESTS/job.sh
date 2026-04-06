@@ -8,4 +8,4 @@ echo $?
 #cp current_regression_reference regression_reference_10
 
 #Clean up
-rm -f *.plt previous_data mesh_part_* Mesh_1*
+rm -f previous_data mesh_part_* Mesh_1* *.plt

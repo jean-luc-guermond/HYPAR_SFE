@@ -1,37 +1,10 @@
-=== Indices of periodic boundaries and corresponding vectors on global ===
-1 2 1.d0 0.d0
-!           SETUP PARAMETERS
-=== Restart (true/false) ===
-F
-=== Checkpointing frequency ===
-1.d20
-=== Final time ===
-.90d0
-=== Do we compare with analytical reference? (true/false) ===
-F
-!           EULER PARAMETERS
-=== CFL ? ===
-0.95
-===Euler 1: b_covolume ?===
-0.
-===Euler 1: ERK ?===
--31
-!           DIRICHLET BC PARAMETERS
-=== How many pieces of boundaries for bcs on density? ===
-0
-=== How many pieces of boundaries for bcs on ux? ===
-0
-=== How many pieces of boundaries for bcs on uy? ===
-0
-=== How many pieces of boundaries for bcs on u.n=0? ===
-0
+=== Indices of periodic boundaries and corresponding vectors on global? ===
+0 0 0.d0 0.d0
 ============================================
 !           PERIODIC BC PARAMETERS
 ============================================
 === How many pieces of periodic boundary on global? ===
-1
-=== Indices of periodic boundaries and corresponding vectors on global? ===
-0 0 0.d0 0.d0
+0
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -40,7 +13,7 @@ F
 === Name of mesh file ===
 'step_regul_0.05_0.02.FEM'
 === Is the mesh formatted? (True/False) ===
-T
+F
 === Do we read metis partition? (true/false) ===
 F
 === Type of finite element ===
@@ -53,3 +26,34 @@ F
 1
 === List of subdomains in the mesh ===
 1
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Restart (true/false) ===
+F
+=== Checkpointing frequency ===
+1.d20
+=== Final time ===
+1.0d0
+=== Do we compare with analytical reference? (true/false) ===
+F
+======================================
+!           EULER PARAMETERS
+======================================
+=== CFL ? ===
+0.5
+===Euler 1: b_covolume ?===
+0.
+===Euler 1: ERK ?===
+-31
+=============================================
+!           DIRICHLET BC PARAMETERS
+=============================================
+=== How many pieces of boundaries for bcs on density? ===
+0
+=== How many pieces of boundaries for bcs on ux? ===
+0
+=== How many pieces of boundaries for bcs on uy? ===
+0
+=== How many pieces of boundaries for bcs on u.n=0? ===
+0

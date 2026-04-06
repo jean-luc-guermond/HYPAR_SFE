@@ -69,10 +69,7 @@ CONTAINS
 
       !===Start Euler
       !FIXE ME init_time too
-! VB 2/04/2026
       CALL init_eos_for_setup
-
-! VB 2/04/2026
       CALL euler%init(communicator, name, mesh, LA, per(1), pressure, impose_bc_euler, init_time)
 
       !===Read data setup
