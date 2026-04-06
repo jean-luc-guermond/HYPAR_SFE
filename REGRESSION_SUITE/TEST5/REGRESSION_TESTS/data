@@ -52,8 +52,14 @@ F
 === How many pieces of boundaries for bcs on density? ===
 0
 === How many pieces of boundaries for bcs on ux? ===
-0
+2
+=== List of boundaries for bcs on ux ===
+1 6
 === How many pieces of boundaries for bcs on uy? ===
-0
+4
+=== List of boundaries for bcs on uy ===
+1 2 4 7
 === How many pieces of boundaries for bcs on u.n=0? ===
-0
+1
+=== List of boundaries for bcs on u.n=0 ===
+5

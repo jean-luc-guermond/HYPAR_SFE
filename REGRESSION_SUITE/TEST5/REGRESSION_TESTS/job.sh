@@ -1,7 +1,7 @@
 #!/bin/bash
 datatest=data                                    
                                                              
-nproc=4
+nproc=32
 
 $1 $2$nproc $4  ../EXECUTABLE/$3 regression
 echo $?

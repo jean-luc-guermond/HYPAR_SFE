@@ -63,7 +63,8 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
-    INTEGER :: code
+    REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
+    INTEGER :: n, code
 
     IF (setup_data%if_analytical_ref) THEN
        CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
@@ -74,9 +75,13 @@ CONTAINS
     END IF
 
     IF (setup_data%if_regression_test) THEN
-       CALL ns_l1(mesh, un(:,1), norm_loc)
-       CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-       CALL regression(norm)
+       ALLOCATE(tab_norm(SIZE(un, 2)))
+       DO n=1, SIZE(un, 2)
+          CALL ns_l1(mesh, un(:,n), norm_loc)
+          CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+          tab_norm(n) = norm
+       END DO
+       CALL regression(tab_norm)
     END IF
 
   END SUBROUTINE errors

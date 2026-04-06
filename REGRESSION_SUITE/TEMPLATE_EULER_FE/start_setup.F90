@@ -107,7 +107,7 @@ CONTAINS
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
       !===Checkpointing
-    CALL read_real_data(argument_data%final_time, this%final_time)
+    CALL read_data(argument_data%final_time, this%final_time)
 
       !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
