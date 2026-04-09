@@ -1,5 +1,5 @@
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 include(variables.cmake)
 
@@ -48,11 +48,22 @@ pkg_check_modules(PETSC PETSc)
 pkg_check_modules(FFTW fftw3)
 
 
+#==========================================================================
+#=============== compilation of CTESTS
+#==========================================================================
+
+set(LIST_REGEX
+"123456789"
+"123456789.*2345678912"
+"123456789.*234567891.*3456789123"
+)
+
 # Lib hypar_sfe_F
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
 # Tests 1--5: Euler FE 1D/2D
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE ${HYPAR_SFE_DIR}/REGRESSION_SUITE/BUILD)
+add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_EULER_FE_TEMPLATE ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_EULER_FE_TEMPLATE/BUILD)
 # Test 6: FFT 1D
 add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST6 ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST6/BUILD)
-
+# Test 7-8: IDP Fourier 1D NL_SCALAR_CONS
+add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_IDP_FOURIER_1D_TEMPLATE/NL_SCALAR_CONS ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_IDP_FOURIER_1D_TEMPLATE/NL_SCALAR_CONS/BUILD)
 enable_testing()

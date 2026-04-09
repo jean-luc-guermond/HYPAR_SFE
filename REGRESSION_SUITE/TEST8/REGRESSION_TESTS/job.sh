@@ -1,18 +1,21 @@
 #!/bin/bash
 datatest=data                                    
                                                              
-nproc=4
+nproc=1
 # RUN_PRE_PROC=$1
 # PROC_CALL=$2
 # nb_regex=$3
 
 for ((i=1; i<=$3; i++)); do
+    #=== define executable
     exe_index=$((3 + i))
     exe=${!exe_index}
-echo "$1 $2$nproc  ../EXECUTABLE/${exe} regression $i"
+    #=== run the test
     $1 $2$nproc ../EXECUTABLE/${exe} regression $i
+    #=== move the output
+    mkdir output_$i
+    mv previous_data mesh_part* Mesh_1* *.plt output_$i
 done
-#cp current_regression_reference regression_reference_10
 
 #Clean up
-rm -f previous_data mesh_part* Mesh_1* *.plt
+# rm -rf output_*

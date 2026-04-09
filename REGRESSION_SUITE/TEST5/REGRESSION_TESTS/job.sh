@@ -2,9 +2,16 @@
 datatest=data                                    
                                                              
 nproc=32
+# RUN_PRE_PROC=$1
+# PROC_CALL=$2
+# nb_regex=$3
 
-$1 $2$nproc $4  ../EXECUTABLE/$3 regression
-echo $?
+for ((i=1; i<=$3; i++)); do
+    exe_index=$((3 + i))
+    exe=${!exe_index}
+echo "$1 $2$nproc  ../EXECUTABLE/${exe} regression $i"
+    $1 $2$nproc ../EXECUTABLE/${exe} regression $i
+done
 #cp current_regression_reference regression_reference_10
 
 #Clean up

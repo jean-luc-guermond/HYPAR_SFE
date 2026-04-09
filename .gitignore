@@ -2,7 +2,8 @@
 *.smod
 *.so
 *.plt
-BUILD
+BUILD*
+output_*
 EXECUTABLE
 LIBS/CMakeFiles/
 LIBS/CTestTestfile.cmake

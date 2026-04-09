@@ -1,5 +1,5 @@
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 # include(variables.cmake)
 
@@ -70,7 +70,6 @@ target_include_directories(${exe} PUBLIC ${HYPAR_SFE_DIR}/LIBS/BUILD
     ${FFTW_INCLUDEDIR} ${FFTW_INCLUDE_DIRS}
     ${PETSC_INCLUDEDIR} ${PETSC_INCLUDE_DIRS}
   )
-message(${ZLIB_LIBRARIES})
 #===================================================
 # Define test parameters
 #===================================================
