@@ -48,8 +48,11 @@ pkg_check_modules(PETSC PETSc)
 pkg_check_modules(FFTW fftw3)
 
 
-# Adding directory to build lib_f
+# Lib hypar_sfe_F
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
+# Tests 1--5: Euler FE 1D/2D
 add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE ${HYPAR_SFE_DIR}/REGRESSION_SUITE/BUILD)
+# Test 6: FFT 1D
+add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST6 ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST6/BUILD)
 
 enable_testing()
