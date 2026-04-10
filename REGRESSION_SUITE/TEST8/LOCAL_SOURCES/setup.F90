@@ -11,9 +11,9 @@ MODULE setup_module
     END INTERFACE
 
 #if regex_num == 1
-    PROCEDURE(exact_sol_R_procedure), POINTER :: exact_sol_R => exact_sol_step_R
-#elif regex_num == 2
     PROCEDURE(exact_sol_R_procedure), POINTER :: exact_sol_R => exact_sol_smooth_R
+#elif regex_num == 2
+    PROCEDURE(exact_sol_R_procedure), POINTER :: exact_sol_R => exact_sol_step_R
 #endif
 
 CONTAINS

@@ -11,13 +11,11 @@ for ((i=1; i<=$3; i++)); do
     exe_index=$((3 + i))
     exe=${!exe_index}
     #=== run the test
-    cp data_$i data
     $1 $2$nproc ../EXECUTABLE/${exe} regression $i
     #=== move the output
-    mkdir -p output_$i
-    mv previous_data *.plt output_$i
+    mkdir output_$i
+    mv previous_data mesh_part* Mesh_1* *.plt output_$i
 done
 
 #Clean up
-rm -f data
 # rm -rf output_*

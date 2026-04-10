@@ -39,7 +39,8 @@ project(ctest_FFT_1D)
 #==========================================================================
 #=============== Compilation of test
 #==========================================================================
-message("TEST FFT 1D")
+set(TEST_NAME "fft_1D")
+message(${TEST_NAME})
 set(TEST_DIR ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST6)
 
 # Create local sources from local dir
@@ -51,7 +52,7 @@ file(GLOB_RECURSE local_sources
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TEST_DIR}/EXECUTABLE)
 
 # Add executable
-set(exe "test6.exe")
+set(exe "${TEST_NAME}.exe")
 add_executable(${exe} ${local_sources})
 
 set(HYPAR_LIB hypar_lib_F)
@@ -78,7 +79,7 @@ target_include_directories(${exe} PUBLIC ${HYPAR_SFE_DIR}/LIBS/BUILD
 set(passRegex "1234567891")
 
 #=== test name definition, used for test output
-set (nm "FFT_1D")
+set (nm "${TEST_NAME}")
 
 #=== effective test definition
 add_test(NAME ${nm}
