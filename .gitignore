@@ -5,6 +5,10 @@
 BUILD*
 output_*
 EXECUTABLE
+current_regression_1
+current_regression_2
+current_regression_3
+previous_data
 LIBS/CMakeFiles/
 LIBS/CTestTestfile.cmake
 LIBS/Makefile
