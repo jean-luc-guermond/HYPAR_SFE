@@ -24,7 +24,7 @@ PROGRAM prog
   DO WHILE(euler%time < setup_data%final_time)
      CALL euler%update(un)
      n = n + 1
-     IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
+   !   IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
   END DO
   tps = user_time() - tps
 
