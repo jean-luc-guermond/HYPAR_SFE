@@ -26,7 +26,7 @@ CONTAINS
     END IF
   END FUNCTION lambda_max
 
-  FUNCTION exact_sol_step_R1(fourier_param,time) RESULT(vv)
+  FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
     USE fourier_param_module
     IMPLICIT NONE
     TYPE(fourier_param_type) :: fourier_param
@@ -34,9 +34,9 @@ CONTAINS
     REAL(KIND=8) :: time
     REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
     vv = SIN(2*pi*Fourier_param%rr/Fourier_param%Length)
-  END FUNCTION exact_sol_step_R1
+  END FUNCTION exact_sol_step_R
 
-  FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
+  FUNCTION exact_sol_step_R1(fourier_param,time) RESULT(vv)
     USE fourier_param_module
     IMPLICIT NONE
     TYPE(fourier_param_type) :: fourier_param
@@ -51,7 +51,7 @@ CONTAINS
           vv(i) = (Fourier_param%rr(i)-Fourier_param%Length)/(1+time)
        END IF
     END DO
-  END FUNCTION exact_sol_step_R
+  END FUNCTION exact_sol_step_R1
 
   FUNCTION exact_sol_F(fourier_param,time,exact_sol_R) RESULT(cs_v)
     USE fourier_param_module

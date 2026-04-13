@@ -273,7 +273,7 @@ CONTAINS
 
     !===High-order
     CALL entropy_commutator(this,stage,r_out,alpha)
-
+  
     IF (this%ERK%lp_of_l(stage).NE.stage-1) THEN
        CALL Fourier_to_real(urk_in,r_out)
     END IF
@@ -344,7 +344,7 @@ CONTAINS
     length=this%dx*this%Nmax_real
     x = sum(r_out)/this%Nmax_real
     eta =  (r_out-x)**2/2
-    etap = (r_out-x)
+    etap = (r_out-x)**1
     CALL real_to_fourier(eta,cs_diff)
     CALL fourier_derivative(cs_diff,cs_flux,length)
     CALL Fourier_to_real(cs_flux,alpha) !<==derivative of entropy

@@ -280,7 +280,8 @@ CONTAINS
     alpha = alpha/beta
     SELECT CASE(TRIM(ADJUSTL(bound_relaxing)))
     CASE('avg') !==Average
-       denom = 0.d0
+       !denom = 0.d0
+       denom = alpha
        beta = 0
        DO m = 1, me
           DO n = 1, nw
@@ -288,12 +289,14 @@ CONTAINS
              DO np = 1, nw
                 IF (n==np) CYCLE
                 j = jj(np,m) 
-                denom(i) = denom(i) + alpha(i) + alpha(j)
+                !denom(i) = denom(i) + alpha(i) + alpha(j)
+                denom(i) = denom(i) + alpha(j)
                 beta(i) = beta(i) + 1
              END DO
           END DO
        END DO
-       denom = denom/(2*beta)
+       !denom = denom/(2*beta)
+       denom = denom/(beta)
     CASE('minmod') !===Minmod
        denom = alpha 
        DO m = 1, me

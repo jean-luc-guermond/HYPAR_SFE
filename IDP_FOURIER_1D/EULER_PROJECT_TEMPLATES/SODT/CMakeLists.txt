@@ -56,7 +56,8 @@ file(GLOB_RECURSE sources
 	${ROOT_DIR}/../COMMON_SOURCES/SOLVERS/ERK_Butcher_tableau.F90
         ${ROOT_DIR}/../COMMON_SOURCES/TOOLS/my_util.F90
         ${ROOT_DIR}/../PROBLEM_SOURCES/EULER/arbitrary_eos.F90
-	${ROOT_DIR}/SOURCES/*.f90
+        ${ROOT_DIR}/SOURCES/COMMON_SOURCES/*.f90
+        ${ROOT_DIR}/SOURCES/EULER_SOURCES/*.f90
 	${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.f90)
 
 # Define runtime output directory
