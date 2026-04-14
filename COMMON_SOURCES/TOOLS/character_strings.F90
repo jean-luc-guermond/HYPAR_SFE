@@ -462,10 +462,16 @@ MODULE character_strings
       CHARACTER(LEN=*), INTENT(IN)           :: argument_list_periodic
       INTEGER,          INTENT(INOUT)        :: list_periodic(:, :)
       REAL(KIND=8),     INTENT(INOUT)        :: vect_e(:, :)
-      
-      
+      INTEGER :: k_dim
+
+      k_dim = SIZE(vect_e,1)
       string = argument_list_periodic
-      string_default = "0 0 0.d0 0.d0"
+      SELECT CASE(k_dim)
+      CASE(1)
+         string_default = "0 0 0.d0"
+      CASE(2)
+         string_default = "0 0 0.d0 0.d0"
+      END SELECT
       IF (nb_bords > 0) THEN
          okay = .FALSE.
          index_list_info_data = index_list_info_data+1

@@ -116,7 +116,7 @@ CONTAINS
       ALLOCATE(e(SIZE(periodic%vect_e, 1)))
 
       IF (periodic%nb_bords .GT. 20) THEN
-         WRITE(*, *) 'PREP_MESH_PERIODIC: trop de bords periodiques'
+         WRITE(*, *) 'PREP_MESH_PERIODIC: too many periodic pieces'
          STOP
       END IF
 
@@ -297,13 +297,12 @@ CONTAINS
             END IF
          END DO
          IF (.NOT.verif) THEN
-            WRITE(*, *) ' BUG dans  data_periodic ou le maillage:', &
+            WRITE(*, *) ' BUG in data_periodic or in mesh:', &
                  ' side1 + e /= side2'
             WRITE(*, *) ' i = ', i
             !         STOP
          END IF
       END DO
-
       ALLOCATE (list_out(long))
       list_out(1:long) = list(1:long)
       ALLOCATE (perlist_out(long))

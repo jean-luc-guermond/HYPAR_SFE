@@ -1,18 +1,18 @@
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.31)
 
 include(variables.cmake)
-
-# Enable Fortran
-enable_language(Fortran)
 
 # Project name and version
 project(regression_test)
 
+# Enable Fortran
+enable_language(Fortran)
+
 include(CTest) # We include CTest which is part of CMake
 
 #==========================================================================
-#=============== compilation of HYPAR_SFE 
+#=============== compilation of HYPAR_SFE
 #==========================================================================
 
 message (STATUS "${HYPAR_SFE_DIR}")

@@ -14,6 +14,7 @@ PROGRAM test_matrix
   USE dir_nodes_petsc
   USE st_matrix
   USE sub_plot
+  USE character_strings
   IMPLICIT NONE
   TYPE(mesh_type)     :: mesh
   TYPE(petsc_csr_LA)  :: LA
@@ -46,7 +47,8 @@ PROGRAM test_matrix
   my_par%precond = 'MUMPS'
 
   !===User reads their own data=================================================
-  CALL per(1)%read("a")
+  CALL clean_data_once
+  CALL per(1)%read("a","PERIODIC BC PARAMETERS")
   CALL get_mesh(communicator, mesh, opt_pers = per)
   CALL per(1)%set(mesh)
   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, per(1))
