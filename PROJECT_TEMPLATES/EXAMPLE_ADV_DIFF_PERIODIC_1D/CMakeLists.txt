@@ -5,7 +5,7 @@ MESSAGE(STATUS "")
 include(variables.cmake)
 
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.29)
 
 # Project name and version
 project(euker)
@@ -52,10 +52,10 @@ ADD_CUSTOM_TARGET(native
 
 # Create local sources from local dir
 file(GLOB_RECURSE hyper_SFE_sources
-	${HYPER_SFE_DIR}/COMMON_SOURCES/*.F90
-        #${HYPER_SFE_DIR}/PROBLEM_SOURCES/*.F90
+	${HYPAR_SFE_DIR}/COMMON_SOURCES/*.F90
+        #${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*.F90
 	${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)
-	
+
 # Define runtime output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/EXECUTABLE)
 

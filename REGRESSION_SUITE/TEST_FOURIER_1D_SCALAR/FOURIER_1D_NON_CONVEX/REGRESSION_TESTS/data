@@ -1,0 +1,33 @@
+========================================
+!           FOURIER PARAMETERS
+========================================
+=== Number of Fourier modes ? ===
+40
+=== Fourier periodic domain Length ? ===
+2.0d0
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Restart (true/false) ===
+F
+=== Checkpointing frequency ===
+1.d20
+=== Final time ===
+0.1d0
+===============================================
+!           NL SCALAR CONS PARAMETERS
+===============================================
+=== CFL ? ===
+0.25
+=== ERK ? ===
+-41
+=== Which method (viscous,high) ? ===
+high
+=== Limiting ? ===
+T
+=== Global min ? ===
+0.d0
+=== Global max ? ===
+1.d0
+=== Bound relaxing method (avg,minmod) ? ===
+minmod

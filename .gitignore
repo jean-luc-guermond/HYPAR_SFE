@@ -8,6 +8,9 @@ EXECUTABLE
 current_regression_1
 current_regression_2
 current_regression_3
+current_regression_reference_1
+current_regression_reference_2
+current_regression_reference_3
 previous_data
 LIBS/CMakeFiles/
 LIBS/CTestTestfile.cmake

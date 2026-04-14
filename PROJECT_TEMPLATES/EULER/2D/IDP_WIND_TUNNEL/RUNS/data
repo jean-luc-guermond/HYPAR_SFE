@@ -2,6 +2,24 @@
 0 0 0.d0 0.d0
 === Do we compare with analytical reference? (true/false) ===
 F
+%%% BEGIN SECTION: PERIODIC global %%%
+%%% END SECTION: PERIODIC global %%%
+%%% BEGIN SECTION: MESH %%%
+%%% END SECTION: MESH %%%
+%%% BEGIN SECTION: SETUP %%%
+%%% END SECTION: SETUP %%%
+%%% BEGIN SECTION: EULER %%%
+%%% END SECTION: EULER %%%
+%%% BEGIN SECTION: DIRICHLET BC density %%%
+=== List of boundaries for bcs on density ===
+0
+%%% END SECTION: DIRICHLET BC density %%%
+%%% BEGIN SECTION: DIRICHLET BC ux %%%
+%%% END SECTION: DIRICHLET BC ux %%%
+%%% BEGIN SECTION: DIRICHLET BC uy %%%
+%%% END SECTION: DIRICHLET BC uy %%%
+%%% BEGIN SECTION: DIRICHLET BC u.n=0 %%%
+%%% END SECTION: DIRICHLET BC u.n=0 %%%
 ============================================
 !           PERIODIC BC PARAMETERS
 ============================================
@@ -23,7 +41,7 @@ F
 === FE Space dimension ===
 2
 === Number of refinement steps ===
-1
+0
 === Number of subdomains in the mesh ===
 1
 === List of subdomains in the mesh ===

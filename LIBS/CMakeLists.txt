@@ -2,7 +2,7 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.29)
 
 # Project name and version
 project(hypar_lib)
@@ -31,6 +31,6 @@ target_include_directories(hypar_lib_F PUBLIC
     ${PETSC_INCLUDEDIR} ${PETSC_INCLUDE_DIRS}
   )
 
-target_link_libraries(hypar_lib_F) 
+target_link_libraries(hypar_lib_F)
 
 message(${ZLIB_LIBRARIES})

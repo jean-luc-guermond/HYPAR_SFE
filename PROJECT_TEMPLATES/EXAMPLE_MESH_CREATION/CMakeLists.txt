@@ -5,7 +5,7 @@ MESSAGE(STATUS "")
 include(variables.cmake)
 
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.29)
 
 # Project name and version
 project(sfemans)
@@ -13,7 +13,7 @@ project(sfemans)
 # Compile C routines and create library
 enable_language(C)
 
-#file(GLOB_RECURSE sfemans_sources_C 
+#file(GLOB_RECURSE sfemans_sources_C
 #  ${SFEMaNS_DIR}/SOURCES/WRITE_BLOCK_MM/write_block_c.c)
 
 #add_library(sfemans_lib_C SHARED ${sfemans_sources_C})

@@ -1,0 +1,59 @@
+============================================
+!           PERIODIC BC PARAMETERS
+============================================
+=== How many pieces of periodic boundary on global? ===
+0
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+'../MESHES'
+=== Name of mesh file ===
+'unit_sq_0.1.FEM'
+=== Is the mesh formatted? (True/False) ===
+F
+=== Do we read metis partition? (true/false) ===
+F
+=== Type of finite element ===
+1
+=== FE Space dimension ===
+2
+=== Number of refinement steps ===
+0
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Restart (true/false) ===
+F
+=== Checkpointing frequency ===
+1.d20
+=== Final time ===
+.1d0
+=== Do we compare with analytical reference? (true/false) ===
+F
+======================================
+!           EULER PARAMETERS
+======================================
+=== CFL ? ===
+0.5
+===Euler 1: b_covolume ?===
+0.
+===Euler 1: ERK ?===
+-31
+=============================================
+!           DIRICHLET BC PARAMETERS
+=============================================
+=== How many pieces of boundaries for bcs on density? ===
+0
+=== How many pieces of boundaries for bcs on ux? ===
+0
+=== How many pieces of boundaries for bcs on uy? ===
+0
+=== How many pieces of boundaries for bcs on u.n=0? ===
+4
+=== List of boundaries for bcs on u.n=0 ===
+1 2 3 4

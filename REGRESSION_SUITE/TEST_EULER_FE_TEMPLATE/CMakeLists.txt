@@ -1,5 +1,5 @@
 # Cmake minimum version
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.29)
 
 # Enable Fortran
 enable_language(Fortran)
@@ -38,12 +38,12 @@ project(ctest_EULER_FE VERSION 1.0)
 #==========================================================================
 
 function(add_regression_test TEST_NAME TEST_NB NB_REGEX)
-    
+
     message(${TEST_NAME})
     set(TEST_DIR ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST${TEST_NB})
 
     # Create local sources from local dir
-    file(GLOB_RECURSE local_sources 
+    file(GLOB_RECURSE local_sources
         ${TEST_DIR}/LOCAL_SOURCES/*.F90
         ${TEST_DIR}/../TEST_EULER_FE_TEMPLATE/*.F90)
 
@@ -53,7 +53,7 @@ function(add_regression_test TEST_NAME TEST_NB NB_REGEX)
     #===================================================
     # Define hypar library
     #===================================================
- 
+
     set(HYPAR_LIB hypar_lib_F)
 
     set(MY_CMD
@@ -88,7 +88,7 @@ function(add_regression_test TEST_NAME TEST_NB NB_REGEX)
       target_compile_definitions(${exe} PRIVATE regex_num=${i})
       LIST(APPEND MY_CMD ${exe})
     endforeach()
-    
+
     #===================================================
     # Define test parameters
     #===================================================
@@ -97,7 +97,7 @@ function(add_regression_test TEST_NAME TEST_NB NB_REGEX)
     math(EXPR index_regex "${NB_REGEX} - 1")
     list(GET LIST_REGEX ${index_regex} passRegex)
     # set(passRegex "1234567891")
-   
+
     #=== test name definition, used for test output
     set (nm "${TEST_NAME}")
 
@@ -109,10 +109,10 @@ function(add_regression_test TEST_NAME TEST_NB NB_REGEX)
 endfunction()
 
 #==========================================================================
-#=============== list of tests, comment out whichever you don't want to run 
+#=============== list of tests, comment out whichever you don't want to run
 #==========================================================================
 
-set(LIST_TESTS 
+set(LIST_TESTS
 1 1 sodt_FE_1D
 2 1 smooth_FE_1D
 3 1 vanderwalls_FE_1D

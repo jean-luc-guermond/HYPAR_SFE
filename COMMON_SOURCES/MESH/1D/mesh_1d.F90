@@ -23,9 +23,9 @@ CONTAINS
       ELSE
          OPEN(in_unit, FILE = TRIM(ADJUSTL(directory)) // '/' // TRIM(ADJUSTL(file_name)), FORM = 'unformatted')
       END IF
-      READ(in_unit, *) mesh%me, type_fe
+      READ(in_unit, *) mesh%me
       READ(in_unit, *) x0, x1
-
+      type_fe = mesh_data_info%type_fe
       ALLOCATE(mesh%jj(type_fe + 1, mesh%me))
       ALLOCATE(mesh%neigh(2, mesh%me))
       DO m = 1, mesh%me
