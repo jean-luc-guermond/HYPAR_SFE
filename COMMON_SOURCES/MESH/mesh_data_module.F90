@@ -3,37 +3,37 @@ MODULE mesh_data_module
   !===chain of characters that should appear in data file
    INTEGER, PARAMETER, PRIVATE :: rec_length=200
 
-   TYPE argument_mesh_data_type                                                  
+   TYPE argument_mesh_data_type
       CHARACTER(len = rec_length) :: directory         = '=== Name of directory for mesh file ==='
-      CHARACTER(len = rec_length) :: file_name         = '=== Name of mesh file ==='         
-      CHARACTER(len = rec_length) :: if_mesh_formatted = '=== Is the mesh formatted? (True/False) ==='        
+      CHARACTER(len = rec_length) :: file_name         = '=== Name of mesh file ==='
+      CHARACTER(len = rec_length) :: if_mesh_formatted = '=== Is the mesh formatted? (True/False) ==='
       CHARACTER(len = rec_length) :: if_read_partition = '=== Do we read metis partition? (true/false) ==='
       CHARACTER(len = rec_length) :: nb_dom            = '=== Number of subdomains in the mesh ==='
       CHARACTER(len = rec_length) :: list_dom          = '=== List of subdomains in the mesh ==='
-      CHARACTER(len = rec_length) :: type_fe           = '=== Type of finite element ===' 
+      CHARACTER(len = rec_length) :: type_fe           = '=== Type of finite element ==='
       CHARACTER(len = rec_length) :: k_dim             = '=== FE Space dimension ==='
       CHARACTER(len = rec_length) :: nb_refinement     = '=== Number of refinement steps ==='
       CHARACTER(len = rec_length) :: nb_bords = '=== How many pieces of periodic boundary? ==='
       CHARACTER(len = rec_length) :: list_periodic = '=== Indices of periodic boundaries and corresponding vectors==='
    END TYPE argument_mesh_data_type
-   !===default value in simulation                       
-   TYPE mesh_data_type                                                           
-      CHARACTER(len = rec_length)    :: directory         = '.'                  
-      CHARACTER(len = rec_length)    :: file_name         = 'mesh_name'          
-      LOGICAL                        :: if_mesh_formatted = .TRUE.                            
-      LOGICAL                        :: if_read_partition = .FALSE.              
-      INTEGER                        :: nb_dom            = 1                    
-      INTEGER, DIMENSION(:), POINTER :: list_dom                                 
-      INTEGER                        :: type_fe           = 1    
+   !===default value in simulation
+   TYPE mesh_data_type
+      CHARACTER(len = rec_length)    :: directory         = '.'
+      CHARACTER(len = rec_length)    :: file_name         = 'mesh_name'
+      LOGICAL                        :: if_mesh_formatted = .TRUE.
+      LOGICAL                        :: if_read_partition = .FALSE.
+      INTEGER                        :: nb_dom            = 1
+      INTEGER, DIMENSION(:), POINTER :: list_dom
+      INTEGER                        :: type_fe           = 1
       INTEGER                        :: k_dim             = -1
       INTEGER                        :: nb_refinement     = 0
       INTEGER                                  :: nb_bords      = 0
       INTEGER, DIMENSION(:, :), POINTER        :: list_periodic
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
-   CONTAINS                                                                      
+   CONTAINS
       PROCEDURE, PUBLIC              :: READ => read_mesh_data
-      PROCEDURE, PUBLIC              :: init => init_mesh_data                   
-   END TYPE mesh_data_type   
+      PROCEDURE, PUBLIC              :: init => init_mesh_data
+   END TYPE mesh_data_type
 CONTAINS
 
   SUBROUTINE init_mesh_data(this)
@@ -86,10 +86,10 @@ CONTAINS
     this%list_dom(1) = 1
     CALL read_data(argument_data%list_dom, this%list_dom)
 
-    !=== Number of periodic boundaries 
+    !=== Number of periodic boundaries
     CALL read_data(argument_data%nb_bords, this%nb_bords)
 
-    !=== List of periodic boundaries (has its specific subroutine, see character_strings.F90 module) 
+    !=== List of periodic boundaries (has its specific subroutine, see character_strings.F90 module)
     ALLOCATE(this%list_periodic(2, this%nb_bords))
     ALLOCATE(this%vect_e(this%k_dim, this%nb_bords))
     CALL read_periodic_data(argument_data%list_periodic, this%nb_bords, this%list_periodic, this%vect_e)

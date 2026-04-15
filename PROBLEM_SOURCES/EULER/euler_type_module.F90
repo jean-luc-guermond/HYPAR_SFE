@@ -108,7 +108,7 @@ CONTAINS
       !=== new Butcher module
       CALL this%euler_bc%construct_euler_bc(this%mesh)
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
-      
+    
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
       CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%x1vec, ierr)

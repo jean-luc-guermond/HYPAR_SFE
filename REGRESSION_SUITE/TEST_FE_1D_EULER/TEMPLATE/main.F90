@@ -34,7 +34,7 @@ PROGRAM prog
      !IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
   END DO
   tps = user_time() - tps
-  
+
 !=========================!
 !==== POST-PROCESSING ====!
 !=========================!
@@ -75,6 +75,13 @@ CONTAINS
     END IF
 
     IF (setup_data%if_regression_test) THEN
+      IF (setup_data%if_analytical_ref) THEN
+       ALLOCATE(tab_norm(1))
+       CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), norm_loc)
+       CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       tab_norm(1) = norm
+       CALL regression(tab_norm)
+     ELSE
        ALLOCATE(tab_norm(SIZE(un, 2)))
        DO n=1, SIZE(un, 2)
           CALL ns_l1(mesh, un(:,n), norm_loc)
@@ -82,7 +89,8 @@ CONTAINS
           tab_norm(n) = norm
        END DO
        CALL regression(tab_norm)
-    END IF
+     END IF
+   END IF
 
   END SUBROUTINE errors
 END PROGRAM prog

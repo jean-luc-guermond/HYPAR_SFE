@@ -74,5 +74,12 @@ CONTAINS
        IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error density relative, L1-norm ', error/norm_anal
     END IF
 
+    IF (setup_data%if_regression_test) THEN
+       ALLOCATE(tab_norm(1))
+       CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), norm_loc)
+       CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       tab_norm(1) = norm
+       CALL regression(tab_norm)
+    END IF
   END SUBROUTINE errors
 END PROGRAM prog
