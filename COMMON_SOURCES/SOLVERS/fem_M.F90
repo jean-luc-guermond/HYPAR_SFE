@@ -28,7 +28,7 @@ CONTAINS
             DO ni = 1, mesh%gauss%n_w;
                mat_loc(nj, ni) = SUM(mesh%gauss%ww(ni, :) * mesh%gauss%ww(nj, :) * bl)
                DO k = 1, mesh%gauss%k_d
-                  mat_loc(nj, ni) = mat_loc(nj, ni) + SUM(mesh%gauss%dw(1, nj, :, m) * mesh%gauss%dw(1, ni, :, m)  * al)
+                  mat_loc(nj, ni) = mat_loc(nj, ni) + SUM(mesh%gauss%dw(k, nj, :, m) * mesh%gauss%dw(k, ni, :, m)  * al)
                END DO
             ENDDO
          ENDDO
