@@ -1,8 +1,6 @@
 === Indices of periodic boundaries and corresponding vectors on global? ===
 0 0 0.d0 0.d0
-============================================
 !           PERIODIC BC PARAMETERS
-============================================
 === How many pieces of periodic boundary on global? ===
 0
 =====================================
@@ -26,6 +24,8 @@ F
 1
 === List of subdomains in the mesh ===
 1
+=== How many pieces of periodic boundary? ===
+0
 ======================================
 !           SETUP PARAMETERS
 ======================================

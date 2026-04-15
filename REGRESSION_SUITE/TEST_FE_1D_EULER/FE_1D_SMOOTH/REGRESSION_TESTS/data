@@ -2,9 +2,7 @@
 0
 === List of boundaries for bcs on ux ===
 0
-============================================
 !           PERIODIC BC PARAMETERS
-============================================
 === How many pieces of periodic boundary on global? ===
 0
 =====================================
@@ -28,6 +26,8 @@ F
 1
 === List of subdomains in the mesh ===
 1
+=== How many pieces of periodic boundary? ===
+0
 ======================================
 !           SETUP PARAMETERS
 ======================================

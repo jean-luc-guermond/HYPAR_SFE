@@ -58,19 +58,19 @@ CONTAINS
       !===Clean data once
       CALL clean_data_once
       !===Construct mesh
-      CALL per(1)%init("global", "PERIODIC BC PARAMETERS")
-      CALL get_mesh(communicator, mesh, opt_pers = per)
-      CALL per(1)%set(mesh)
+      !CALL per(1)%init("global", "PERIODIC BC PARAMETERS")
+      CALL get_mesh(communicator, mesh)
+      !CALL per(1)%set(mesh)
 
       !===Construct LA
-      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, opt_per = per(1))
+      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
       !===Read
       CALL setup_data%init
 
       !===Start Euler
       !FIXE ME init_time too
       CALL init_eos_for_setup
-      CALL euler%init(communicator, name, mesh, LA, per(1), pressure, impose_bc_euler, init_time)
+      CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, init_time)
 
       !===Read data setup
    END SUBROUTINE start_setup
