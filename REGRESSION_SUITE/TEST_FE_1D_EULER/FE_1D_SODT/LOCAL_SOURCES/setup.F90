@@ -1,8 +1,6 @@
 MODULE setup
-   ! USE space_dim
    USE mesh_parameters
-   USE eos
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND = 8) :: x0, x1
    REAL(KIND = 8) :: long
@@ -14,19 +12,17 @@ MODULE setup
 CONTAINS
 
 !==========================================================================
-!================= INIT EOS FOR SETUP  ====================================
+!================= DEF PRESSURE FOR SETUP =================================
 !==========================================================================
 
-   SUBROUTINE init_eos_for_setup
-      USE eos_examples
-      USE eos
+   FUNCTION pressure(rho, e) RESULT(vv)
       IMPLICIT NONE
-      TYPE(eos_pointer_type) :: eos_type
-
-      eos_type%pressure => pressure_ideal_diatomic_gas
-      
-      CALL assign_eos(eos_type)
-   END SUBROUTINE init_eos_for_setup
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
+      REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
+      REAL(KIND = 8) :: gamma
+      gamma = 7.0 / 5.0
+      vv = rho * e * (gamma - 1)
+   END FUNCTION pressure
 
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================

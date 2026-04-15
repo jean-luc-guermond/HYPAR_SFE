@@ -2,7 +2,6 @@ MODULE start_setup_MODULE
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
-   USE eos
    USE euler_type_module
    USE character_strings, ONLY : clean_data_once
    MPI_Comm        :: communicator
@@ -28,10 +27,10 @@ MODULE start_setup_MODULE
       PROCEDURE, PUBLIC :: init => init_setup_data
    END TYPE setup_data_type
    
-   TYPE(mesh_type), PUBLIC :: mesh
-   TYPE(petsc_csr_LA), PRIVATE :: LA
-   TYPE(euler_type), PUBLIC :: euler
-   TYPE(setup_data_type), PUBLIC :: setup_data
+   TYPE(mesh_type),                   PUBLIC :: mesh
+   TYPE(petsc_csr_LA),               PRIVATE :: LA
+   TYPE(euler_type),                  PUBLIC :: euler
+   TYPE(setup_data_type),             PUBLIC :: setup_data
    TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
    PUBLIC :: start_setup
    PRIVATE
@@ -69,7 +68,6 @@ CONTAINS
 
       !===Start Euler
       !FIXE ME init_time too
-      CALL init_eos_for_setup
       CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, init_time)
 
       !===Read data setup

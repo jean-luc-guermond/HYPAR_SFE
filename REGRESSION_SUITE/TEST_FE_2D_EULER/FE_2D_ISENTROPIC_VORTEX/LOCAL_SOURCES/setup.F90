@@ -1,30 +1,28 @@
 MODULE setup
    USE mesh_parameters
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
    REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
    REAL(KIND=8) :: chi, beta
    CONTAINS
    
-   !==========================================================================
-   !================= INIT EOS FOR SETUP  ====================================
-   !==========================================================================
-   
-   SUBROUTINE init_eos_for_setup
-      USE eos_examples
-      USE eos
+!==========================================================================
+!================= DEF PRESSURE FOR SETUP =================================
+!==========================================================================
+
+   FUNCTION pressure(rho, e) RESULT(vv)
       IMPLICIT NONE
-      TYPE(eos_pointer_type) :: eos_type
-      
-      eos_type%pressure => pressure_ideal_diatomic_gas
-      
-      CALL assign_eos(eos_type)
-   END SUBROUTINE init_eos_for_setup
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
+      REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
+      REAL(KIND = 8) :: gamma
+      gamma = 7.0 / 5.0
+      vv = rho * e * (gamma - 1)
+   END FUNCTION pressure
    
-   !==========================================================================
-   !================= ANALYTICAL SOLUTIONS ===================================
-   !==========================================================================
+!==========================================================================
+!================= ANALYTICAL SOLUTIONS ===================================
+!==========================================================================
    
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays

@@ -5,10 +5,7 @@ MODULE euler_type_MODULE
    USE euler_bc_arrays
    USE Butcher_tableau
    USE euler_matrices_module
-!VB 2/04/2026
    USE mesh_parameters
-   ! USE space_dim
-!VB 2/04/2026
    USE periodic_data_module
    IMPLICIT NONE
 
@@ -26,9 +23,9 @@ MODULE euler_type_MODULE
          USE def_type_mesh
          USE euler_bc_arrays
          REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
-         TYPE(mesh_type) :: mesh
+         TYPE(mesh_type)     :: mesh
          TYPE(euler_bc_type) :: euler_bc
-         REAL(KIND = 8) :: time
+         REAL(KIND = 8)      :: time
       END SUBROUTINE function_template_impose_bc
    END INTERFACE
 
@@ -46,26 +43,26 @@ MODULE euler_type_MODULE
       !===Parameters built along way
       MPI_Comm :: communicator
       CHARACTER(100) :: name
-      TYPE(mesh_type), POINTER :: mesh
-      TYPE(petsc_csr_LA), POINTER :: LA
+      TYPE(mesh_type),     POINTER :: mesh
+      TYPE(petsc_csr_LA),  POINTER :: LA
       TYPE(periodic_type), POINTER :: per
-      PROCEDURE(function_template_pressure), NOPASS, POINTER :: pressure
+      PROCEDURE(function_template_pressure),  NOPASS, POINTER :: pressure
       PROCEDURE(function_template_impose_bc), NOPASS, POINTER :: impose_bc
       TYPE(BT), PUBLIC :: ERK
       TYPE(euler_bc_type) :: euler_bc
       TYPE(euler_matrices_type) :: matrices
       REAL(KIND = 8) :: dt, time, in_tol
       LOGICAL :: no_iter
-      ! INTEGER :: syst_dim = mesh_data_info%k_dim + 2
       INTEGER :: syst_dim
       
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x2_ghost, vec_loc
       INTEGER, DIMENSION(:), POINTER :: tab
    CONTAINS
-      PROCEDURE, PUBLIC :: init => init_euler
-      PROCEDURE, PUBLIC :: read_euler_data
-      PROCEDURE, PUBLIC :: update
-      PROCEDURE, PRIVATE :: compute_dij
+      PROCEDURE, PUBLIC  :: init => init_euler
+      PROCEDURE, PUBLIC  :: read_euler_data
+      PROCEDURE, PUBLIC  :: update
+      PROCEDURE, PRIVATE :: compute_dij, compute_dt
+      PROCEDURE, PRIVATE :: flux
    END TYPE euler_type
 
 CONTAINS
@@ -171,7 +168,7 @@ CONTAINS
 
    SUBROUTINE update(this, un)
       USE petsc_tools
-      USE euler_flux
+      ! USE euler_flux
       USE st_matrix
       CLASS(euler_type) :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
@@ -184,13 +181,13 @@ CONTAINS
       un_temp = un
 
       !===compute dij and dt
-      CALL compute_dt(this, un_temp)
+      CALL this%compute_dt(un_temp)
 
       this%time = this%time + this%dt
 
       DO comp = 1, this%syst_dim
          ff = 0.d0
-         ff = flux(comp, un_temp)
+         ff = this%flux(comp, un_temp)
 
          CALL VecSet(this%x3vec, 0.d0, ierr)
          DO k = 1, mesh_data_info%k_dim
@@ -224,6 +221,58 @@ CONTAINS
       END DO
 
    END SUBROUTINE update
+
+   FUNCTION flux(this, comp, un) RESULT(vv)  
+      IMPLICIT NONE
+      CLASS(euler_type)                           :: this
+      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
+      INTEGER,                         INTENT(IN) :: comp
+      REAL(KIND = 8), DIMENSION(SIZE(un, 1), mesh_data_info%k_dim) :: vv
+      REAL(KIND = 8), DIMENSION(SIZE(un, 1))                       :: H, u, ie
+      INTEGER :: k
+
+      ! SELECT CASE(comp)
+      ! CASE(1)
+      IF (comp == 1) THEN
+         DO k = 1, mesh_data_info%k_dim
+            vv(:, k) = un(:, k + 1)
+         END DO
+      ! CASE(2:k_dim + 1)
+      ELSE IF ((comp>=2) .AND. (comp<=mesh_data_info%k_dim+1)) THEN
+         u = un(:, comp) / un(:, 1)
+         DO k = 1, mesh_data_info%k_dim
+            vv(:, k) = un(:, k + 1) * u
+         END DO
+         ie = un(:, mesh_data_info%k_dim + 2) / un(:, 1)
+         DO k = 1, mesh_data_info%k_dim
+            ie = ie - 0.5d0 * (un(:, k + 1) / un(:, 1))**2
+         END DO
+         vv(:, comp - 1) = vv(:, comp - 1) + this%pressure(un(:, 1), ie)
+      ! CASE(mesh_data_info%k_dim + 2)
+      ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
+         ie = un(:, mesh_data_info%k_dim + 2) / un(:, 1)
+         DO k = 1, mesh_data_info%k_dim
+            ie = ie - 0.5d0 * (un(:, k + 1) / un(:, 1))**2
+         END DO
+
+         H = un(:, comp) + this%pressure(un(:, 1), ie)
+         DO k = 1, mesh_data_info%k_dim
+            vv(:, k) = (un(:, k + 1) / un(:, 1)) * H
+         END DO
+      ! CASE DEFAULT
+      ELSE
+         WRITE(*, *) ' BUG in flux, wrong comp = ', comp
+         WRITE(*,*) 'pb dimension is ', mesh_data_info%k_dim
+         STOP
+      ! END SELECT
+      END IF
+   END FUNCTION flux
+   
+
+!========================================================
+!========== PRIVATE PROCEDURES ==========================
+!========================================================
+
 
    SUBROUTINE compute_dt(this, un)
       IMPLICIT NONE
