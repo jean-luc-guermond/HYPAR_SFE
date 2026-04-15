@@ -4,7 +4,7 @@
 MODULE def_type_mesh
    USE dyn_line_type
    USE mesh_parameters
-
+   USE periodic_data_module
    IMPLICIT NONE
 
    TYPE aij_type
@@ -97,6 +97,7 @@ MODULE def_type_mesh
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hloc_gauss ! local mesh size (JLG+LC January, 21, 2015)
       REAL(KIND = 8) :: global_diameter !diameter of domain (LC 2017/01/27)
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hm !local meshsize in azimuth (JLG April 7, 2017)
+      TYPE(periodic_type) :: per !<==Periodic structure is attached to the mesh
    CONTAINS
       PROCEDURE :: jj_glob
       PROCEDURE :: jce_loc

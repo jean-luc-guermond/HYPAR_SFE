@@ -6,11 +6,12 @@ MODULE two_dim_metis_distribution
    PRIVATE
    REAL(KIND = 8) :: epsilon = 1.d-10
 CONTAINS
-  SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part, my_periodics)
+  SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part)!, my_periodics)
     USE def_type_mesh
     USE my_util
     USE sub_plot
-    USE periodic_data_module
+    ! USE periodic_data_module
+    USE mesh_parameters
     IMPLICIT NONE
 !!$ Dummy for metis...
     INTEGER, PARAMETER :: METIS_NOPTIONS = 40
@@ -18,8 +19,8 @@ CONTAINS
     TYPE(mesh_type) :: mesh
     INTEGER, DIMENSION(mesh%me) :: part
     INTEGER, DIMENSION(:) :: list_of_interfaces
-    TYPE(periodic_type), DIMENSION(:), TARGET, OPTIONAL :: my_periodics
-    TYPE(periodic_type), POINTER :: my_periodic
+    ! TYPE(periodic_type), DIMENSION(:), TARGET, OPTIONAL :: my_periodics
+    ! TYPE(periodic_type), POINTER :: my_periodic
     LOGICAL, DIMENSION(mesh%mes) :: virgins
     INTEGER, DIMENSION(3, mesh%me) :: neigh_new
     INTEGER, DIMENSION(5) :: opts
@@ -105,46 +106,47 @@ CONTAINS
     !===End Create neigh_new for interfaces
 
     !===Create neigh_new for periodic faces
-    IF (PRESENT(my_periodics)) THEN
-       DO k = 1, SIZE(my_periodics)
-          my_periodic => my_periodics(k)
-          IF (my_periodic%nb_bords/=0) THEN
-             DO ms = 1, mesh%mes
-                m = mesh%neighs(ms)
-                IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) == 0) THEN
-                   jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
-                   s2 = my_periodic%list_periodic(2, jm_loc(1))
-                   test = .FALSE.
-                   DO msop = 1, mesh%mes
-                      IF (mesh%sides(msop) /= s2) CYCLE
+    IF (mesh_data_info%nb_bords/=0) THEN
+       ! IF (PRESENT(my_periodics)) THEN
+       ! DO k = 1, SIZE(my_periodics)
+       !  my_periodic => my_periodics(k)
+       !  IF (mesh_%nb_bords/=0) THEN
+       DO ms = 1, mesh%mes
+          m = mesh%neighs(ms)
+          IF (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) == 0) THEN
+             jm_loc = MINLOC(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :)))
+             s2 =  mesh_data_info%list_periodic(2, jm_loc(1))
+             test = .FALSE.
+             DO msop = 1, mesh%mes
+                IF (mesh%sides(msop) /= s2) CYCLE
 
-                      err = 0.d0
-                      DO ns = 1, SIZE(my_periodic%vect_e, 1)
-                         err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                              + my_periodic%vect_e(ns, jm_loc(1))))
-                      END DO
+                err = 0.d0
+                DO ns = 1, SIZE( mesh_data_info%vect_e, 1)
+                   err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+                        +mesh_data_info%vect_e(ns, jm_loc(1))))
+                END DO
 
-                      IF (err .LE. epsilon) THEN
-                         test = .TRUE.
-                         EXIT
-                      END IF
-                   END DO
-                   IF (.NOT.test) THEN
-                      CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
-                   END IF
-                   mop = mesh%neighs(msop)
-                   DO n = 1, 3
-                      IF (neigh_new(n, m) == 0) THEN
-                         neigh_new(n, m) = mop
-                      END IF
-                      IF (neigh_new(n, mop) == 0) THEN
-                         neigh_new(n, mop) = m
-                      END IF
-                   END DO
+                IF (err .LE. epsilon) THEN
+                   test = .TRUE.
+                   EXIT
+                END IF
+             END DO
+             IF (.NOT.test) THEN
+                CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+             END IF
+             mop = mesh%neighs(msop)
+             DO n = 1, 3
+                IF (neigh_new(n, m) == 0) THEN
+                   neigh_new(n, m) = mop
+                END IF
+                IF (neigh_new(n, mop) == 0) THEN
+                   neigh_new(n, mop) = m
                 END IF
              END DO
           END IF
        END DO
+       ! END IF
+       !END DO
     END IF
     !===End Create neigh_new for periodic faces
 
@@ -212,7 +214,7 @@ CONTAINS
     !===Create parts and modify part
     !===Search on the boundary whether ms is on a cut.
     IF (SIZE(mesh%jj, 1)/=3) THEN
-       write(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
+       WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
        CALL error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)/=3')
     END IF
     indicator = -1
@@ -267,63 +269,63 @@ CONTAINS
     !===End create parts and modify part
 
     !===Move the two elements with one periodic face on same processor
-    IF (PRESENT(my_periodics)) THEN
-       DO k = 1, SIZE(my_periodics)
-          my_periodic => my_periodics(k)
-          IF (my_periodic%nb_bords/=0) THEN
-             DO j = 1, mesh%np
-                per_pts(j, 1) = j
-             END DO
-             per_pts(:, 2:3) = 0
-             DO ms = 1, mesh%mes
-                m = mesh%neighs(ms)
-                IF ((MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /=0) .AND. &
-                     (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(2, :))) /=0)) CYCLE
-                DO ns = 1, SIZE(mesh%jjs, 1)
-                   j = mesh%jjs(ns, ms)
-                   per_pts(j, 2) = m
-                   DO msop = 1, mesh%mes
-                      IF (MINVAL(ABS(mesh%sides(msop) - my_periodic%list_periodic(:, :))) /=0) CYCLE
-                      IF (msop == ms) CYCLE
-                      DO nsop = 1, SIZE(mesh%jjs, 1)
-                         IF (mesh%jjs(nsop, msop)==j) THEN
-                            per_pts(j, 3) = mesh%neighs(msop)
-                         END IF
-                      END DO
-                   END DO
-                END DO
-             END DO
-             CALL reassign_per_pts(mesh, part, per_pts)
-             DO ms = 1, mesh%mes
-                m = mesh%neighs(ms)
-                IF (MINVAL(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :))) /= 0) CYCLE
-                jm_loc = MINLOC(ABS(mesh%sides(ms) - my_periodic%list_periodic(1, :)))
-                s2 = my_periodic%list_periodic(2, jm_loc(1))
-                test = .FALSE.
-                DO msop = 1, mesh%mes
-                   IF (mesh%sides(msop) /= s2) CYCLE
-                   err = 0.d0
-                   DO ns = 1, SIZE(my_periodic%vect_e, 1)
-                      err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                           + my_periodic%vect_e(ns, jm_loc(1))))
-                   END DO
-                   IF (err .LE. epsilon) THEN
-                      test = .TRUE.
-                      EXIT
+    !IF (PRESENT(my_periodics)) THEN
+    !DO k = 1, SIZE(my_periodics)
+    !my_periodic => my_periodics(k)
+    IF (mesh_data_info%nb_bords/=0) THEN
+       DO j = 1, mesh%np
+          per_pts(j, 1) = j
+       END DO
+       per_pts(:, 2:3) = 0
+       DO ms = 1, mesh%mes
+          m = mesh%neighs(ms)
+          IF ((MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) /=0) .AND. &
+               (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(2, :))) /=0)) CYCLE
+          DO ns = 1, SIZE(mesh%jjs, 1)
+             j = mesh%jjs(ns, ms)
+             per_pts(j, 2) = m
+             DO msop = 1, mesh%mes
+                IF (MINVAL(ABS(mesh%sides(msop) - mesh_data_info%list_periodic(:, :))) /=0) CYCLE
+                IF (msop == ms) CYCLE
+                DO nsop = 1, SIZE(mesh%jjs, 1)
+                   IF (mesh%jjs(nsop, msop)==j) THEN
+                      per_pts(j, 3) = mesh%neighs(msop)
                    END IF
                 END DO
-                IF (.NOT.test) THEN
-                   CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
-                END IF
-                IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
-                   proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-                   part(mesh%neighs(ms)) = proc !make sure interface are internal
-                   part(mesh%neighs(msop)) = proc !make sure interface are internal
-                END IF
              END DO
+          END DO
+       END DO
+       CALL reassign_per_pts(mesh, part, per_pts)
+       DO ms = 1, mesh%mes
+          m = mesh%neighs(ms)
+          IF (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) /= 0) CYCLE
+          jm_loc = MINLOC(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :)))
+          s2 = mesh_data_info%list_periodic(2, jm_loc(1))
+          test = .FALSE.
+          DO msop = 1, mesh%mes
+             IF (mesh%sides(msop) /= s2) CYCLE
+             err = 0.d0
+             DO ns = 1, SIZE(mesh_data_info%vect_e, 1)
+                err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+                     + mesh_data_info%vect_e(ns, jm_loc(1))))
+             END DO
+             IF (err .LE. epsilon) THEN
+                test = .TRUE.
+                EXIT
+             END IF
+          END DO
+          IF (.NOT.test) THEN
+             CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
+          END IF
+          IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
+             proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
+             part(mesh%neighs(ms)) = proc !make sure interface are internal
+             part(mesh%neighs(msop)) = proc !make sure interface are internal
           END IF
        END DO
     END IF
+    !END DO
+    !END IF
     !===End Move the two elements with one periodic face on same processor
 
 !!$ WARNING, FL 1/2/13 : TO BE ADDED IF NEEDED
@@ -778,7 +780,7 @@ CONTAINS
          m_glob_to_loc(m) = m - me_loc(1) + 1
       END DO
 
-      IF (SIZE(mesh%jj, 1) == 6) THEn
+      IF (SIZE(mesh%jj, 1) == 6) THEN
          DO m = me_loc(1), me_loc(2)
             DO n = 4, 6
                j = mesh%jj(n, m)
@@ -792,7 +794,7 @@ CONTAINS
             END DO
          END DO
       END IF
-      IF (SIZE(mesh%jj, 1) == 10) THEn
+      IF (SIZE(mesh%jj, 1) == 10) THEN
          DO m = me_loc(1), me_loc(2)
             DO n = 4, 9
                j = mesh%jj(n, m)
@@ -932,7 +934,7 @@ CONTAINS
          DO n = 1, SIZE(mesh%jce, 1)
             e_glob = mesh%jce(n, m_loc_to_glob(m))
             IF (virgins(e_glob)) THEN
-               IF (mesh%neigh(n, m_loc_to_glob(m)) >= me_loc(1).or. mesh%neigh(n, m_loc_to_glob(m)) == 0) THEN
+               IF (mesh%neigh(n, m_loc_to_glob(m)) >= me_loc(1).OR. mesh%neigh(n, m_loc_to_glob(m)) == 0) THEN
                   mesh_loc%medge = mesh_loc%medge + 1
                   virgins(e_glob) = .FALSE.
                ELSE
@@ -952,7 +954,7 @@ CONTAINS
          DO n = 1, SIZE(mesh%jce, 1)
             e_glob = mesh%jce(n, m_loc_to_glob(m))
             IF (virgins(e_glob)) THEN
-               IF (mesh%neigh(n, m_loc_to_glob(m)) >= me_loc(1) .or. mesh%neigh(n, m_loc_to_glob(m)) == 0) THEN
+               IF (mesh%neigh(n, m_loc_to_glob(m)) >= me_loc(1) .OR. mesh%neigh(n, m_loc_to_glob(m)) == 0) THEN
                   virgins(mesh%jce(n, m_loc_to_glob(m))) = .FALSE.
                   medge = medge + 1
                ELSE
@@ -992,7 +994,7 @@ CONTAINS
             IF (eglob(n) < mesh_loc%disedge(proc)) eglob(n) = -1
             IF (eglob(n) >= mesh_loc%disedge(proc + 1)) eglob(n) = -1
          END DO
-         IF (MAXVAL(jglob) < 0 .and. MAXVAL(eglob) < 0) cycle
+         IF (MAXVAL(jglob) < 0 .AND. MAXVAL(eglob) < 0) CYCLE
          IF (m<me_loc(1)) THEN
             CALL ERROR_PETSC('BUG  create_local_mesh_with_extra_layer')
          ELSE IF (me_loc(2)<m) THEN
@@ -1041,7 +1043,7 @@ CONTAINS
             IF (eglob(n) < mesh_loc%disedge(proc)) eglob(n) = -1
             IF (eglob(n) >= mesh_loc%disedge(proc + 1)) eglob(n) = -1
          END DO
-         IF (MAXVAL(jglob) < 0  .and. MAXVAL(eglob) < 0) cycle
+         IF (MAXVAL(jglob) < 0  .AND. MAXVAL(eglob) < 0) CYCLE
          IF (me_loc(2)<m) THEN
             nb_extra = nb_extra + 1
             mesh_loc%jj_extra(:, nb_extra) = mesh%jj(:, m)
