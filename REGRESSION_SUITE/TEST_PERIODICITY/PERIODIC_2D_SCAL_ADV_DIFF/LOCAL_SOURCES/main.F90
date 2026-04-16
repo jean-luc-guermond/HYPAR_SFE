@@ -55,7 +55,7 @@ PROGRAM test_matrix
   CALL clean_data_once
   CALL get_mesh(communicator, mesh)
 
-  CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, mesh%per)
+  CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
   CALL dir%set(mesh, "a")
 
   !===create petsc matrix ============================================

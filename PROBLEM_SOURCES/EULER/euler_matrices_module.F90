@@ -1,6 +1,5 @@
 MODULE euler_matrices_module
 #include "petsc/finclude/petsc.h"
-   ! USE space_dim
    USE mesh_parameters
    USE petsc
    USE def_type_mesh
@@ -11,12 +10,8 @@ MODULE euler_matrices_module
    TYPE euler_matrices_type
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       Mat :: mass, dij, cij_norm_loc
-!VB 2/04/2026
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
       Mat, DIMENSION(:,:), ALLOCATABLE :: cij_loc
-!VB 2/04/2026
-      ! Mat, DIMENSION(mesh_data_info%k_dim) :: cij, nij_loc
-      ! Mat, DIMENSION(1, mesh_data_info%k_dim) :: cij_loc
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
       PROCEDURE, PRIVATE :: construct_loc_nij

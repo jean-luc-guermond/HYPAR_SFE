@@ -8,7 +8,7 @@ include(variables.cmake)
 cmake_minimum_required(VERSION 3.29)
 
 # Project name and version
-project(euker)
+project(euler)
 
 # Compile C routines and create library
 enable_language(C)

@@ -62,7 +62,7 @@ CONTAINS
       !CALL per(1)%set(mesh)
 
       !===Construct LA
-      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA, mesh%per)
+      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
       !===Read
       CALL setup_data%init
 
