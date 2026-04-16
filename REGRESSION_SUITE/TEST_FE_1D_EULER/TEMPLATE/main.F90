@@ -9,7 +9,7 @@ PROGRAM prog
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
-  INTEGER :: n, tot_np, code
+  INTEGER :: n, tot_np, code, num_test
 
 !========================!
 !==== INITIALIZATION ====!
@@ -76,21 +76,23 @@ CONTAINS
 
     IF (setup_data%if_regression_test) THEN
       IF (setup_data%if_analytical_ref) THEN
-       ALLOCATE(tab_norm(1))
-       CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), norm_loc)
-       CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-       tab_norm(1) = norm
-       CALL regression(tab_norm)
-     ELSE
-       ALLOCATE(tab_norm(SIZE(un, 2)))
-       DO n=1, SIZE(un, 2)
-          CALL ns_l1(mesh, un(:,n), norm_loc)
-          CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-          tab_norm(n) = norm
-       END DO
-       CALL regression(tab_norm)
-     END IF
-   END IF
+        ALLOCATE(tab_norm(1))
+        CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), norm_loc)
+        CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+        tab_norm(1) = norm
+        CALL get_num_test(num_test)
+        CALL regression(tab_norm, opt_num_test=num_test)
+      ELSE
+        ALLOCATE(tab_norm(SIZE(un, 2)))
+        DO n=1, SIZE(un, 2)
+            CALL ns_l1(mesh, un(:,n), norm_loc)
+            CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+            tab_norm(n) = norm
+        END DO
+        CALL get_num_test(num_test)
+        CALL regression(tab_norm, opt_num_test=num_test)
+      END IF
+    END IF
 
   END SUBROUTINE errors
 END PROGRAM prog

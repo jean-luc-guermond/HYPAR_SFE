@@ -13,7 +13,7 @@ MODULE start_setup_MODULE
      LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
-     INTEGER :: syst_size, num_test
+     INTEGER :: syst_size
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
@@ -79,17 +79,6 @@ CONTAINS
     CALL getarg(1, string)
     IF (trim(adjustl(string))=='regression') THEN
        this%if_regression_test = .true.
-       CALL getarg(2, string)
-       IF (trim(adjustl(string))=='1') THEN
-         this%num_test = 1
-       ELSE IF (trim(adjustl(string))=='2') THEN
-         this%num_test = 2
-       ELSE IF (trim(adjustl(string))=='3') THEN
-         this%num_test = 3
-       ELSE
-         WRITE(*,*) "Invalid test number ", trim(adjustl(string)), ". Allowed: 1, 2, 3"
-         STOP
-       END IF
     ELSE
        this%if_regression_test = .false.
     END IF

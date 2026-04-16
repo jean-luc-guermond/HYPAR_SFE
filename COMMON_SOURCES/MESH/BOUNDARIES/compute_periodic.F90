@@ -63,10 +63,12 @@ CONTAINS
                END DO
                DEALLOCATE(jdxn, vals_pi, n_cols_i)
 
+
             END IF
+            CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
+            CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
          END DO
-         CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
-         CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
+
 
          DO n = 1, n_bord
             n_D = SIZE(list(n)%DIL)

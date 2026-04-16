@@ -30,6 +30,7 @@ PROGRAM test_matrix
   CHARACTER(5) :: char
 ! for regression test
   CHARACTER(100) :: string
+  INTEGER :: num_test
   REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
 ! for regression test
   Mat :: mass
@@ -73,7 +74,7 @@ PROGRAM test_matrix
   !===set PBC + rhs ==================================================
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
   CALL periodic_rhs_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, rhs, LA)
-  write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
+  ! write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 
   !===solving linear system ==========================================
@@ -86,7 +87,7 @@ PROGRAM test_matrix
   CALL extract(ghost_sol, 1, 1, LA, un)
 
   !===post processing =================================================
-  WRITE(char, '(I5)') mesh%rank
+  ! WRITE(char, '(I5)') mesh%rank
   CALL plot_scalar_field(mesh%jj, mesh%rr, un, 'SOL' // trim(adjustl(char)) // '.plt')
   CALL plot_scalar_field(mesh%jj, mesh%rr, un-ex_sol(mesh%rr), 'error' // trim(adjustl(char)) // '.plt')
 
@@ -103,7 +104,8 @@ PROGRAM test_matrix
   IF (trim(adjustl(string))=='regression') THEN
        ALLOCATE(tab_norm(1))
        tab_norm(1) = error / norm
-       CALL regression(tab_norm)
+       CALL get_num_test(num_test)
+       CALL regression(tab_norm, opt_num_test=num_test)
   END IF
 
 CONTAINS

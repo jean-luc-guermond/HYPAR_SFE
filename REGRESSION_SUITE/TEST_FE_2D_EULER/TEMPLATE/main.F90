@@ -9,7 +9,7 @@ PROGRAM prog
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
-  INTEGER :: n, tot_np, code
+  INTEGER :: n, tot_np, code, num_test
 
 !========================!
 !==== INITIALIZATION ====!
@@ -81,7 +81,8 @@ CONTAINS
           CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
           tab_norm(n) = norm
        END DO
-       CALL regression(tab_norm)
+       CALL get_num_test(num_test)
+       CALL regression(tab_norm, opt_num_test=num_test)
     END IF
 
   END SUBROUTINE errors

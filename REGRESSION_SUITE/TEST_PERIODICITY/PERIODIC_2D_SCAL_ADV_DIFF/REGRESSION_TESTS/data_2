@@ -10,7 +10,7 @@ f
 === Do we read metis partition? (true/false) ===
 F
 === Type of finite element ===
-2
+3
 === FE Space dimension ===
 2
 === Number of refinement steps ===
@@ -22,6 +22,7 @@ F
 === How many pieces of periodic boundary? ===
 0
 === Indices of periodic boundaries and corresponding vectors===
+0 0 0.d0 0.d0
 === How many pieces of Dirichlet boundaries for bcs on a? ===
 4
 === List of Dirichlet boundaries for bcs on a ===

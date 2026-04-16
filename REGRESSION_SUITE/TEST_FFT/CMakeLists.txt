@@ -11,32 +11,6 @@ project(ctest_FFT_1D)
 
 
 #==========================================================================
-#=============== TARGET debug
-#==========================================================================
-
-  IF (TARGET debug)
-  else()
-  ADD_CUSTOM_TARGET(debug
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Debug"
-    )
-
-  ADD_CUSTOM_TARGET(release
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Release"
-    )
-
-  ADD_CUSTOM_TARGET(native
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Native ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Native"
-    )
-  endif()
-
-
-#==========================================================================
 #=============== Compilation of test
 #==========================================================================
 set(TEST_NAME "FFT_1D")

@@ -3,8 +3,18 @@ datatest=data
 
 nproc=1
 
-$1 $2$nproc $4  ../EXECUTABLE/$3 regression
-echo $?
+for ((i=1; i<=$3; i++)); do
+    #=== define executable
+    exe_index=$((3 + i))
+    exe=${!exe_index}
+    #=== run the test
+    cp data_$i data
+    $1 $2$nproc ../EXECUTABLE/${exe} regression $i
+    #=== move the output
+    mkdir -p output_$i
+    mv previous_data *.plt output_$i
+done
 
 #Clean up
-rm -f previous_data *.plt mesh_part* Mesh*
+rm -f data Mesh* mesh_part*
+# rm -rf output_*

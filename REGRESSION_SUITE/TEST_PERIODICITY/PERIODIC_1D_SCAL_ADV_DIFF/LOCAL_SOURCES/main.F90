@@ -15,6 +15,7 @@ PROGRAM test_matrix
   USE st_matrix
   USE sub_plot
   USE character_strings
+  USE post_processing_debug_MODULE
   IMPLICIT NONE
   TYPE(mesh_type)     :: mesh
   TYPE(petsc_csr_LA)  :: LA
@@ -23,7 +24,7 @@ PROGRAM test_matrix
   !TYPE(periodic_type), DIMENSION(1) :: per
   !INTEGER, POINTER, DIMENSION(:) :: js_d_loc
   INTEGER, POINTER, DIMENSION(:) :: ifrom
-  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un, tab_norm
   REAL(KIND=8) :: error, norm
   INTEGER :: rank
   CHARACTER(5) :: char
@@ -97,15 +98,25 @@ PROGRAM test_matrix
   CALL VecNorm(rhs, NORM_1, error, ierr)
   IF (rank==0) WRITE(*, '(A,g12.3)') 'L1 NORM error ', error / norm
 
+  ! !===regression test =================================================
+  ! CALL getarg(1, string)
+  ! IF (trim(adjustl(string))=='regression') THEN
+  !   IF (error / norm < 5.d-4) THEN
+  !     IF (rank == 0) WRITE(*, '(A,A)') 'Regression test passed', '1234567891'
+  !   ELSE
+  !     IF (rank == 0) WRITE(*, '(A)') 'Regression test failed'
+  !   END IF
+  ! END IF
+
   !===regression test =================================================
   CALL getarg(1, string)
   IF (trim(adjustl(string))=='regression') THEN
-    IF (error / norm < 5.d-4) THEN
-      IF (rank == 0) WRITE(*, '(A,A)') 'Regression test passed', '1234567891'
-    ELSE
-      IF (rank == 0) WRITE(*, '(A)') 'Regression test failed'
-    END IF
+       ALLOCATE(tab_norm(1))
+       tab_norm(1) = error / norm
+      !  CALL get_num_test(num_test)
+       CALL regression(tab_norm)!, opt_num_test=num_test)
   END IF
+
 
   CALL error_petsc('End of test')
   

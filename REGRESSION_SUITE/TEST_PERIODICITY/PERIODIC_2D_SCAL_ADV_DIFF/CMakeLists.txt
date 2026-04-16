@@ -11,35 +11,11 @@ project(ctest_PERIODIC_2D_SCAL_ADV_DIFF)
 
 
 #==========================================================================
-#=============== TARGET debug
-#==========================================================================
-
-  IF (TARGET debug)
-  else()
-  ADD_CUSTOM_TARGET(debug
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Debug"
-    )
-
-  ADD_CUSTOM_TARGET(release
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Release"
-    )
-
-  ADD_CUSTOM_TARGET(native
-    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Native ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all -j20
-    COMMENT "Switch CMAKE_BUILD_TYPE to Native"
-    )
-  endif()
-
-
-#==========================================================================
 #=============== Compilation of test
 #==========================================================================
 set(TEST_NAME "PERIODIC_2D_SCAL_ADV_DIFF")
+set(NB_REGEX 3)
+
 message(${TEST_NAME})
 set(TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -50,40 +26,55 @@ file(GLOB_RECURSE local_sources
 # Define runtime output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TEST_DIR}/EXECUTABLE)
 
-# Add executable
-set(exe "${TEST_NAME}.exe")
-add_executable(${exe} ${local_sources})
-
 set(HYPAR_LIB hypar_lib_F)
 #===================================================
 # Link with the rest
 #===================================================
-target_link_libraries(${exe} PUBLIC ${HYPAR_LIB}
-        ${PETSC_LINK_LIBRARIES}
-        ${PETSC_PRIVATE_LIBRARIES}
-        ${FFTW_LINK_LIBRARIES}
-        ${ZLIB_LIBRARIES}
-        ${MPI_Fortran_LIBRARIES}
-        ${ADDITIONAL_LINKS}
+
+
+set(MY_CMD
+    /bin/bash
+    job.sh
+    ${RUN_PRE_PROC}
+    ${PROC_CALL}
+    ${RUN_POST_PROC}
+    ${NB_REGEX}
+)
+foreach(i RANGE 1 ${NB_REGEX})
+
+  # Add executable
+  set(exe "${TEST_NAME}_${i}.exe")
+  add_executable(${exe} ${local_sources})
+  set_target_properties(${exe} PROPERTIES
+    Fortran_MODULE_DIRECTORY ${TEST_DIR}/BUILD_${i}/mod)
+  #===================================================
+  # Link with the rest
+  #===================================================
+  target_link_libraries(${exe} PUBLIC ${HYPAR_LIB}
+          ${PETSC_LINK_LIBRARIES}
+          ${PETSC_PRIVATE_LIBRARIES}
+          ${FFTW_LINK_LIBRARIES}
+          ${ZLIB_LIBRARIES}
+          ${MPI_Fortran_LIBRARIES}
+          ${ADDITIONAL_LINKS}
     )
-target_include_directories(${exe} PUBLIC ${HYPAR_SFE_DIR}/LIBS/BUILD
-    ${FFTW_INCLUDEDIR} ${FFTW_INCLUDE_DIRS}
-    ${PETSC_INCLUDEDIR} ${PETSC_INCLUDE_DIRS}
-  )
-#===================================================
-# Define test parameters
-#===================================================
+
+  target_include_directories(${exe} PUBLIC ${HYPAR_SFE_DIR}/LIBS/BUILD)
+  target_compile_definitions(${exe} PRIVATE regex_num=${i})
+  LIST(APPEND MY_CMD ${exe})
+endforeach()
 
 #=== chain of characters to define test validation
-set(passRegex "1234567891")
+math(EXPR index_regex "${NB_REGEX} - 1")
+list(GET LIST_REGEX ${index_regex} passRegex)
 
 #=== test name definition, used for test output
 set (nm "${TEST_NAME}")
 
 #=== effective test definition
 add_test(NAME ${nm}
-    WORKING_DIRECTORY ${TEST_DIR}/REGRESSION_TESTS
-    COMMAND /bin/bash/ job.sh ${RUN_PRE_PROC} ${PROC_CALL} ${exe} ${RUN_POST_PROC})
+  WORKING_DIRECTORY ${TEST_DIR}/REGRESSION_TESTS
+  COMMAND ${MY_CMD})
 set_property (TEST ${nm} PROPERTY PASS_REGULAR_EXPRESSION "${passRegex}")
 
 enable_testing()

@@ -4,7 +4,7 @@ PROGRAM nl_scalar_cons_fft_1d
   USE my_util
   USE fft_1D
   IMPLICIT NONE
-  INTEGER :: n
+  INTEGER :: n, num_test
   REAL(KIND = 8) :: tps
 
 !========================!
@@ -67,7 +67,8 @@ CONTAINS
     IF (setup_data%if_regression_test) THEN
        ALLOCATE(tab_norm(1))
        tab_norm(1) = norm
-       CALL regression(tab_norm, opt_num_test=setup_data%num_test)
+       CALL get_num_test(num_test)
+       CALL regression(tab_norm, opt_num_test=num_test)
     END IF
 
   END SUBROUTINE errors
