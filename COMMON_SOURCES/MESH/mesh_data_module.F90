@@ -13,8 +13,8 @@ MODULE mesh_data_module
       CHARACTER(len = rec_length) :: type_fe           = '=== Type of finite element ==='
       CHARACTER(len = rec_length) :: k_dim             = '=== FE Space dimension ==='
       CHARACTER(len = rec_length) :: nb_refinement     = '=== Number of refinement steps ==='
-      CHARACTER(len = rec_length) :: nb_bords = '=== How many pieces of periodic boundary? ==='
-      CHARACTER(len = rec_length) :: list_periodic = '=== Indices of periodic boundaries and corresponding vectors==='
+      CHARACTER(len = rec_length) :: nb_bords          = '=== How many pieces of periodic boundary? ==='
+      CHARACTER(len = rec_length) :: list_periodic     = '=== Indices of periodic boundaries and corresponding vectors==='
    END TYPE argument_mesh_data_type
    !===default value in simulation
    TYPE mesh_data_type

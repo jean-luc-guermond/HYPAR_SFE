@@ -1,3 +1,7 @@
+=== How many pieces of boundaries for bcs on density? ===
+0
+=== How many pieces of boundaries for bcs on ux? ===
+0
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -46,7 +50,7 @@ t
 =============================================
 !           DIRICHLET BC PARAMETERS
 =============================================
-=== How many pieces of boundaries for bcs on density? ===
+=== How many pieces of Dirichlet boundaries for bcs on density? ===
 0
-=== How many pieces of boundaries for bcs on ux? ===
+=== How many pieces of Dirichlet boundaries for bcs on ux? ===
 0

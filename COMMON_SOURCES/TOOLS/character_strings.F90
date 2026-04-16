@@ -472,19 +472,19 @@ MODULE character_strings
       CASE(2)
          string_default = "0 0 0.d0 0.d0"
       END SELECT
-      IF (nb_bords > 0) THEN
-         okay = .FALSE.
-         index_list_info_data = index_list_info_data+1
-         list_info_for_new_data(index_list_info_data) = string
-         DO i = 1, SIZE(record_info_from_data)
-            !=== detecting if there is Periodic BC
-            IF (TRIM(ADJUSTL(record_info_from_data(i)))==list_info_for_new_data(index_list_info_data)) THEN
-               j = i
-               record_info_from_data(j) = ''
-               okay = .TRUE.
-               EXIT
-            END IF
-         END DO
+      okay = .FALSE.
+      index_list_info_data = index_list_info_data+1
+      list_info_for_new_data(index_list_info_data) = string
+      DO i = 1, SIZE(record_info_from_data)
+         !=== detecting if there is Periodic BC
+         IF (TRIM(ADJUSTL(record_info_from_data(i)))==list_info_for_new_data(index_list_info_data)) THEN
+            j = i
+            record_info_from_data(j) = ''
+            okay = .TRUE.
+            EXIT
+         END IF
+      END DO
+      IF (nb_bords /= 0) THEN
          !=== reading all Periodic BC if detected
          DO k=1, nb_bords
             index_list_info_data = index_list_info_data + 1
@@ -497,7 +497,10 @@ MODULE character_strings
             END IF
             READ(list_info_for_new_data(index_list_info_data), *) list_periodic(:, k), vect_e(:, k)
          END DO
-         
+!!$      ! ELSE
+!!$      !    index_list_info_data = index_list_info_data + 1
+!!$      !    list_info_for_new_data(index_list_info_data) = string_default
+!!$         ! READ(list_info_for_new_data(index_list_info_data), *) list_periodic(:, k), vect_e(:, k)
       END IF
       
    END SUBROUTINE read_periodic_data

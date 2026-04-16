@@ -41,8 +41,8 @@ CONTAINS
     TYPE(argument_dirichlet_bc)                     :: argument_data
 
     !===Initialize data arguments (depends on the name of the BC)
-    argument_data%nb_sides = '=== How many pieces of boundaries for bcs on ' // trim(adjustl(this%name)) // '? ==='
-    argument_data%list_sides = '=== List of boundaries for bcs on ' // trim(adjustl(this%name)) // ' ==='
+    argument_data%nb_sides = '=== How many pieces of Dirichlet boundaries for bcs on ' // trim(adjustl(this%name)) // '? ==='
+    argument_data%list_sides = '=== List of Dirichlet boundaries for bcs on ' // trim(adjustl(this%name)) // ' ==='
 
 !================
 !=== MANDATORY Reading all data file

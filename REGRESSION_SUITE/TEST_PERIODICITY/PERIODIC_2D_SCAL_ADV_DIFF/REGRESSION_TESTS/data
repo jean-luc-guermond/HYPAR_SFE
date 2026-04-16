@@ -1,5 +1,3 @@
-=== Indices of periodic boundaries and corresponding vectors===
-4 2 0.d0 2.d0
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -23,7 +21,8 @@ F
 1
 === How many pieces of periodic boundary? ===
 0
-=== How many pieces of boundaries for bcs on a? ===
+=== Indices of periodic boundaries and corresponding vectors===
+=== How many pieces of Dirichlet boundaries for bcs on a? ===
 4
-=== List of boundaries for bcs on a ===
+=== List of Dirichlet boundaries for bcs on a ===
 1 2 3 4

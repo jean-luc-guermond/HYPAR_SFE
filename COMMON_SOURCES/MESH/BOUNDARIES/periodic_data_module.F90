@@ -1,14 +1,7 @@
 MODULE periodic_data_module
    USE dyn_line_type
-   !USE def_type_mesh
     
    IMPLICIT NONE
-!!$   INTEGER, PARAMETER, PRIVATE :: rec_length=200
-!!$
-!!$   TYPE argument_periodic_type
-!!$      CHARACTER(rec_length)                    :: nb_bords
-!!$      CHARACTER(rec_length)                    :: list_periodic
-!!$   END TYPE argument_periodic_type
    
    TYPE periodic_type
       CHARACTER(100)                           :: name
@@ -18,10 +11,6 @@ MODULE periodic_data_module
       TYPE(dyn_int_line), DIMENSION(20)        :: list
       TYPE(dyn_int_line), DIMENSION(20)        :: perlist
       INTEGER, POINTER, DIMENSION(:)           :: pnt
-!!$   CONTAINS
-!!$      PROCEDURE, PUBLIC :: read => read_periodic_bc_data
-!!$      PROCEDURE, PUBLIC :: init => init_periodic_bc_data
-!!$      PROCEDURE, PUBLIC :: set => prep_periodic
    END TYPE periodic_type
 
 CONTAINS

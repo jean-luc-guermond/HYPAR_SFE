@@ -1,6 +1,3 @@
-!           PERIODIC BC PARAMETERS
-=== How many pieces of periodic boundary on global? ===
-0
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -24,6 +21,7 @@ F
 1
 === How many pieces of periodic boundary? ===
 0
+=== Indices of periodic boundaries and corresponding vectors===
 ======================================
 !           SETUP PARAMETERS
 ======================================
@@ -47,13 +45,13 @@ F
 =============================================
 !           DIRICHLET BC PARAMETERS
 =============================================
-=== How many pieces of boundaries for bcs on density? ===
+=== How many pieces of Dirichlet boundaries for bcs on density? ===
 0
-=== How many pieces of boundaries for bcs on ux? ===
+=== How many pieces of Dirichlet boundaries for bcs on ux? ===
 0
-=== How many pieces of boundaries for bcs on uy? ===
+=== How many pieces of Dirichlet boundaries for bcs on uy? ===
 0
-=== How many pieces of boundaries for bcs on u.n=0? ===
+=== How many pieces of Dirichlet boundaries for bcs on u.n=0? ===
 4
-=== List of boundaries for bcs on u.n=0 ===
+=== List of Dirichlet boundaries for bcs on u.n=0 ===
 1 2 3 4
