@@ -16,3 +16,4 @@ LIBS/CMakeFiles/
 LIBS/CTestTestfile.cmake
 LIBS/Makefile
 LIBS/cmake_install.cmake
+variables.cmake
