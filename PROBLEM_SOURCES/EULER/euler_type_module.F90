@@ -294,101 +294,101 @@ CONTAINS
 
 
    SUBROUTINE compute_dij(this, un)
-      USE mesh_parameters
-      ! USE space_dim
-      USE petsc
-      USE my_util
-      USE def_type_mesh
-      USE arbitrary_eos_lambda_module
-      USE compute_periodic
-      IMPLICIT NONE
-      CLASS(euler_type) :: this
-      TYPE(mesh_type), POINTER :: mesh
-      TYPE(petsc_csr_LA), POINTER :: LA
-      REAL(KIND = 8), DIMENSION(:, :) :: un
-      INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
-      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
-      REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
-      REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
-      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-      REAL(KIND = 8) :: pstar
-      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
-      CALL MatZeroEntries(this%matrices%dij, ierr)
+     USE mesh_parameters
+     ! USE space_dim
+     USE petsc
+     USE my_util
+     USE def_type_mesh
+     USE arbitrary_eos_lambda_module
+     USE compute_periodic
+     IMPLICIT NONE
+     CLASS(euler_type) :: this
+     TYPE(mesh_type), POINTER :: mesh
+     TYPE(petsc_csr_LA), POINTER :: LA
+     REAL(KIND = 8), DIMENSION(:, :) :: un
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
+     INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
+     REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
+     REAL(KIND = 8), DIMENSION(1) :: norm_c, dij_c
+     REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
+     REAL(KIND = 8) :: pstar
+     LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
+     CALL MatZeroEntries(this%matrices%dij, ierr)
 
-      mesh => this%mesh
-      LA => this%LA
+     mesh => this%mesh
+     LA => this%LA
 
-      virgin_edge = .true.
-      nw = mesh%gauss%n_w
+     virgin_edge = .true.
+     nw = mesh%gauss%n_w
 
-      DO m = 1, mesh%me
-         DO n = 1, mesh%gauss%n_e
-            IF (mesh%attr_e(mesh%jce(n, m))) THEN
-               edge = mesh%jce_loc(n, m)
-               IF (.not. virgin_edge(edge)) CYCLE
-               virgin_edge(edge) = .false.
+     DO m = 1, mesh%me
+        DO n = 1, mesh%gauss%n_e
+           IF (mesh%attr_e(mesh%jce(n, m))) THEN
+              edge = mesh%jce_loc(n, m)
+              IF (.not. virgin_edge(edge)) CYCLE
+              virgin_edge(edge) = .false.
 
-               ni = MOD(n, nw) + 1
-               nj = MOD(n + 1, nw) + 1
-               i = mesh%jj(ni, m)
-               j = mesh%jj(nj, m)
-               i_t = i
-               j_t = j
+              ni = MOD(n, nw) + 1
+              nj = MOD(n + 1, nw) + 1
+              i = mesh%jj(ni, m)
+              j = mesh%jj(nj, m)
+              i_t = i
+              j_t = j
 
-               DO k = 1, mesh_data_info%k_dim
-                  CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
-               END DO
+              DO k = 1, mesh_data_info%k_dim
+                 CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
+              END DO
 
-               rho(1) = un(i, 1)
-               rho(2) = un(j, 1)
+              rho(1) = un(i, 1)
+              rho(2) = un(j, 1)
 
-               u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
-               u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
+              u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
+              u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
 
-               ie(1) = un(i, mesh_data_info%k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
-               ie(2) = un(j, mesh_data_info%k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
+              ie(1) = un(i, mesh_data_info%k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
+              ie(2) = un(j, mesh_data_info%k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
 
-               p = this%pressure(rho, ie)
+              p = this%pressure(rho, ie)
 
-               CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
-               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
+              CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
+              CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
-               dij_c = MAXVAL(lambda_max) * norm_c
+              dij_c = MAXVAL(lambda_max) * norm_c
 
-               IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
+              IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
-                  DO k = 1, mesh_data_info%k_dim
-                     CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
-                  END DO
+                 DO k = 1, mesh_data_info%k_dim
+                    CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
+                 END DO
 
-                  u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
-                  u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
+                 u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
+                 u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
 
-                  rho = (/rho(2), rho(1)/)
-                  ie = (/ie(2), ie(1)/)
-                  p = (/p(2), p(1)/)
+                 rho = (/rho(2), rho(1)/)
+                 ie = (/ie(2), ie(1)/)
+                 p = (/p(2), p(1)/)
 
-                  CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
+                 CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
-                  dij_c = MAX(dij_c, MAXVAL(lambda_max) * norm_c)
+                 dij_c = MAX(dij_c, MAXVAL(lambda_max) * norm_c)
 
-               END IF
+              END IF
 
-               idx = LA%loc_to_glob(1, i) - 1
-               jdx = LA%loc_to_glob(1, j) - 1
+              idx = LA%loc_to_glob(1, i) - 1
+              jdx = LA%loc_to_glob(1, j) - 1
 
-               CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
-               CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
-            END IF
+              CALL MatSetValues(this%matrices%dij, 1, idx, 1, jdx, dij_c, ADD_VALUES, ierr)
+              CALL MatSetValues(this%matrices%dij, 1, jdx, 1, idx, dij_c, ADD_VALUES, ierr)
+              CALL MatSetValues(this%matrices%dij, 1, idx, 1, idx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
+              CALL MatSetValues(this%matrices%dij, 1, jdx, 1, jdx, -dij_c, ADD_VALUES, ierr) !===add value on diagonal
+           END IF
 
-         END DO
+        END DO
 
-      END DO
-      
-      CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
-      CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
+     END DO
+
+     CALL MatAssemblyBegin(this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
+     CALL MatAssemblyEnd  (this%matrices%dij, MAT_FINAL_ASSEMBLY, ierr)
 
    END SUBROUTINE compute_dij
 
