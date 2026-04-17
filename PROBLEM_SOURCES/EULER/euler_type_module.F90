@@ -150,19 +150,19 @@ CONTAINS
 !================
 !=== We now find the relevant information for this specific Euler data
 !================
-      !===CFL
-    CALL read_data(argument_data%CFL, this%CFL)
+         !===CFL
+      CALL read_data(argument_data%CFL, this%CFL)
 
-      !===b_covolume
-    CALL read_data(argument_data%eos_param, this%eos_param(1))
+         !===b_covolume
+      CALL read_data(argument_data%eos_param, this%eos_param(1))
 
-      !===ERK
-    CALL read_data(argument_data%erk_sv, this%erk_sv)
+         !===ERK
+      CALL read_data(argument_data%erk_sv, this%erk_sv)
    
 !================
 !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
 !================
-     CALL finalize_rewrite_data
+      CALL finalize_rewrite_data
 
    END SUBROUTINE read_euler_data
 

@@ -17,4 +17,4 @@ done
 
 #Clean up
 rm -f data Mesh* mesh_part*
-# rm -rf output_*
+rm -rf output_*

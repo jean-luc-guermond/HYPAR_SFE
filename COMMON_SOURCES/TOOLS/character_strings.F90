@@ -16,17 +16,14 @@ MODULE character_strings
    INTEGER, PRIVATE :: index_list_info_data, record_size
    LOGICAL, PRIVATE :: data_cleaned = .FALSE.
    
-   CONTAINS
+CONTAINS
    
-   FUNCTION last_c_leng (len_str, string) RESULT (leng)
-      
+   FUNCTION last_c_leng (len_str, string) RESULT (leng)    
       IMPLICIT NONE
-      
-      INTEGER, INTENT(IN) :: len_str
+      INTEGER, INTENT(IN)                 :: len_str
       CHARACTER (LEN=len_str), INTENT(IN) :: string
-      INTEGER :: leng
-      
-      INTEGER :: i
+      INTEGER                             :: leng
+      INTEGER                             :: i
       
       leng = len_str
       
@@ -41,14 +38,11 @@ MODULE character_strings
    !========================================================================
    
    FUNCTION  eval_blank(len_str, string) RESULT (leng)
-      
       IMPLICIT NONE
-      
-      INTEGER, INTENT(IN) :: len_str
+      INTEGER, INTENT(IN)                 :: len_str
       CHARACTER (LEN=len_str), INTENT(IN) :: string
-      INTEGER :: leng
-      
-      INTEGER :: i
+      INTEGER                             :: leng
+      INTEGER                             :: i
       
       leng = len_str
       
@@ -63,13 +57,10 @@ MODULE character_strings
    !========================================================================
    
    FUNCTION start_of_string (string) RESULT (start)
-      
       IMPLICIT NONE
-      
-      CHARACTER (LEN=*), INTENT(IN) :: string
-      INTEGER :: start
-      
-      INTEGER :: i
+      CHARACTER (LEN=*), INTENT(IN)       :: string
+      INTEGER                             :: start
+      INTEGER                             :: i
       
       start = 1
       
@@ -84,13 +75,10 @@ MODULE character_strings
    !========================================================================
    
    FUNCTION last_of_string (string) RESULT (last)
-      
       IMPLICIT NONE
-      
-      CHARACTER (LEN=*), INTENT(IN) :: string
-      INTEGER :: last
-      
-      INTEGER :: i
+      CHARACTER (LEN=*), INTENT(IN)       :: string
+      INTEGER                             :: last
+      INTEGER                             :: i
       
       last = 1
       
@@ -147,12 +135,13 @@ MODULE character_strings
    END SUBROUTINE find_string
    !========================================================================
    
-   SUBROUTINE compare_string_to_record(argument, string_default, okay)
+   SUBROUTINE compare_string_to_record(argument, string_default, okay, end_idx_record)
       IMPLICIT NONE
       CHARACTER(LEN=*), INTENT(IN)   :: argument
       CHARACTER(LEN=*), INTENT(IN)   :: string_default
       LOGICAL, INTENT(OUT)           :: okay
-      INTEGER                        :: i
+      INTEGER, INTENT(OUT)           :: end_idx_record
+      INTEGER                        :: i, j
       
       okay = .TRUE.
       index_list_info_data = index_list_info_data+1
@@ -163,6 +152,7 @@ MODULE character_strings
             index_list_info_data = index_list_info_data + 1
             list_info_for_new_data(index_list_info_data) = record_info_from_data(i+1)
             record_info_from_data(i+1) = ''
+            end_idx_record = i+1
             RETURN
          END IF
       END DO
@@ -173,6 +163,29 @@ MODULE character_strings
       RETURN
    END SUBROUTINE compare_string_to_record
    
+
+   SUBROUTINE add_dummy_string_to_record(start_idx, str_added)
+      IMPLICIT NONE
+      INTEGER, INTENT(IN)            :: start_idx
+      INTEGER                        :: j
+      LOGICAL, INTENT(OUT), OPTIONAL :: str_added
+      
+      IF (PRESENT(str_added)) str_added = .FALSE.
+      j = start_idx + 1
+      DO WHILE(j < SIZE(record_info_from_data))
+         IF (TRIM(ADJUSTL(record_info_from_data(j)(1:3)))=='===') THEN
+            EXIT
+         ELSE
+            IF (TRIM(ADJUSTL(record_info_from_data(j))) /= '') THEN
+               index_list_info_data = index_list_info_data + 1
+               list_info_for_new_data(index_list_info_data) = record_info_from_data(j)
+               IF (PRESENT(str_added)) str_added = .TRUE.
+               record_info_from_data(j) = ''
+            END IF
+            j = j + 1
+         END IF 
+      END DO
+   END SUBROUTINE add_dummy_string_to_record
    !===================================================================================
    !========== MANDATORY DATA CLEANING BEFORE ANYTHING
    !===================================================================================
@@ -234,7 +247,7 @@ MODULE character_strings
             WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
          END DO
          CLOSE(in_unit)
-         
+
       END IF
       CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
    END SUBROUTINE clean_data_once
@@ -264,7 +277,7 @@ MODULE character_strings
       
       IF (ALLOCATED(record_info_from_data) .OR. ALLOCATED(list_info_for_new_data)) THEN
          CALL error_petsc('BUG in character_strings.F90 (read_data_in_record): &
-      record_info_from_data or list_info_for_new_data is allocated&
+      record_info_from_data or list_info_for_new_data is allocated &
       , you might have forgotten to deallocate (for instance by calling "rewrite_data_from_list_record")')
       ELSE 
          ALLOCATE(record_info_from_data(list_length))
@@ -313,21 +326,16 @@ MODULE character_strings
             WRITE(fmt, '("(A", I0, ")")') length_section_name
             WRITE(string,fmt) TRIM(ADJUSTL(control))
             IF (string==section_name) THEN
-               line_section = record_size
+               record_info_from_data(record_size) = ""
+               record_size = record_size - 1
             END IF
          END IF
       END DO
       100 CONTINUE
       CLOSE(in_unit)
-      IF (line_section .NE. -1) THEN
-         record_info_from_data(line_section:record_size-1) = record_info_from_data(line_section+1: record_size)
-         record_size = record_size -1
-      ELSE
-         line_section = 1
-      END IF
       
       CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
-      
+
    END SUBROUTINE read_data_init_list
    
    SUBROUTINE finalize_rewrite_data
@@ -361,7 +369,7 @@ MODULE character_strings
       
       !=== WAITING ALL PROCESSES TO FINISH WRITING
       CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
-      
+
    END SUBROUTINE finalize_rewrite_data
    
    !==========================================================================================================================
@@ -369,20 +377,21 @@ MODULE character_strings
    !========          SUBROUTINES TO READ DATA IN A RECORD DEPENDING ON THE TYPE OF DATA          ============================
    !==========================================================================================================================
    !==========================================================================================================================
-   
+
    SUBROUTINE read_real_data(argument, val_in_out)
       IMPLICIT NONE
       CHARACTER(LEN=*), INTENT(IN) :: argument
       CHARACTER(LEN=rec_length)    :: string_default
-      LOGICAL                      :: okay
       REAL(KIND=8), INTENT(INOUT)  :: val_in_out
-      
+      INTEGER                      :: end_idx_record
+      LOGICAL                      :: okay
+
       WRITE(string_default,*) val_in_out
-      CALL compare_string_to_record(argument, string_default, okay)
-      IF (okay) THEN
-         READ(list_info_for_new_data(index_list_info_data),*) val_in_out
-      END IF
-      
+      CALL compare_string_to_record(argument, string_default, okay, end_idx_record)
+      IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+
+      CALL add_dummy_string_to_record(end_idx_record)
+
    END SUBROUTINE read_real_data
    
    
@@ -392,28 +401,42 @@ MODULE character_strings
       CHARACTER(LEN=rec_length)    :: string_default
       LOGICAL                      :: okay
       INTEGER, INTENT(INOUT)       :: val_in_out
-      
+      INTEGER                      :: end_idx_record
+
       WRITE(string_default,*) val_in_out
-      CALL compare_string_to_record(argument, string_default, okay)
-      IF (okay) THEN
-         READ(list_info_for_new_data(index_list_info_data),*) val_in_out
-      END IF
-      
+      CALL compare_string_to_record(argument, string_default, okay, end_idx_record)
+      IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+
+      CALL add_dummy_string_to_record(end_idx_record)
+
    END SUBROUTINE read_integer_data
    
-   SUBROUTINE read_integer_array_data(argument, val_in_out)
+   SUBROUTINE read_integer_array_data(argument, val_in_out, opt_skip_data)
       IMPLICIT NONE
       CHARACTER(LEN=*), INTENT(IN) :: argument
       CHARACTER(LEN=rec_length)    :: string_default
       LOGICAL                      :: okay
       INTEGER, INTENT(INOUT)       :: val_in_out(:)
-      
-      WRITE(string_default,*) val_in_out
-      CALL compare_string_to_record(argument, string_default, okay)
-      IF (okay) THEN
-         READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+      INTEGER                      :: end_idx_record
+      LOGICAL                      :: str_added, raw_okay
+      LOGICAL, OPTIONAL            :: opt_skip_data
+
+      string_default = "0 0"
+      IF (PRESENT(opt_skip_data)) THEN
+         IF (.NOT. opt_skip_data) WRITE(string_default,*) val_in_out
+      ELSE
+         WRITE(string_default,*) val_in_out
       END IF
-      
+
+      CALL compare_string_to_record(argument, string_default, raw_okay, end_idx_record)
+      IF (PRESENT(opt_skip_data)) THEN
+         okay = raw_okay .AND. (.NOT. opt_skip_data)
+         IF (.NOT. okay) end_idx_record = end_idx_record - 1
+      END IF
+      IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+
+      CALL add_dummy_string_to_record(end_idx_record, str_added=str_added)
+
    END SUBROUTINE read_integer_array_data
    
    SUBROUTINE read_character_data(argument, val_in_out)
@@ -422,13 +445,14 @@ MODULE character_strings
       CHARACTER(LEN=rec_length)                :: string_default
       LOGICAL                                  :: okay
       CHARACTER(LEN=rec_length), INTENT(INOUT) :: val_in_out
-      
+      INTEGER                                  :: end_idx_record
+
       WRITE(string_default,*) TRIM(ADJUSTL(val_in_out))
-      CALL compare_string_to_record(argument, string_default, okay)
-      IF (okay) THEN
-         READ(list_info_for_new_data(index_list_info_data),*) val_in_out
-      END IF
-      
+      CALL compare_string_to_record(argument, string_default, okay, end_idx_record)
+      IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+
+      CALL add_dummy_string_to_record(end_idx_record)
+
    END SUBROUTINE read_character_data
    
    SUBROUTINE read_logical_data(argument, val_in_out)
@@ -437,13 +461,14 @@ MODULE character_strings
       CHARACTER(LEN=rec_length)                :: string_default
       LOGICAL                                  :: okay
       LOGICAL, INTENT(INOUT)                   :: val_in_out
-      
+      INTEGER                                  :: end_idx_record
+
       WRITE(string_default,*) val_in_out
-      CALL compare_string_to_record(argument, string_default, okay)
-      IF (okay) THEN
-         READ(list_info_for_new_data(index_list_info_data),*) val_in_out
-      END IF
-      
+      CALL compare_string_to_record(argument, string_default, okay, end_idx_record)
+      IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
+
+      CALL add_dummy_string_to_record(end_idx_record)
+
    END SUBROUTINE read_logical_data
    
    !==========================================================================================================================
@@ -451,7 +476,7 @@ MODULE character_strings
    !========          VERY SPECIFIC SET OF SUBROUTINES TO READ DATA IN A RECORD          =====================================
    !==========================================================================================================================
    !==========================================================================================================================
-   
+
    !=== This subroutine reads '=== Indices of periodic boundaries and corresponding vectors on ' // trim(adjustl(this%name)) // '? ==='
    SUBROUTINE read_periodic_data(argument_list_periodic, nb_bords, list_periodic, vect_e)
       IMPLICIT NONE
@@ -462,7 +487,7 @@ MODULE character_strings
       CHARACTER(LEN=*), INTENT(IN)           :: argument_list_periodic
       INTEGER,          INTENT(INOUT)        :: list_periodic(:, :)
       REAL(KIND=8),     INTENT(INOUT)        :: vect_e(:, :)
-      INTEGER :: k_dim
+      INTEGER                                :: k_dim, end_idx_record
 
       k_dim = SIZE(vect_e,1)
       string = argument_list_periodic
@@ -484,25 +509,23 @@ MODULE character_strings
             EXIT
          END IF
       END DO
-      IF (nb_bords /= 0) THEN
-         !=== reading all Periodic BC if detected
-         DO k=1, nb_bords
-            index_list_info_data = index_list_info_data + 1
-            IF (okay) THEN
-               list_info_for_new_data(index_list_info_data) = record_info_from_data(j+k)
-               record_info_from_data(j+k) = ''
-            ELSE
-               !=== default value if no Periodic BC detected
-               list_info_for_new_data(index_list_info_data) = string_default
-            END IF
+      !=== reading all Periodic BC if detected
+      DO k=1, MAX(nb_bords, 1)
+         index_list_info_data = index_list_info_data + 1
+         IF (okay) THEN
+            list_info_for_new_data(index_list_info_data) = record_info_from_data(j+k)
+            record_info_from_data(j+k) = ''
+         ELSE
+            !=== default value if no Periodic BC detected
+            list_info_for_new_data(index_list_info_data) = string_default
+         END IF
+         IF (nb_bords /= 0) THEN
             READ(list_info_for_new_data(index_list_info_data), *) list_periodic(:, k), vect_e(:, k)
-         END DO
-!!$      ! ELSE
-!!$      !    index_list_info_data = index_list_info_data + 1
-!!$      !    list_info_for_new_data(index_list_info_data) = string_default
-!!$         ! READ(list_info_for_new_data(index_list_info_data), *) list_periodic(:, k), vect_e(:, k)
-      END IF
-      
+         END IF
+      END DO
+      end_idx_record = j + nb_bords
+      CALL add_dummy_string_to_record(end_idx_record)
+
    END SUBROUTINE read_periodic_data
    
 END MODULE character_strings

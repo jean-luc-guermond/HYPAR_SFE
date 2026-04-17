@@ -72,7 +72,7 @@ PROGRAM test_matrix
   !===set PBC + rhs ==================================================
   CALL qs_00 (mesh, LA, source(mesh%rr), rhs) !=== create rhs with a scalar source term
   CALL periodic_rhs_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, rhs, LA) !=== give periodic structure to rhs
-  write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
+  ! write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
   !=== setting rhs: LA%... - 1 ==> global indexing starts at 0); ex_sol... => associated values
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 

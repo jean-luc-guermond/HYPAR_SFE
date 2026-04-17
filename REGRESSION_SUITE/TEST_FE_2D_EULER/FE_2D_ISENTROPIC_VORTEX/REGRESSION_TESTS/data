@@ -22,6 +22,7 @@ F
 === How many pieces of periodic boundary? ===
 0
 === Indices of periodic boundaries and corresponding vectors===
+0 0 0.d0 0.d0
 ======================================
 !           SETUP PARAMETERS
 ======================================
@@ -31,6 +32,7 @@ F
 1.d20
 === Final time ===
 .1d0
+1.d0
 === Do we compare with analytical reference? (true/false) ===
 F
 ======================================
@@ -47,10 +49,16 @@ F
 =============================================
 === How many pieces of Dirichlet boundaries for bcs on density? ===
 0
+=== List of Dirichlet boundaries for bcs on density ===
+0 0
 === How many pieces of Dirichlet boundaries for bcs on ux? ===
 0
+=== List of Dirichlet boundaries for bcs on ux ===
+0 0
 === How many pieces of Dirichlet boundaries for bcs on uy? ===
 0
+=== List of Dirichlet boundaries for bcs on uy ===
+0 0
 === How many pieces of Dirichlet boundaries for bcs on u.n=0? ===
 4
 === List of Dirichlet boundaries for bcs on u.n=0 ===
