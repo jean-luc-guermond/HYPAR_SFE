@@ -42,6 +42,8 @@ T
 0.d0
 ===Euler 1: ERK ?===
 -41
+=== Which method to solve Euler (viscous, high) ? ===
+viscous
 =============================================
 !           DIRICHLET BC PARAMETERS
 =============================================
