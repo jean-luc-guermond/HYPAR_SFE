@@ -22,6 +22,7 @@ F
 === How many pieces of periodic boundary? ===
 0
 === Indices of periodic boundaries and corresponding vectors===
+0 0 0.d0
 ======================================
 !           SETUP PARAMETERS
 ======================================
@@ -49,5 +50,9 @@ viscous
 =============================================
 === How many pieces of Dirichlet boundaries for bcs on density? ===
 0
+=== List of Dirichlet boundaries for bcs on density ===
+0 0
 === How many pieces of Dirichlet boundaries for bcs on ux? ===
 0
+=== List of Dirichlet boundaries for bcs on ux ===
+0 0

@@ -87,7 +87,7 @@ PROGRAM test_matrix
   CALL extract(ghost_sol, 1, 1, LA, un)
 
   !===post processing =================================================
-  ! WRITE(char, '(I5)') mesh%rank
+  WRITE(char, '(I5)') mesh%rank
   CALL plot_scalar_field(mesh%jj, mesh%rr, un, 'SOL' // trim(adjustl(char)) // '.plt')
   CALL plot_scalar_field(mesh%jj, mesh%rr, un-ex_sol(mesh%rr), 'error' // trim(adjustl(char)) // '.plt')
 

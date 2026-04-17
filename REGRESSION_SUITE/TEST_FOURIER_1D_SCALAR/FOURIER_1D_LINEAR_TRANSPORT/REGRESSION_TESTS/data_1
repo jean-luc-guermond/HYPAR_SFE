@@ -11,7 +11,7 @@
 === Restart (true/false) ===
 F
 === Checkpointing frequency ===
-1.0000000000000000E+020
+1.d20
 === Final time ===
 .1d0
 ===============================================

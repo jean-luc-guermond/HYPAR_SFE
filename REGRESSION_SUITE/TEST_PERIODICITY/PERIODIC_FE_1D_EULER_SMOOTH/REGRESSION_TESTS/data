@@ -1,7 +1,3 @@
-=== How many pieces of boundaries for bcs on density? ===
-0
-=== How many pieces of boundaries for bcs on ux? ===
-0
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -33,7 +29,7 @@ F
 === Restart (true/false) ===
 F
 === Checkpointing frequency ===
-1.E+020
+1.d20
 === Final time ===
 1.
 === Do we compare with analytical reference? (true/false) ===
@@ -54,5 +50,9 @@ viscous
 =============================================
 === How many pieces of Dirichlet boundaries for bcs on density? ===
 0
+=== List of Dirichlet boundaries for bcs on density ===
+0 0
 === How many pieces of Dirichlet boundaries for bcs on ux? ===
 0
+=== List of Dirichlet boundaries for bcs on ux ===
+0 0
