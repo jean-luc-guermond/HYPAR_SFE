@@ -173,8 +173,6 @@ CONTAINS
      !================
 
      CALL finalize_rewrite_data
-
-
    END SUBROUTINE read_euler_data
 
    SUBROUTINE update(this, un)
@@ -186,14 +184,15 @@ CONTAINS
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim) :: un_temp
      REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
-     REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk 
+     REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
+     REAL(KIND = 8), DIMENSION(this%mesh%np,2) :: bounds
      INTEGER :: comp, k, ierr
      un_temp = un
  
      SELECT CASE(this%method)
      CASE('viscous')
         !===compute dijL and dt
-        CALL this%compute_dij(un_temp)
+        CALL this%compute_dij(un_temp, bounds)
         CALL this%compute_dt
 
         this%time = this%time + this%dt
@@ -234,7 +233,7 @@ CONTAINS
         END DO
      CASE('high')
         !===compute dijL and dt
-        CALL this%compute_dij(un_temp)
+        CALL this%compute_dij(un_temp, bounds)
         CALL this%compute_dt
 
         this%time = this%time + this%dt
@@ -252,7 +251,6 @@ CONTAINS
               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
            END DO
-
 !!$           CALL compute_flux(this, ff, this%x3vec)
 
            !=== set un(comp) in x1vec
@@ -363,7 +361,7 @@ CONTAINS
       this%dt = this%CFL * dt_min_glob
    END SUBROUTINE compute_dt
 
-   SUBROUTINE compute_dij(this, un)
+   SUBROUTINE compute_dij(this, un, bounds)
      USE mesh_parameters
      USE petsc
      USE my_util
@@ -374,23 +372,23 @@ CONTAINS
      CLASS(euler_type) :: this
      TYPE(mesh_type), POINTER :: mesh
      TYPE(petsc_csr_LA), POINTER :: LA
-     REAL(KIND = 8), DIMENSION(:, :) :: un
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
+     REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, comp, k_dim
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
      REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
      REAL(KIND = 8), DIMENSION(1) :: dijH_c
      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-     REAL(KIND = 8) :: pstar
+     REAL(KIND = 8) :: pstar, max_lambda, uijbar
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
 !!$     REAL(KIND = 8), DIMENSION(this%mesh%np)  :: e, alpha !<==commutator in (0,1)
-     
+
      !===Compute commutator if needed
      IF (this%method=='high') THEN
         CALL commutator(this, un, alpha)
      END IF
-     
+
      !===Compute dijL
      CALL MatZeroEntries(this%matrices%dijL, ierr)
      IF (this%method=='high') THEN
@@ -401,7 +399,7 @@ CONTAINS
 
      virgin_edge = .TRUE.
      nw = mesh%gauss%n_w
-
+     k_dim = mesh_data_info%k_dim
      DO m = 1, mesh%me
         DO n = 1, mesh%gauss%n_e
            IF (mesh%attr_e(mesh%jce(n, m))) THEN
@@ -434,7 +432,8 @@ CONTAINS
               CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
-              dijL_c = MAXVAL(lambda_max) * norm_c
+              max_lambda = MAXVAL(lambda_max)
+              dijL_c = max_lambda * norm_c
 
               IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
@@ -451,16 +450,18 @@ CONTAINS
 
                  CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
+ 
                  dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
+                 max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
 
               END IF
-              
+
               idx = LA%loc_to_glob(1, i) - 1
               jdx = LA%loc_to_glob(1, j) - 1
 
               CALL MatSetValues(this%matrices%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
               CALL MatSetValues(this%matrices%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
-              
+
               CALL MatSetValues(this%matrices%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
               CALL MatSetValues(this%matrices%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
               IF (this%method=='high') THEN
@@ -468,7 +469,13 @@ CONTAINS
                  CALL MatSetValues(this%matrices%dijH, 1, idx, 1, jdx, dijH_c, ADD_VALUES, ierr)
                  CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, idx, dijH_c, ADD_VALUES, ierr)
                  CALL MatSetValues(this%matrices%dijH, 1, idx, 1, idx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
-              CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
+                 CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
+                 !===Compute low-order update to estimate bounds
+                 uijbar = (un(i, 1)+un(j, 1))/2 &
+                      - SUM((un(j, 2:k_dim+1) - un(1, 2:k_dim+1))*nij_c(1, :))/(2*max_lambda)
+                 bounds(i,1) = MIN(bounds(i,1),uijbar)
+                 bounds(i,2) = MAX(bounds(i,2),uijbar)
+                 !===End compute low-order update to estimate bounds
               END IF
            END IF
 
@@ -478,7 +485,7 @@ CONTAINS
 
      CALL MatAssemblyBegin(this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
      CALL MatAssemblyEnd  (this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
-     
+
      IF (this%method=='high') THEN
         CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
         CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
@@ -486,117 +493,6 @@ CONTAINS
 
    END SUBROUTINE compute_dij
 
-   SUBROUTINE compute_dk (this, un)
-     USE arbitrary_eos_lambda_module
-     IMPLICIT NONE
-     CLASS(euler_type) :: this
-     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
-     INTEGER, DIMENSION(1) :: i_t, j_t
-     REAL(KIND = 8), DIMENSION(1, this%mesh%gauss%k_d) :: nij_c
-     REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
-     REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-     LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
-     REAL(KIND = 8) :: pstar
-     LOGICAL :: bug
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, divider, nb_shared_cell
-     nw = this%mesh%gauss%n_w
-
-     bug = .FALSE.
-     SELECT CASE(this%mesh%gauss%k_d)
-     CASE(1)
-        nb_shared_cell = 1
-        IF (this%mesh%gauss%n_w/=2) bug=.TRUE.
-     CASE(2)
-        nb_shared_cell = 2
-        IF (this%mesh%gauss%n_w/=3) bug=.TRUE.
-     END SELECT
-     IF (bug) THEN
-        CALL error_petsc('Wrong polynomial degree for low-order viscosity')
-     END IF
-
-     DO m = 1, this%mesh%dom_me
-        DO n = 1, this%mesh%gauss%n_e
-           IF (this%mesh%attr_e(this%mesh%jce(n, m))) THEN
-              edge = this%mesh%jce_loc(n, m)
-              IF (.NOT. virgin_edge(edge)) CYCLE
-              virgin_edge(edge) = .FALSE.
-              ni = MOD(n, nw) + 1
-              nj = MOD(n + 1, nw) + 1
-              i = this%mesh%jj(ni, m)
-              j = this%mesh%jj(nj, m)
-              i_t = i
-              j_t = j
-              DO k = 1, this%mesh%gauss%k_d
-                 CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, &
-                      nij_c(:, k), ierr)
-              END DO
-              rho(1) = un(i, 1)
-              rho(2) = un(j, 1)
-              u(1) = SUM(un(i, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(1)
-              u(2) = SUM(un(j, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(2)
-              ie(1) = un(i, this%mesh%gauss%k_d + 2) / rho(1) - 0.5d0 * u(1) * u(1)
-              ie(2) = un(j, this%mesh%gauss%k_d + 2) / rho(2) - 0.5d0 * u(2) * u(2)
-              p = this%pressure(rho, ie)
-              CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, &
-                   lambda_max, pstar)
-              dijL_c = MAXVAL(lambda_max) * norm_c
-              divider = nb_shared_cell
-              
-              IF (this%mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
-                 DO k = 1, this%mesh%gauss%k_d
-                    CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, &
-                         nij_c(:, k), ierr)
-                 END DO
-                 u(1) = SUM(un(i, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(1)
-                 u(2) = SUM(un(j, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(2)
-                 rho = (/rho(2), rho(1)/)
-                 ie = (/ie(2), ie(1)/)
-                 p = (/p(2), p(1)/)
-                 CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, &
-                      lambda_max, pstar)
-                 dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
-                 divider = 1
-              END IF
-              
-              this%matrices%dK(m) = MAX(this%matrices%dK(m),dijL_c(1)/divider)
-           END IF
-        END DO
-     END DO
-   END SUBROUTINE compute_dk
-
-   SUBROUTINE compute_dt_from_dK(this)
-     IMPLICIT NONE
-     CLASS(euler_type) :: this
-     REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dijL_diag
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
-     INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm
-     INTEGER :: i, m, ni, iglob
-     REAL(KIND = 8) :: dt_min_loc, dt_min_glob
-     Vec                                         :: vect
-     PetscErrorCode                              :: ierr
-     CALL VecSet(vect, 0.d0, ierr)
-
-     DO m = 1, this%mesh%me
-        v_loc = 0.d0
-        DO ni = 1, this%mesh%gauss%n_w
-           i = this%mesh%jj(ni, m)
-           iglob = this%LA%loc_to_glob(1, i)
-           idxm(ni) = iglob - 1
-           v_loc(ni) = v_loc(ni) + this%matrices%dK(m)
-        ENDDO
-        CALL VecSetValues(vect, this%mesh%gauss%n_w, idxm, v_loc, ADD_VALUES, ierr)
-     ENDDO
-     CALL VecAssemblyBegin(vect, ierr)
-     CALL VecAssemblyEnd(vect, ierr)
-
-     CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dijL_diag, ierr)
-     dijL_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dijL_diag)
-
-     dt_min_loc = MINVAL(dijL_diag) / 2.d0
-
-     CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
-     this%dt = this%CFL * dt_min_glob
-   END SUBROUTINE compute_dt_from_dK
 
    SUBROUTINE compute_flux(this, ff, Vect)
      IMPLICIT NONE
@@ -695,7 +591,7 @@ CONTAINS
 
      !rk = abs(rk/norm_log)
      rk = abs(rk)/max(abs(rk_norm),1.d-10*norm_log)
-     alpha = MIN(10*rk,1.d0)
+     alpha = MIN(4*rk,1.d0)
      !IF (this%mesh%rank==0) write(*,*) 'error', norm_diff/norm_log
      !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
      IF (this%time+1.5*this%dt>this%final_time) THEN
@@ -729,6 +625,125 @@ CONTAINS
        g = t**3*(10-15*t+6*t**2) - relu*(t-1)**2*(6*t**2+3*t+1)/(2*x0)           
     END SELECT                                                                   
     RETURN                                                                       
-  END FUNCTION threshold    
+  END FUNCTION threshold
+
+
+
+
+  !GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE  
+  !GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE
+  !GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE
+  SUBROUTINE compute_dk (this, un)
+    USE arbitrary_eos_lambda_module
+    IMPLICIT NONE
+    CLASS(euler_type) :: this
+    REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
+    INTEGER, DIMENSION(1) :: i_t, j_t
+    REAL(KIND = 8), DIMENSION(1, this%mesh%gauss%k_d) :: nij_c
+    REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
+    REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
+    LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
+    REAL(KIND = 8) :: pstar
+    LOGICAL :: bug
+    INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, divider, nb_shared_cell
+    nw = this%mesh%gauss%n_w
+
+    bug = .FALSE.
+    SELECT CASE(this%mesh%gauss%k_d)
+    CASE(1)
+       nb_shared_cell = 1
+       IF (this%mesh%gauss%n_w/=2) bug=.TRUE.
+    CASE(2)
+       nb_shared_cell = 2
+       IF (this%mesh%gauss%n_w/=3) bug=.TRUE.
+    END SELECT
+    IF (bug) THEN
+       CALL error_petsc('Wrong polynomial degree for low-order viscosity')
+    END IF
+
+    DO m = 1, this%mesh%dom_me
+       DO n = 1, this%mesh%gauss%n_e
+          IF (this%mesh%attr_e(this%mesh%jce(n, m))) THEN
+             edge = this%mesh%jce_loc(n, m)
+             IF (.NOT. virgin_edge(edge)) CYCLE
+             virgin_edge(edge) = .FALSE.
+             ni = MOD(n, nw) + 1
+             nj = MOD(n + 1, nw) + 1
+             i = this%mesh%jj(ni, m)
+             j = this%mesh%jj(nj, m)
+             i_t = i
+             j_t = j
+             DO k = 1, this%mesh%gauss%k_d
+                CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, &
+                     nij_c(:, k), ierr)
+             END DO
+             rho(1) = un(i, 1)
+             rho(2) = un(j, 1)
+             u(1) = SUM(un(i, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(1)
+             u(2) = SUM(un(j, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(2)
+             ie(1) = un(i, this%mesh%gauss%k_d + 2) / rho(1) - 0.5d0 * u(1) * u(1)
+             ie(2) = un(j, this%mesh%gauss%k_d + 2) / rho(2) - 0.5d0 * u(2) * u(2)
+             p = this%pressure(rho, ie)
+             CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, &
+                  lambda_max, pstar)
+             dijL_c = MAXVAL(lambda_max) * norm_c
+             divider = nb_shared_cell
+
+             IF (this%mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
+                DO k = 1, this%mesh%gauss%k_d
+                   CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, &
+                        nij_c(:, k), ierr)
+                END DO
+                u(1) = SUM(un(i, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(1)
+                u(2) = SUM(un(j, 2:1 + this%mesh%gauss%k_d) * nij_c(1, :)) / rho(2)
+                rho = (/rho(2), rho(1)/)
+                ie = (/ie(2), ie(1)/)
+                p = (/p(2), p(1)/)
+                CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, &
+                     lambda_max, pstar)
+                dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
+                divider = 1
+             END IF
+
+             this%matrices%dK(m) = MAX(this%matrices%dK(m),dijL_c(1)/divider)
+          END IF
+       END DO
+    END DO
+  END SUBROUTINE compute_dk
+
+   SUBROUTINE compute_dt_from_dK(this)
+     IMPLICIT NONE
+     CLASS(euler_type) :: this
+     REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dijL_diag
+     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
+     INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm
+     INTEGER :: i, m, ni, iglob
+     REAL(KIND = 8) :: dt_min_loc, dt_min_glob
+     Vec                                         :: vect
+     PetscErrorCode                              :: ierr
+     CALL VecSet(vect, 0.d0, ierr)
+
+     DO m = 1, this%mesh%me
+        v_loc = 0.d0
+        DO ni = 1, this%mesh%gauss%n_w
+           i = this%mesh%jj(ni, m)
+           iglob = this%LA%loc_to_glob(1, i)
+           idxm(ni) = iglob - 1
+           v_loc(ni) = v_loc(ni) + this%matrices%dK(m)
+        ENDDO
+        CALL VecSetValues(vect, this%mesh%gauss%n_w, idxm, v_loc, ADD_VALUES, ierr)
+     ENDDO
+     CALL VecAssemblyBegin(vect, ierr)
+     CALL VecAssemblyEnd(vect, ierr)
+
+     CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dijL_diag, ierr)
+     dijL_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dijL_diag)
+
+     dt_min_loc = MINVAL(dijL_diag) / 2.d0
+
+     CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
+     this%dt = this%CFL * dt_min_glob
+   END SUBROUTINE compute_dt_from_dK
+
    
  END MODULE euler_type_MODULE

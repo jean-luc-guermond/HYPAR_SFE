@@ -44,13 +44,11 @@ CONTAINS
     USE setup
     IMPLICIT NONE
     PetscErrorCode :: ierr
-    !REAL(KIND = 8) :: init_time = 0.d0
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'Euler 1'
     INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
-
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)

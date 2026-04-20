@@ -22,6 +22,7 @@ MODULE start_setup_MODULE
      REAL(KIND = 8) :: final_time          = 0.1d0
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
+     INTEGER        :: rank
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
@@ -53,7 +54,7 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
-
+    
     !===Clean data once
     CALL clean_data_once
 
@@ -65,12 +66,11 @@ CONTAINS
     
     !===Read
     CALL setup_data%init
-
+    
     !===Start Euler
     times(2) = setup_data%final_time
     CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
 
-    !===Read data setup
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

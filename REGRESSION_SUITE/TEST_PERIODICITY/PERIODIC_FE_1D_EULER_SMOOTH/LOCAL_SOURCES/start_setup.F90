@@ -49,7 +49,6 @@ CONTAINS
     INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
-
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
