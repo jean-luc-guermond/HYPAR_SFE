@@ -5,7 +5,7 @@ MODULE start_setup_MODULE
    USE euler_type_module
    USE character_strings, ONLY : clean_data_once
    MPI_Comm        :: communicator
-   
+
    INTEGER, PARAMETER, PRIVATE :: rec_length = 200
 
    TYPE argument_setup_data_type
@@ -14,64 +14,64 @@ MODULE start_setup_MODULE
       CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
       CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
    END TYPE argument_setup_data_type
-   
+
    TYPE setup_data_type
       LOGICAL        :: if_regression_test  = .FALSE.
-      LOGICAL        :: if_restart          = .FALSE. 
+      LOGICAL        :: if_restart          = .FALSE.
       REAL(KIND = 8) :: checkpointing_freq  = 1.d20
       REAL(KIND = 8) :: final_time          = 0.1d0
       LOGICAL        :: if_analytical_ref   = .FALSE.
       INTEGER        :: syst_size
-   CONTAINS 
+   CONTAINS
       PROCEDURE, PUBLIC :: read => read_setup_data
       PROCEDURE, PUBLIC :: init => init_setup_data
    END TYPE setup_data_type
-   
-   TYPE(mesh_type), PUBLIC :: mesh
-   TYPE(petsc_csr_LA), PRIVATE :: LA
-   TYPE(euler_type), PUBLIC :: euler
-   TYPE(setup_data_type), PUBLIC :: setup_data
-   !TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
+
+   TYPE(mesh_type),                   PUBLIC :: mesh
+   TYPE(petsc_csr_LA),               PRIVATE :: LA
+   TYPE(euler_type),                  PUBLIC :: euler
+   TYPE(setup_data_type),             PUBLIC :: setup_data
+   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
    PUBLIC :: start_setup
    PRIVATE
 
 CONTAINS
 
-   SUBROUTINE start_setup
-      use periodic_data_module
-      USE construct_mesh
-      USE st_matrix
-      USE setup
-      IMPLICIT NONE
-      PetscErrorCode :: ierr
-      REAL(KIND = 8) :: init_time = 0.d0
-      CHARACTER(100) :: name = 'Euler 1'
-      INTEGER :: rank
+  SUBROUTINE start_setup
+    use periodic_data_module
+    USE construct_mesh
+    USE st_matrix
+    USE setup
+    IMPLICIT NONE
+    PetscErrorCode :: ierr
+    !REAL(KIND = 8) :: init_time = 0.d0
+    REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
+    CHARACTER(100) :: name = 'Euler 1'
+    INTEGER :: rank
 
-      !===Start PETSC and MPI (mandatory)
+    !===Start PETSC and MPI (mandatory)
 
-      CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-      communicator = PETSC_COMM_WORLD
-      CALL MPI_Comm_rank(communicator, rank, ierr)
+    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
+    communicator = PETSC_COMM_WORLD
+    CALL MPI_Comm_rank(communicator, rank, ierr)
 
-      !===Clean data once
-      CALL clean_data_once
-      !===Construct mesh
-      !CALL per(1)%init("global", "PERIODIC BC PARAMETERS")
-      CALL get_mesh(communicator, mesh)
-      !CALL per(1)%set(mesh)
+    !===Clean data once
+    CALL clean_data_once
 
-      !===Construct LA
-      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
-      !===Read
-      CALL setup_data%init
+    !===Construct mesh
+    CALL get_mesh(communicator, mesh)
 
-      !===Start Euler
-      !FIXE ME init_time too
-      CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, init_time)
+    !===Construct LA
+    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
+    !===Read
+    CALL setup_data%init
 
-      !===Read data setup
-   END SUBROUTINE start_setup
+    !===Start Euler
+    times(2) = setup_data%final_time
+    CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
+
+    !===Read data setup
+  END SUBROUTINE start_setup
 
    SUBROUTINE init_setup_data(this)
       CLASS(setup_data_type), INTENT(INOUT) :: this

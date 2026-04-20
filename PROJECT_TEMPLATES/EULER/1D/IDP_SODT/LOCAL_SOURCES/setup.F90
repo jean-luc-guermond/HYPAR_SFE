@@ -1,34 +1,33 @@
 MODULE setup
    USE mesh_parameters
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
+   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND = 8) :: x0, x1
    REAL(KIND = 8) :: long
-   REAL(KIND = 8), PARAMETER :: gamma=1.4d0, rhoL=1.d0, rhor=0.125d0, pl=1.d0, pr=0.1d0, ul=0.d0, ur=0.d0,&
+   REAL(KIND = 8), PARAMETER :: gamma = 1.4d0
+   REAL(KIND = 8), PARAMETER :: rhoL=1.d0, rhor=0.125d0, pl=1.d0, pr=0.1d0, ul=0.d0, ur=0.d0,&
         l1m=-1.183215956619923d0, l1p=-0.07027281256118334d0, &
         l3=1.7521557320301779, ustar=0.92745262004894991d0, rhoLstar=0.4263194281784952d0, &
         rhoRstar=0.26557371170530708d0, pstar=0.3031301780506468, cL=SQRT(gamma*pL/rhoL) 
 CONTAINS
 
 !==========================================================================
-!================= INIT EOS FOR SETUP  ====================================
+!================= DEF PRESSURE FOR SETUP =================================
 !==========================================================================
 
-   SUBROUTINE init_eos_for_setup
-      USE eos_examples
-      USE eos
+   FUNCTION pressure(rho, e) RESULT(vv)
       IMPLICIT NONE
-      TYPE(eos_pointer_type) :: eos_type
-
-      eos_type%pressure => pressure_ideal_diatomic_gas
-      
-      CALL assign_eos(eos_type)
-   END SUBROUTINE init_eos_for_setup
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
+      REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
+      REAL(KIND = 8) :: gamma
+      gamma = 7.0 / 5.0
+      vv = rho * e * (gamma - 1)
+   END FUNCTION pressure
 
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
-
+   
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
       USE def_type_mesh
@@ -43,14 +42,14 @@ CONTAINS
          ! CASE(1)
          IF (comp == 1) THEN
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! CASE(2:k_dim + 1)
          ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
+         ! CASE(2:mesh_data%k_dim + 1)
             un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! CASE(k_dim + 2)
          ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
+         ! CASE(mesh_data%k_dim + 2)
             un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! END SELECT
          END IF
+         ! END SELECT
       END DO
 
    END SUBROUTINE impose_bc_euler
@@ -60,7 +59,8 @@ CONTAINS
       USE lambda_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), 3), INTENT(OUT) :: un
+      ! REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data%k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       long = 1.d0
       x0 = long * 0.5d0

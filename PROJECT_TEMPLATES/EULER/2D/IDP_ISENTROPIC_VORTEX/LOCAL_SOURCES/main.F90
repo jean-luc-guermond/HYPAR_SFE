@@ -18,22 +18,22 @@ PROGRAM prog
 
   WRITE(char, '(I5)') euler%mesh%rank
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), 'initrho'//trim(adjustl(char))//'.plt')
-  
+
   tps = user_time()
   n = 0
   DO WHILE(euler%time < setup_data%final_time)
      CALL euler%update(un)
      n = n + 1
-     !IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
+     IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
   END DO
   tps = user_time() - tps
-  
+
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
      WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps
   END IF
-  
+
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), 'rho' // trim(adjustl(char)) // '.plt')
   CALL errors
 CONTAINS
