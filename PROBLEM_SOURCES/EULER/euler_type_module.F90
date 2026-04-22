@@ -7,10 +7,10 @@ MODULE euler_type_MODULE
    USE euler_matrices_module
    USE mesh_parameters
    USE periodic_data_module
+   USE cell_limiting_engine_parallel_module
    IMPLICIT NONE
 
    INTEGER, PARAMETER, PRIVATE :: rec_length = 200
-
    ABSTRACT INTERFACE
       FUNCTION function_template_pressure(rho, ie) RESULT(vv)
          REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
@@ -44,20 +44,21 @@ MODULE euler_type_MODULE
       INTEGER                      :: erk_sv    = -21
       !===Parameters built along way
       MPI_Comm :: communicator
+      Vec, PRIVATE :: x1vec, x2vec, x3vec, x4vec, x5vec, x2_ghost, vec_loc
       CHARACTER(100) :: name
+      LOGICAL :: no_iter
+      INTEGER :: syst_dim
+      REAL(KIND = 8) :: dt, time, final_time, in_tol
+      INTEGER, DIMENSION(:), POINTER :: tab
       TYPE(mesh_type),     POINTER :: mesh
       TYPE(petsc_csr_LA),  POINTER :: LA
       TYPE(periodic_type), POINTER :: per
+      TYPE(BT),             PUBLIC :: ERK
+      TYPE(euler_bc_type)          :: euler_bc
+      TYPE(euler_matrices_type)    :: matrices
+      TYPE(limiting_type)          :: limiting
       PROCEDURE(function_template_pressure),  NOPASS, POINTER :: pressure
       PROCEDURE(function_template_impose_bc), NOPASS, POINTER :: impose_bc
-      TYPE(BT), PUBLIC :: ERK
-      TYPE(euler_bc_type) :: euler_bc
-      TYPE(euler_matrices_type) :: matrices
-      REAL(KIND = 8) :: dt, time, final_time, in_tol
-      LOGICAL :: no_iter
-      INTEGER :: syst_dim
-      Vec, PRIVATE :: x1vec, x2vec, x3vec, x4vec, x5vec, x2_ghost, vec_loc
-      INTEGER, DIMENSION(:), POINTER :: tab
    CONTAINS
       PROCEDURE, PUBLIC  :: init => init_euler
       PROCEDURE, PUBLIC  :: read_euler_data
@@ -99,20 +100,23 @@ CONTAINS
       !===Parameters for lambda_arbitrary_eos
       this%in_tol = 1.d-2
       this%no_iter = .TRUE.
-      !this%eos_param(1) = 0.d0 !===b_covolume
-      !===CFL number
-      !this%CFL = 0.5d0
 
       CALL this%read_euler_data("EULER PARAMETERS")
+      
       !=== new Butcher module
       this%ERK%sv = this%erk_sv
       CALL this%ERK%init()
-      !CALL this%ERK%init(this%erk_sv)
-      !=== new Butcher module
+      !=== end new Butcher module
+      
       this%matrices%method = this%method !<==transfer this%method to this%matrices
+
+      !===Boundary conditions
       CALL this%euler_bc%construct_euler_bc(this%mesh)
+
+      !===Periodic boundary if any
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
-    
+
+      !===Goshting structures
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
       CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%x1vec, ierr)
@@ -127,6 +131,9 @@ CONTAINS
       DO n = 1, this%mesh%dom_np
          this%tab(n) = n - 1
       END DO
+
+      !===Limiting
+      CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
       
    END SUBROUTINE init_euler
 
@@ -140,7 +147,6 @@ CONTAINS
 
 
      !===Initialize data arguments (depends on the name)
-
      argument_data%eos_param = '===' // TRIM(ADJUSTL(this%name)) // ': b_covolume ?==='
      argument_data%erk_sv = '===' // TRIM(ADJUSTL(this%name)) // ': ERK ?==='
 
@@ -179,6 +185,7 @@ CONTAINS
      USE petsc_tools
      USE st_matrix
      USE my_util
+     USE cell_limiting_engine_module
      USE sub_plot
      CLASS(euler_type) :: this
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
@@ -186,9 +193,11 @@ CONTAINS
      REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
      REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
      REAL(KIND = 8), DIMENSION(this%mesh%np,2) :: bounds
-     INTEGER :: comp, k, ierr
+     INTEGER :: comp, k, ierr, it
+     REAL(KIND = 8) :: norm 
+     INTEGER, PARAMETER :: limit_max = 2 !<<FIXME 
      un_temp = un
- 
+
      SELECT CASE(this%method)
      CASE('viscous')
         !===compute dijL and dt
@@ -251,10 +260,22 @@ CONTAINS
               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
            END DO
-!!$           CALL compute_flux(this, ff, this%x3vec)
 
            !=== set un(comp) in x1vec
            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
+           !TEST Low order
+!!$           IF (comp==1) THEN
+!!$              CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x4vec, ierr)
+!!$              CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x4vec, this%LA)
+!!$              CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
+!!$              CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+!!$              CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+!!$              CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
+!!$              rk = rk * this%dt / this%matrices%lumped_mass
+!!$              un(:, comp) = un_temp(:, comp) + rk
+!!$              bounds(:,2) = un(:, 1)
+!!$           END IF
+           !END TEST
            !=== add dij un(comp)to x3vec in x2vec
            CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
            CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x2vec, this%LA)
@@ -266,16 +287,74 @@ CONTAINS
            rk = rk * this%dt / this%matrices%lumped_mass
 
            un(:, comp) = un_temp(:, comp) + rk
-
+        END DO
+        !===Limiting
+        IF (this%limiting%if_limiting) THEN
+           DO it = 1, limit_max
+              !TESTTTTTTTTTTTT
+              !norm = 0.d0
+              !do k = 1, size(un,1)
+              !   norm = norm + MIN(psi_rho_min(un(k,:),bounds(k,1)),0.d0)
+              !   write(*,*) un(k,1), bounds(k,1)
+              !END do
+              !write(*,*) 'defect before', norm
+              !TESTTTTTTTTTTTT
+              CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,1),&
+                   psi_rho_min,zero_of_psi_rho_min,un)
+           END DO
+           DO it = 1, limit_max
+              CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
+                   psi_rho_max,zero_of_psi_rho_max,un)
+              !TESTTTTTTTTTTTT
+              !norm = 0.d0
+              !do k = 1, size(un,1)
+              !   norm = norm + MIN(psi_rho_min(un(k,:),bounds(k,1)),0.d0)
+              !END do
+              !write(*,*) 'defect after', norm
+              !TESTTTTTTTTTTTT
+           END DO
+        END IF
+        !===Periodicity
+        DO comp = 1, this%syst_dim 
            DO k = 1, this%per%nb_bords
               un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
            END DO
-
-           CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
         END DO
+
+        !===Boundary conditions
+        CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
      CASE DEFAULT
         CALL error_petsc('Wrong method in euler update')
      END SELECT
+
+   CONTAINS
+     FUNCTION psi_rho_min(x,psi_m) RESULT(v)
+       IMPLICIT NONE
+       REAL(KIND=8), DIMENSION(:) :: x
+       REAL(KIND=8) :: psi_m, v
+       v = x(1)-psi_m
+     END FUNCTION psi_rho_min
+
+     FUNCTION zero_of_psi_rho_min(psi_m,u0,P) RESULT(v)
+       IMPLICIT NONE
+       REAL(KIND=8), DIMENSION(:) :: u0, P
+       REAL(KIND=8) :: psi_m, v
+       v = (psi_m-u0(1))/P(1)
+     END FUNCTION zero_of_psi_rho_min
+
+     FUNCTION psi_rho_max(x,psi_m) RESULT(v)
+       IMPLICIT NONE
+       REAL(KIND=8), DIMENSION(:) :: x
+       REAL(KIND=8) :: psi_m, v
+       v = psi_m-x(1)
+     END FUNCTION psi_rho_max
+
+     FUNCTION zero_of_psi_rho_max(psi_m,u0,P) RESULT(v)
+       IMPLICIT NONE
+       REAL(KIND=8), DIMENSION(:) :: u0, P
+       REAL(KIND=8) :: psi_m, v
+       v = (psi_m-u0(1))/P(1)
+     END FUNCTION zero_of_psi_rho_max
 
    END SUBROUTINE update
 
@@ -382,7 +461,6 @@ CONTAINS
      REAL(KIND = 8) :: pstar, max_lambda, uijbar
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
-!!$     REAL(KIND = 8), DIMENSION(this%mesh%np)  :: e, alpha !<==commutator in (0,1)
 
      !===Compute commutator if needed
      IF (this%method=='high') THEN
@@ -400,6 +478,8 @@ CONTAINS
      virgin_edge = .TRUE.
      nw = mesh%gauss%n_w
      k_dim = mesh_data_info%k_dim
+     bounds(:,1) = un(:,1)
+     bounds(:,2) = un(:,1)
      DO m = 1, mesh%me
         DO n = 1, mesh%gauss%n_e
            IF (mesh%attr_e(mesh%jce(n, m))) THEN
@@ -472,9 +552,11 @@ CONTAINS
                  CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
                  !===Compute low-order update to estimate bounds
                  uijbar = (un(i, 1)+un(j, 1))/2 &
-                      - SUM((un(j, 2:k_dim+1) - un(1, 2:k_dim+1))*nij_c(1, :))/(2*max_lambda)
+                      - SUM((un(j, 2:k_dim+1) - un(i, 2:k_dim+1))*nij_c(1, :))/(2*max_lambda)
                  bounds(i,1) = MIN(bounds(i,1),uijbar)
                  bounds(i,2) = MAX(bounds(i,2),uijbar)
+                 bounds(j,1) = MIN(bounds(j,1),uijbar)
+                 bounds(j,2) = MAX(bounds(j,2),uijbar)
                  !===End compute low-order update to estimate bounds
               END IF
            END IF
@@ -591,7 +673,7 @@ CONTAINS
 
      !rk = abs(rk/norm_log)
      rk = abs(rk)/max(abs(rk_norm),1.d-10*norm_log)
-     alpha = MIN(4*rk,1.d0)
+     alpha = MIN(50*rk,1.d0)
      !IF (this%mesh%rank==0) write(*,*) 'error', norm_diff/norm_log
      !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
      IF (this%time+1.5*this%dt>this%final_time) THEN

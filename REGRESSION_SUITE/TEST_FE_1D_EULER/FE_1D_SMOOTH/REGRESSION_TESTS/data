@@ -56,3 +56,12 @@ viscous
 0
 === List of Dirichlet boundaries for bcs on ux ===
 0 0
+=====================================================
+!           LIMITING PARAMETERS FOR Euler 1
+=====================================================
+=== Apply cell-limiting (T/F) ? ===
+F
+=== Apply bound relaxation for limiting (T/F) ? ===
+F
+=== Relaxation method (avg/minmod) ===
+minmod
