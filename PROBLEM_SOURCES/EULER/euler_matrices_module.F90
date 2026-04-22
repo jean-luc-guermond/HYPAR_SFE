@@ -41,13 +41,10 @@ CONTAINS
 
     !===Mat allocations
     CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
-    !CALL create_local_petsc_matrix(communicator, LA, this%dijL, clean = .FALSE.)
     CALL MatDuplicate(this%mass, MAT_DO_NOT_COPY_VALUES, this%dijL, ierr)
     DO k = 1, mesh_data_info%k_dim
        CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
     END DO
-
-    !CALL create_local_petsc_matrix(communicator, LA, this%dijL, clean = .FALSE.)
 
     ALLOCATE(this%lumped_mass(mesh%np))
     ALLOCATE(this%dK(mesh%me))

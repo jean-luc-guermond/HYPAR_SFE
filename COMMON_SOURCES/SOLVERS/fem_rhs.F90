@@ -4,21 +4,25 @@ MODULE fem_rhs
  CONTAINS
 
    SUBROUTINE qs_00 (mesh, LA, ff, vect)
+      !> transfer of  vect(PETSc) <== ff(HYPAR)
+      !! mesh(hypar)
+      !! LA(petsc_csr_MLA)
       !=================================
       USE def_type_mesh
       IMPLICIT NONE
-      TYPE(mesh_type), TARGET :: mesh
+      TYPE(mesh_type)    :: mesh
       type(petsc_csr_LA) :: LA
-      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: ff
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN)  :: ff
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w) :: ff_loc
-      INTEGER, DIMENSION(mesh%gauss%n_w) :: jj_loc
+      INTEGER, DIMENSION(mesh%gauss%n_w)        :: jj_loc
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w) :: v_loc
-      INTEGER, DIMENSION(mesh%gauss%n_w) :: idxm
-      INTEGER :: i, m, l, ni, iglob
+      INTEGER, DIMENSION(mesh%gauss%n_w)        :: idxm
+      INTEGER        :: i, m, l, ni, iglob
       REAL(KIND = 8) :: fl
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
-      CALL VecSet(vect, 0.d0, ierr)
+
+      CALL VecZeroEntries(vect, ierr)
 
       DO m = 1, mesh%dom_me
          jj_loc = mesh%jj(:, m)
@@ -43,22 +47,25 @@ MODULE fem_rhs
     END SUBROUTINE qs_00
 
     SUBROUTINE qs_11 (mesh, LA, ff, vect)
+      !> transfer of vect(PETSc) <== grad(ff)(HYPAR)
+      !! mesh(hypar)
+      !! LA(petsc_csr_MLA)
       !=================================
       USE def_type_mesh
       IMPLICIT NONE
-      TYPE(mesh_type), TARGET :: mesh
-      type(petsc_csr_LA) :: LA
-      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: ff
+      TYPE(mesh_type)         :: mesh
+      type(petsc_csr_LA)      :: LA
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN)  :: ff
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w) :: ff_loc
-      INTEGER, DIMENSION(mesh%gauss%n_w) :: jj_loc
+      INTEGER, DIMENSION(mesh%gauss%n_w)        :: jj_loc
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w) :: v_loc
-      INTEGER, DIMENSION(mesh%gauss%n_w) :: idxm
-      INTEGER :: i, k, m, l, ni, iglob
-      REAL(KIND = 8) :: fl
+      INTEGER, DIMENSION(mesh%gauss%n_w)        :: idxm
+      INTEGER        :: i, k, m, l, ni, iglob
       REAL(KIND = 8) :: dfl(mesh%gauss%k_d)
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
-      CALL VecSet(vect, 0.d0, ierr)
+
+      CALL VecZeroEntries(vect, ierr)
 
       DO m = 1, mesh%dom_me
          jj_loc = mesh%jj(:, m)

@@ -2,7 +2,8 @@
 !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
 !
 MODULE character_strings
-   
+   USE my_util
+
    PUBLIC :: last_c_leng, last_of_string, start_of_string, read_data
    
    INTERFACE read_data
@@ -91,6 +92,18 @@ CONTAINS
    END FUNCTION last_of_string
    !========================================================================
    
+   FUNCTION itoa(i) RESULT (str)
+      INTEGER, INTENT(IN) :: i
+      CHARACTER(LEN=:), ALLOCATABLE :: str
+      CHARACTER(LEN=32) :: tmp
+
+      WRITE(tmp, '(I0)') i
+      str = trim(tmp)
+   END FUNCTION itoa
+
+   !========================================================================
+
+
    SUBROUTINE read_until(unit, string, error)
       IMPLICIT NONE
       INTEGER, PARAMETER                 :: long_max=128
@@ -258,7 +271,6 @@ CONTAINS
    
    SUBROUTINE read_data_init_list(raw_section_name)
       USE PETSC
-      USE my_util
       IMPLICIT NONE
       
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: raw_section_name
@@ -491,12 +503,18 @@ CONTAINS
 
       k_dim = SIZE(vect_e,1)
       string = argument_list_periodic
+      string_default = "0 0 0.d0"
       SELECT CASE(k_dim)
       CASE(1)
          string_default = "0 0 0.d0"
       CASE(2)
          string_default = "0 0 0.d0 0.d0"
+      CASE DEFAULT
+         ! CALL error_petsc('BUG in character_strings.F90 (read_periodic_data):&
+         !  k_dim should be 1 or 2 not '//itoa(k_dim))
+          write(*,*) "pb in read_periodic"
       END SELECT
+
       okay = .FALSE.
       index_list_info_data = index_list_info_data+1
       list_info_for_new_data(index_list_info_data) = string
@@ -523,8 +541,10 @@ CONTAINS
             READ(list_info_for_new_data(index_list_info_data), *) list_periodic(:, k), vect_e(:, k)
          END IF
       END DO
-      end_idx_record = j + nb_bords
-      CALL add_dummy_string_to_record(end_idx_record)
+      IF (okay) THEN
+         end_idx_record = j + nb_bords
+         CALL add_dummy_string_to_record(end_idx_record)
+      END IF
 
    END SUBROUTINE read_periodic_data
    

@@ -187,17 +187,16 @@ CONTAINS
      USE my_util
      USE cell_limiting_engine_module
      USE sub_plot
-     CLASS(euler_type) :: this
+     CLASS(euler_type)                                                     :: this
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
-     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim) :: un_temp
+     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
      REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
-     REAL(KIND = 8), DIMENSION(this%mesh%np) :: rk
-     REAL(KIND = 8), DIMENSION(this%mesh%np,2) :: bounds
-     INTEGER :: comp, k, ierr, it
+     REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
+     REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
+     INTEGER :: comp, k, ierr, it, code
      REAL(KIND = 8) :: norm 
      INTEGER, PARAMETER :: limit_max = 2 !<<FIXME 
      un_temp = un
-
      SELECT CASE(this%method)
      CASE('viscous')
         !===compute dijL and dt
@@ -291,27 +290,15 @@ CONTAINS
         !===Limiting
         IF (this%limiting%if_limiting) THEN
            DO it = 1, limit_max
-              !TESTTTTTTTTTTTT
-              !norm = 0.d0
-              !do k = 1, size(un,1)
-              !   norm = norm + MIN(psi_rho_min(un(k,:),bounds(k,1)),0.d0)
-              !   write(*,*) un(k,1), bounds(k,1)
-              !END do
-              !write(*,*) 'defect before', norm
-              !TESTTTTTTTTTTTT
-              CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,1),&
-                   psi_rho_min,zero_of_psi_rho_min,un)
+               CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,1),&
+                   psi_rho_min,zero_of_psi_rho_min,un_temp)
+               un(:,:) = un_temp(:,:)
            END DO
            DO it = 1, limit_max
-              CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
-                   psi_rho_max,zero_of_psi_rho_max,un)
-              !TESTTTTTTTTTTTT
-              !norm = 0.d0
-              !do k = 1, size(un,1)
-              !   norm = norm + MIN(psi_rho_min(un(k,:),bounds(k,1)),0.d0)
-              !END do
-              !write(*,*) 'defect after', norm
-              !TESTTTTTTTTTTTT
+               CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
+                   psi_rho_max,zero_of_psi_rho_max,un_temp)
+               un(:,:) = un_temp(:,:)
+ 
            END DO
         END IF
         !===Periodicity
@@ -447,6 +434,7 @@ CONTAINS
      USE def_type_mesh
      USE arbitrary_eos_lambda_module
      USE compute_periodic
+     USE fem_rhs, ONLY : qs_00
      IMPLICIT NONE
      CLASS(euler_type) :: this
      TYPE(mesh_type), POINTER :: mesh
@@ -456,7 +444,7 @@ CONTAINS
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
      REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
-     REAL(KIND = 8), DIMENSION(1) :: dijH_c
+     REAL(KIND = 8), DIMENSION(1) :: dijH_c, extrem_value
      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
      REAL(KIND = 8) :: pstar, max_lambda, uijbar
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
@@ -560,7 +548,6 @@ CONTAINS
                  !===End compute low-order update to estimate bounds
               END IF
            END IF
-
         END DO
 
      END DO
@@ -569,10 +556,27 @@ CONTAINS
      CALL MatAssemblyEnd  (this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
 
      IF (this%method=='high') THEN
-        CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-        CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-     END IF
+         CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+         CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+!VB: CORRECTION ==> compatibility with several procs
+         CALL qs_00(this%mesh, this%LA, bounds(:,1), this%x1vec)
+         CALL VecAssemblyBegin(this%x1vec, ierr)
+         CALL VecAssemblyEnd  (this%x1vec, ierr)
+         CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
+         CALL VecGhostUpdateBegin(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
+         CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 1))
 
+
+         CALL qs_00(this%mesh, this%LA, bounds(:,2), this%x2vec)
+         CALL VecAssemblyBegin(this%x2vec, ierr)
+         CALL VecAssemblyEnd  (this%x2vec, ierr)
+         CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+         CALL VecGhostUpdateBegin(this%x2vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(this%x2vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 2))
+!VB: CORRECTION ==> compatibility with several procs
+     END IF
    END SUBROUTINE compute_dij
 
 
@@ -804,6 +808,9 @@ CONTAINS
      Vec                                         :: vect
      PetscErrorCode                              :: ierr
      CALL VecSet(vect, 0.d0, ierr)
+
+     WRITE(*,*) "VB: WARNING ==> this subroutine does not call any ghost points???"
+     STOP
 
      DO m = 1, this%mesh%me
         v_loc = 0.d0

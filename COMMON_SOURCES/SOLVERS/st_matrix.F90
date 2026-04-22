@@ -33,6 +33,9 @@ CONTAINS
    END SUBROUTINE create_my_ghost
 
    SUBROUTINE extract(xghost, ks, ke, LA, phi)
+      !> Subroutine to extract values of xghost(vec_ghost PETSc) to phi(HYPAR)
+      !! ks/ke ==> positions inside xghost: if xghost is the concatenation of n components
+      !!           then phi will receive components between ks-ke (both included)
 #include "petsc/finclude/petscvec.h"
       use petsc
       USE def_type_mesh
