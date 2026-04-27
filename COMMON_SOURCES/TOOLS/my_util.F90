@@ -1,4 +1,6 @@
 MODULE my_util
+  IMPLICIT NONE
+  PUBLIC :: user_time, error_Petsc, itoa
 CONTAINS
   !
   !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
@@ -24,5 +26,16 @@ CONTAINS
     CALL PetscFinalize(ierr)
     STOP
   END SUBROUTINE error_Petsc
+
+   !========================================================================
+   
+   FUNCTION itoa(i) RESULT (str)
+      INTEGER, INTENT(IN) :: i
+      CHARACTER(LEN=:), ALLOCATABLE :: str
+      CHARACTER(LEN=32) :: tmp
+
+      WRITE(tmp, '(I0)') i
+      str = trim(tmp)
+   END FUNCTION itoa
 
 END MODULE my_util

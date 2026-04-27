@@ -16,10 +16,8 @@ CONTAINS
     USE two_dim_metis_distribution
     USE gauss_points_2d
     USE Dir_nodes
-    ! VB 2/04/2026
-    ! USE space_dim
+    USE space_dim
     USE mesh_parameters
-    ! VB 2/04/2026
 
     IMPLICIT NONE
     LOGICAL, OPTIONAL :: opt_edge_stab
@@ -49,8 +47,7 @@ CONTAINS
     !=== create_iso_grid_distributed, copy_mesh
     mesh_glob%rank = -1
 
-    SELECT CASE(mesh_data_info%k_dim)
-       ! SELECT CASE(k_dim)
+    SELECT CASE(k_dim)
     CASE(2)
        !===load and re order mesh
        CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &

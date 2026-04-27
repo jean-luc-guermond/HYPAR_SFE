@@ -1,5 +1,7 @@
 MODULE fourier_param_module
-  INTEGER, PARAMETER, PRIVATE :: rec_length = 200, list_length=200
+
+  USE read_inputs_module
+
   TYPE argument_fourier_param_type
      CHARACTER(LEN=rec_length) :: Nmax       = '=== Number of Fourier modes ? ==='
      CHARACTER(LEN=rec_length) :: Length     = '=== Fourier periodic domain Length ? ==='

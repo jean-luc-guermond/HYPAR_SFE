@@ -1,5 +1,5 @@
 MODULE setup
-   USE mesh_parameters
+   USE space_dim
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND = 8), PARAMETER, PRIVATE :: x0=0.1d0, x1=0.3d0, gamma=1.4d0
@@ -32,18 +32,14 @@ CONTAINS
       INTEGER :: comp
 
       DO comp = 1, euler_bc%syst_dim
-         ! SELECT CASE(comp)
-         ! CASE(1)
-         IF (comp == 1) THEN
+         SELECT CASE(comp)
+         CASE(1)
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
-            ! CASE(2:mesh_data%k_dim + 1)
+         CASE(2:k_dim + 1)
             un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-         ! CASE(mesh_data%k_dim + 2)
+         CASE(k_dim + 2)
             un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         END IF
-         ! END SELECT
+         END SELECT
       END DO
 
    END SUBROUTINE impose_bc_euler
@@ -53,8 +49,7 @@ CONTAINS
       USE lambda_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), 3), INTENT(OUT) :: un
-      ! REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data%k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       ! gamma = 1.4d0
       ! x0 = 0.1

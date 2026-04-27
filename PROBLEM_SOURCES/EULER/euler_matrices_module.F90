@@ -1,6 +1,5 @@
 MODULE euler_matrices_module
 #include "petsc/finclude/petsc.h"
-   USE mesh_parameters
    USE petsc
    USE def_type_mesh
    USE solver_petsc
@@ -23,6 +22,7 @@ MODULE euler_matrices_module
 CONTAINS
 
   SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA, opt_per)
+    USE space_dim
     USE fem_M
     IMPLICIT NONE
     CLASS(euler_matrices_type) :: this
@@ -34,15 +34,15 @@ CONTAINS
     IS, DIMENSION(1) :: is
 
     IF (.NOT. ALLOCATED(this%cij)) THEN
-       ALLOCATE(this%cij(mesh_data_info%k_dim))
-       ALLOCATE(this%nij_loc(mesh_data_info%k_dim))
-       ALLOCATE(this%cij_loc(1, mesh_data_info%k_dim))
+       ALLOCATE(this%cij(k_dim))
+       ALLOCATE(this%nij_loc(k_dim))
+       ALLOCATE(this%cij_loc(1, k_dim))
     END IF
 
     !===Mat allocations
     CALL create_local_petsc_matrix(communicator, LA, this%mass, clean = .FALSE.)
     CALL MatDuplicate(this%mass, MAT_DO_NOT_COPY_VALUES, this%dijL, ierr)
-    DO k = 1, mesh_data_info%k_dim
+    DO k = 1, k_dim
        CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
     END DO
 
@@ -59,7 +59,7 @@ CONTAINS
     CALL construct_cij(mesh, LA, this%cij)
 
     CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
-    DO k = 1, mesh_data_info%k_dim
+    DO k = 1, k_dim
        CALL MatCreateSubMatrices(this%cij(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
        CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k), ierr)
     END DO
@@ -77,11 +77,12 @@ CONTAINS
 
 
    SUBROUTINE construct_loc_nij(this, mesh)
+      USE space_dim
       USE def_type_mesh
       IMPLICIT NONE
       CLASS(euler_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
-      REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: cij_c
+      REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
       REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
       INTEGER, DIMENSION(1) :: i, j
       LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
@@ -102,7 +103,7 @@ CONTAINS
                j = mesh%jj(nj, m)
 
                norm = 0.d0
-               DO k = 1, mesh_data_info%k_dim
+               DO k = 1, k_dim
                   CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
                   norm = norm + cij_c(1, k)**2
                END DO
@@ -110,7 +111,7 @@ CONTAINS
 
                CALL MatSetValues(this%cij_norm_loc, 1, i - 1, 1, j - 1, norm, ADD_VALUES, ierr)
 
-               DO k = 1, mesh_data_info%k_dim
+               DO k = 1, k_dim
                   nij_c = cij_c(1, k) / norm
                   CALL MatSetValues(this%nij_loc(k), 1, i - 1, 1, j - 1, nij_c, ADD_VALUES, ierr)
                END DO
@@ -118,7 +119,7 @@ CONTAINS
          END DO
       END DO
 
-      DO k = 1, mesh_data_info%k_dim
+      DO k = 1, k_dim
          CALL MatAssemblyBegin(this%nij_loc(k), MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (this%nij_loc(k), MAT_FINAL_ASSEMBLY, ierr)
       END DO

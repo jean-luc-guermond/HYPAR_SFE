@@ -5,12 +5,11 @@ MODULE euler_type_MODULE
    USE euler_bc_arrays
    USE Butcher_tableau
    USE euler_matrices_module
-   USE mesh_parameters
    USE periodic_data_module
    USE cell_limiting_engine_parallel_module
+   USE read_inputs_module
    IMPLICIT NONE
 
-   INTEGER, PARAMETER, PRIVATE :: rec_length = 200
    ABSTRACT INTERFACE
       FUNCTION function_template_pressure(rho, ie) RESULT(vv)
          REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
@@ -45,6 +44,7 @@ MODULE euler_type_MODULE
       !===Parameters built along way
       MPI_Comm :: communicator
       Vec, PRIVATE :: x1vec, x2vec, x3vec, x4vec, x5vec, x2_ghost, vec_loc
+      Vec, PUBLIC :: x6vec
       CHARACTER(100) :: name
       LOGICAL :: no_iter
       INTEGER :: syst_dim
@@ -70,8 +70,10 @@ MODULE euler_type_MODULE
 
 CONTAINS
    SUBROUTINE init_euler(this, communicator, name, mesh, LA, per, pressure, impose_bc, times)
+      USE space_dim
       USE st_matrix
       USE periodic_data_module
+      IMPLICIT NONE
       CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       CHARACTER(100) :: name
@@ -84,7 +86,7 @@ CONTAINS
       PROCEDURE(function_template_impose_bc) :: impose_bc
       INTEGER, POINTER, DIMENSION(:) :: ifrom
 
-      this%syst_dim = mesh_data_info%k_dim + 2
+      this%syst_dim = k_dim + 2
 
       this%name = name
       this%mesh => mesh
@@ -124,6 +126,7 @@ CONTAINS
       CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x4vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x5vec, ierr)
+      CALL VecDuplicate(this%x1vec, this%x6vec, ierr)
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
       CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
@@ -138,7 +141,6 @@ CONTAINS
    END SUBROUTINE init_euler
 
    SUBROUTINE read_euler_data(this, section_name)
-     USE character_strings
      IMPLICIT NONE
      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
 
@@ -182,6 +184,7 @@ CONTAINS
    END SUBROUTINE read_euler_data
 
    SUBROUTINE update(this, un)
+     USE space_dim
      USE petsc_tools
      USE st_matrix
      USE my_util
@@ -190,10 +193,10 @@ CONTAINS
      CLASS(euler_type)                                                     :: this
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
-     REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
+     REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
      REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
      REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
-     INTEGER :: comp, k, ierr, it, code
+     INTEGER :: comp, k, ierr, it, code, rank
      REAL(KIND = 8) :: norm 
      INTEGER, PARAMETER :: limit_max = 2 !<<FIXME 
      un_temp = un
@@ -210,7 +213,7 @@ CONTAINS
            ff = this%flux(comp, un_temp)
 
            CALL VecSet(this%x3vec, 0.d0, ierr)
-           DO k = 1, mesh_data_info%k_dim
+           DO k = 1, k_dim
               !=== set flux_k in x1vec
               CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
@@ -251,7 +254,7 @@ CONTAINS
            ff = this%flux(comp, un_temp)
 
            CALL VecSet(this%x3vec, 0.d0, ierr)
-           DO k = 1, mesh_data_info%k_dim
+           DO k = 1, k_dim
               !=== set flux_k in x1vec
               CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
@@ -346,62 +349,58 @@ CONTAINS
    END SUBROUTINE update
 
    FUNCTION flux(this, comp, un) RESULT(vv)  
+      USE space_dim
+      USE my_util
       IMPLICIT NONE
       CLASS(euler_type)                           :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
       INTEGER,                         INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(SIZE(un, 1), mesh_data_info%k_dim) :: vv
+      REAL(KIND = 8), DIMENSION(SIZE(un, 1), k_dim) :: vv
       REAL(KIND = 8), DIMENSION(SIZE(un, 1))                       :: H, u, ie
       INTEGER :: k
 
-      ! SELECT CASE(comp)
-      ! CASE(1)
-      IF (comp == 1) THEN
-         DO k = 1, mesh_data_info%k_dim
+      SELECT CASE(comp)
+      CASE(1)
+         DO k = 1, k_dim
             vv(:, k) = un(:, k + 1)
          END DO
-      ! CASE(2:k_dim + 1)
-      ELSE IF ((comp>=2) .AND. (comp<=mesh_data_info%k_dim+1)) THEN
+      CASE(2:k_dim + 1)
          u = un(:, comp) / un(:, 1)
-         DO k = 1, mesh_data_info%k_dim
+         DO k = 1, k_dim
             vv(:, k) = un(:, k + 1) * u
          END DO
-         ie = un(:, mesh_data_info%k_dim + 2) / un(:, 1)
-         DO k = 1, mesh_data_info%k_dim
+         ie = un(:, k_dim + 2) / un(:, 1)
+         DO k = 1, k_dim
             ie = ie - 0.5d0 * (un(:, k + 1) / un(:, 1))**2
          END DO
          vv(:, comp - 1) = vv(:, comp - 1) + this%pressure(un(:, 1), ie)
-      ! CASE(mesh_data_info%k_dim + 2)
-      ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-         ie = un(:, mesh_data_info%k_dim + 2) / un(:, 1)
-         DO k = 1, mesh_data_info%k_dim
+      CASE(k_dim + 2)
+         ie = un(:, k_dim + 2) / un(:, 1)
+         DO k = 1, k_dim
             ie = ie - 0.5d0 * (un(:, k + 1) / un(:, 1))**2
          END DO
 
          H = un(:, comp) + this%pressure(un(:, 1), ie)
-         DO k = 1, mesh_data_info%k_dim
+         DO k = 1, k_dim
             vv(:, k) = (un(:, k + 1) / un(:, 1)) * H
          END DO
-      ! CASE DEFAULT
-      ELSE
-         WRITE(*, *) ' BUG in flux, wrong comp = ', comp
-         WRITE(*,*) 'pb dimension is ', mesh_data_info%k_dim
-         STOP
-      ! END SELECT
-      END IF
+      CASE DEFAULT
+         CALL error_petsc(' BUG in flux, wrong comp = '//itoa(comp)//" with k_dim="//itoa(k_dim))
+      END SELECT
     END FUNCTION flux
 
     FUNCTION pressure_from_state(this, un) RESULT(vv)  
+      USE space_dim
       IMPLICIT NONE
       CLASS(euler_type)                           :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
       REAL(KIND = 8), DIMENSION(SIZE(un, 1)) :: e, vv
       INTEGER :: k
       e = 0.d0
-      DO k = 1, mesh_data_info%k_dim
+      DO k = 1, k_dim
          e = e + un(:,k+1)**2
       END DO
-      e = un(:,mesh_data_info%k_dim+2)/un(:,1) - 0.5d0*e/un(:,1)**2
+      e = un(:,k_dim+2)/un(:,1) - 0.5d0*e/un(:,1)**2
       vv = this%pressure(un(:,1),e)
     END FUNCTION pressure_from_state
 
@@ -428,25 +427,26 @@ CONTAINS
    END SUBROUTINE compute_dt
 
    SUBROUTINE compute_dij(this, un, bounds)
-     USE mesh_parameters
+     USE space_dim
      USE petsc
      USE my_util
      USE def_type_mesh
      USE arbitrary_eos_lambda_module
      USE compute_periodic
      USE fem_rhs, ONLY : qs_00
+     USE petsc_tools, ONLY : array_to_petsc_vec
      IMPLICIT NONE
      CLASS(euler_type) :: this
      TYPE(mesh_type), POINTER :: mesh
      TYPE(petsc_csr_LA), POINTER :: LA
      REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, comp, k_dim
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, comp, rank
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
-     REAL(KIND = 8), DIMENSION(1, mesh_data_info%k_dim) :: nij_c
+     REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
      REAL(KIND = 8), DIMENSION(1) :: dijH_c, extrem_value
      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-     REAL(KIND = 8) :: pstar, max_lambda, uijbar
+     REAL(KIND = 8) :: pstar, max_lambda, uijbar, norm_petsc
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
 
@@ -465,7 +465,6 @@ CONTAINS
 
      virgin_edge = .TRUE.
      nw = mesh%gauss%n_w
-     k_dim = mesh_data_info%k_dim
      bounds(:,1) = un(:,1)
      bounds(:,2) = un(:,1)
      DO m = 1, mesh%me
@@ -482,18 +481,18 @@ CONTAINS
               i_t = i
               j_t = j
 
-              DO k = 1, mesh_data_info%k_dim
+              DO k = 1, k_dim
                  CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
               END DO
 
               rho(1) = un(i, 1)
               rho(2) = un(j, 1)
 
-              u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
-              u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
+              u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
+              u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
-              ie(1) = un(i, mesh_data_info%k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
-              ie(2) = un(j, mesh_data_info%k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
+              ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
+              ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
 
               p = this%pressure(rho, ie)
 
@@ -505,12 +504,12 @@ CONTAINS
 
               IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
 
-                 DO k = 1, mesh_data_info%k_dim
+                 DO k = 1, k_dim
                     CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
                  END DO
 
-                 u(1) = SUM(un(i, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(1)
-                 u(2) = SUM(un(j, 2:1 + mesh_data_info%k_dim) * nij_c(1, :)) / rho(2)
+                 u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
+                 u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
                  rho = (/rho(2), rho(1)/)
                  ie = (/ie(2), ie(1)/)
@@ -559,33 +558,38 @@ CONTAINS
          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
 !VB: CORRECTION ==> compatibility with several procs
-         CALL qs_00(this%mesh, this%LA, bounds(:,1), this%x1vec)
-         CALL VecAssemblyBegin(this%x1vec, ierr)
-         CALL VecAssemblyEnd  (this%x1vec, ierr)
+         CALL array_to_petsc_vec(bounds(:, 1), this%x1vec, this%mesh, this%LA, 'insert')
+         ! CALL qs_00(this%mesh, this%LA, bounds(:,1), this%x1vec)
+         ! CALL VecAssemblyBegin(this%x1vec, ierr)
+         ! CALL VecAssemblyEnd  (this%x1vec, ierr)
          CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
          CALL VecGhostUpdateBegin(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
          CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 1))
 
 
-         CALL qs_00(this%mesh, this%LA, bounds(:,2), this%x2vec)
-         CALL VecAssemblyBegin(this%x2vec, ierr)
-         CALL VecAssemblyEnd  (this%x2vec, ierr)
-         CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-         CALL VecGhostUpdateBegin(this%x2vec, MAX_VALUES, SCATTER_FORWARD, ierr)
-         CALL VecGhostUpdateEnd(this%x2vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         CALL array_to_petsc_vec(bounds(:, 2), this%x1vec, this%mesh, this%LA, 'insert')
+         ! CALL qs_00(this%mesh, this%LA, bounds(:,2), this%x1vec)
+         ! CALL VecAssemblyBegin(this%x1vec, ierr)
+         ! CALL VecAssemblyEnd  (this%x1vec, ierr)
+         CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
+         CALL VecGhostUpdateBegin(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
          CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 2))
+         CALL VecNorm(this%x1vec, NORM_1, norm_petsc, ierr)
+
 !VB: CORRECTION ==> compatibility with several procs
      END IF
    END SUBROUTINE compute_dij
 
 
    SUBROUTINE compute_flux(this, ff, Vect)
+     USE space_dim
      IMPLICIT NONE
      CLASS(euler_type) :: this
-     REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff 
+     REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff 
      REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, mesh_data_info%k_dim) :: f_loc
+     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, k_dim) :: f_loc
      REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
      REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
      REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
@@ -623,7 +627,8 @@ CONTAINS
    END SUBROUTINE compute_flux
 
    SUBROUTINE commutator(this, un, alpha)
-     use petsc_tools
+     USE space_dim
+     USE petsc_tools
      USE st_matrix
      USE sub_plot
      IMPLICIT NONE
@@ -645,7 +650,7 @@ CONTAINS
      logeta = log(abs(eta))
      norm_diff = 0.d0
      norm_log = 0.d0
-     DO k = 1, mesh_data_info%k_dim
+     DO k = 1, k_dim
         CALL array_to_petsc_vec(eta, this%x1vec, this%mesh, this%LA, 'insert') !<==v1 = eta
         CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr) !<==v2 = dk(eta))
         CALL VecPointwiseDivide(this%x3vec, this%x2vec, this%x1vec, ierr)  !<==v3 =dk(eta)/eta 

@@ -1,8 +1,8 @@
 MODULE dirichlet_type_module
+
+   USE read_inputs_module
+
    IMPLICIT NONE
-
-   INTEGER, PARAMETER, PRIVATE :: rec_length=200
-
    TYPE argument_dirichlet_bc
       CHARACTER(rec_length) :: nb_sides
       CHARACTER(rec_length) :: list_sides
@@ -32,11 +32,9 @@ CONTAINS
    END SUBROUTINE init_dirichlet_data
 
    SUBROUTINE read_dirichlet_data(this, section_name)
-      USE character_strings
       IMPLICIT NONE
 
       CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
-
       CLASS(dirichlet_bc), INTENT(INOUT)              :: this
       TYPE(argument_dirichlet_bc)                     :: argument_data
 

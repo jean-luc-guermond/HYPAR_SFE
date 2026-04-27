@@ -2,8 +2,9 @@ MODULE nl_scalar_cons_module
   USE Butcher_tableau
   USE fourier_param_module
   USE cell_limiting_engine_module
+  USE read_inputs_module
   PRIVATE
-  INTEGER, PARAMETER :: rec_length = 200, list_length=200
+
   ABSTRACT INTERFACE
      FUNCTION flux_template(u) RESULT(vv)
        REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: u
@@ -103,7 +104,6 @@ CONTAINS
   END SUBROUTINE init_nl_scalar_cons
 
   SUBROUTINE read_nl_scalar_cons(this)
-    USE character_strings
     IMPLICIT NONE
 
     CHARACTER(LEN=rec_length) :: section_name='NL SCALAR CONS PARAMETERS'

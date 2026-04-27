@@ -2,7 +2,7 @@ MODULE start_setup_MODULE
   USE setup_module
   USE fourier_param_module
   USE nl_scalar_cons_module
-  INTEGER, PRIVATE, PARAMETER :: rec_length = 200, list_length=200
+
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
@@ -25,7 +25,7 @@ CONTAINS
   SUBROUTINE start_setup
 #include "petsc/finclude/petsc.h"
     USE petsc
-    USE character_strings, ONLY : clean_data_once
+    USE read_inputs_module, ONLY : clean_data_once
     IMPLICIT NONE
     REAL(KIND = 8) :: init_time = 0.d0
     INTEGER :: ierr
@@ -47,7 +47,7 @@ CONTAINS
   END SUBROUTINE init_setup_data
 
    SUBROUTINE read_setup_data(this)
-      USE character_strings
+      USE read_inputs_module
       IMPLICIT NONE
 
     CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'

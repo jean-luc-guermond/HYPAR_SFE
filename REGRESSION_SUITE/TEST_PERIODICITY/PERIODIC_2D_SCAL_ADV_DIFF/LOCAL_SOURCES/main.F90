@@ -14,7 +14,7 @@ PROGRAM test_matrix
   USE dir_nodes_petsc
   USE st_matrix
   USE sub_plot
-  USE character_strings
+  USE read_inputs_module
   USE post_processing_debug_MODULE
   IMPLICIT NONE
   TYPE(mesh_type)     :: mesh

@@ -1,5 +1,5 @@
 MODULE setup
-   USE mesh_parameters
+   USE space_dim
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
@@ -33,26 +33,21 @@ MODULE setup
       REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
       INTEGER :: comp
       DO comp = 1, euler_bc%syst_dim
-         !  SELECT CASE(comp)
-         !  CASE(1)
-         IF (comp == 1) THEN
+         SELECT CASE(comp)
+         CASE(1)
             un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
-            !
-            ! CASE(2:mesh_data_info%k_dim + 1)
+         CASE(2:k_dim + 1)
             un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-            ! CASE(mesh_data_info%k_dim + 2)
+         CASE(k_dim + 2)
             un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         END IF
-         ! END SELECT
+         END SELECT
       END DO
    END SUBROUTINE impose_bc_euler
    
    SUBROUTINE init(un, time, rr)
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       INTEGER :: comp
       REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
@@ -60,19 +55,15 @@ MODULE setup
       beta = beta0/(2*pi)
       chi=((gamma-1)/(2*gamma))*beta**2
       
-      DO comp = 1, mesh_data_info%k_dim+2
-         !  SELECT CASE(comp)
-         !  CASE(1)
-         IF (comp == 1) THEN
+      DO comp = 1, k_dim+2
+         SELECT CASE(comp)
+         CASE(1)
             un(:, comp) = rho_anal(time, rr)
-            !  CASE(2:mesh_data_info%k_dim + 1)
-         ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
+         CASE(2:k_dim + 1)
             un(:, comp) = mt_anal(comp - 1, time, rr)
-         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-            !  CASE(mesh_data_info%k_dim + 2)
+         CASE(k_dim + 2)
             un(:, comp) = E_anal(time, rr)
-         END IF
-         !  END SELECT
+         END SELECT
       END DO
    END SUBROUTINE init
    

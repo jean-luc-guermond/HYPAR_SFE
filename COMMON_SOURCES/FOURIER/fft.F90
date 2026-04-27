@@ -14,7 +14,8 @@ CONTAINS
     INTEGER(kind=8) :: plan
     INTEGER :: N, i
     N = SIZE(r_in)
-    scaling = 2.d0/N
+    !=== WE CHOOSE TO NORMALIZE FORWARD (i.e AVG(un) = un(mF=0))
+    scaling = 1.d0/N
     CALL dfftw_plan_dft_r2c_1d(plan,N,r_in,cout,FFTW_ESTIMATE)
     CALL dfftw_execute_dft_r2c(plan, r_in, cout)
     CALL dfftw_destroy_plan(plan)
@@ -23,7 +24,9 @@ CONTAINS
        cs_out(i,2) = -AIMAG (cout(i))
     END DO
     cs_out = scaling*cs_out 
-    cs_out (1,:) =  cs_out(1,:)/2 !===mode 0
+    ! cs_out (2:,:) =  cs_out(2:,:)*2 !===modes > 0 ==> factor 2 from exp to cs represt
+    cs_out(:,:) = cs_out(:,:) * 2 !=== ==> in case there is a single Fourier mode
+    cs_out(1,:) = cs_out(1,:) / 2 
   END SUBROUTINE real_to_fourier
 
   SUBROUTINE fourier_to_real(cs_in,r_out)

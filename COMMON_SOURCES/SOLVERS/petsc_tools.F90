@@ -5,6 +5,10 @@ MODULE petsc_tools
 
 CONTAINS
    SUBROUTINE array_to_petsc_vec(uu, xx, mesh, LA, operation)
+      !> convert uu(HYPAR vector) to xx(petsc vec)
+      !! mesh
+      !! LA
+      !! operation = 'insert'/'add'
       USE my_util
       IMPLICIT NONE
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
@@ -26,7 +30,8 @@ CONTAINS
       CASE('add')
          CALL VecSetValues(xx, mesh%np, idxm, uu, ADD_VALUES, ierr)
       CASE DEFAULT
-         CALL error_petsc('Wrong option in array_to_petsc_vec for operation.')
+         CALL error_petsc('Wrong option '//operation//' in array_to_petsc_vec for operation ==> &
+         should be either add or insert')
       END SELECT
 
       CALL VecAssemblyBegin(xx, ierr)

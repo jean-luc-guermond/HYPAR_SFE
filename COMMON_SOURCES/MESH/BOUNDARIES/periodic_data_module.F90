@@ -29,10 +29,7 @@ CONTAINS
 !!$   SUBROUTINE read_periodic_bc_data(this, name, section_name)
 !!$      USE petsc
 !!$      USE character_strings
-!!$!VB 2/04/2026
-!!$      ! USE space_dim
-!!$      USE mesh_parameters
-!!$!VB 2/04/2026
+!!$      USE space_dim
 !!$      IMPLICIT NONE
 !!$      CHARACTER(*), INTENT(IN)            :: name
 !!$      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
@@ -63,7 +60,7 @@ CONTAINS
 !!$
 !!$   !=== List of periodic boundaries (has its specific subroutine, see character_strings.F90 module) 
 !!$      ALLOCATE(this%list_periodic(2, this%nb_bords))
-!!$      ALLOCATE(this%vect_e(mesh_data_info%k_dim, this%nb_bords))
+!!$      ALLOCATE(this%vect_e(k_dim, this%nb_bords))
 !!$      CALL read_periodic_data(argument_data%list_periodic, this%nb_bords, this%list_periodic, this%vect_e)
 !!$
 !!$!================

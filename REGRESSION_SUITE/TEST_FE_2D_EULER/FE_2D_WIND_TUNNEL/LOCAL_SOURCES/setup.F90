@@ -1,5 +1,5 @@
 MODULE setup
-   USE mesh_parameters
+   USE space_dim
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
@@ -58,10 +58,9 @@ MODULE setup
    SUBROUTINE init(un, time, rr)
       USE def_of_gamma
       USE lambda_module
-      USE mesh_parameters
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
       un(:, 1) = rho_anal(time, rr)
       un(:, 2) = mt_anal(1, time, rr)

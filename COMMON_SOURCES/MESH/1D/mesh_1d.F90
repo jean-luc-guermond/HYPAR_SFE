@@ -1,14 +1,12 @@
 MODULE mesh_1d
    USE def_type_mesh
-   ! USE space_dim
-   USE mesh_parameters
-
-   uSE mesh_tools
+   USE mesh_tools
    PUBLIC :: load_mesh_1d, GAUSS_POINT_1d
    PRIVATE
 CONTAINS
 
    SUBROUTINE load_mesh_1d(directory, file_name, mesh, if_mesh_formatted)
+      USE mesh_parameters
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       CHARACTER(*) :: directory, file_name
@@ -116,6 +114,7 @@ CONTAINS
    END SUBROUTINE load_mesh_1d
 
    SUBROUTINE GAUSS_POINT_1d(mesh)
+      USE space_dim
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       REAL(KIND = 8) :: one = 1.d0, two = 2.d0, three = 3.d0
@@ -132,7 +131,7 @@ CONTAINS
       mesh%gauss%l_Gs = 0
       mesh%gauss%n_e = 1
       ALLOCATE(mesh%gauss%ww(mesh%gauss%n_w, mesh%gauss%l_G))
-      ALLOCATE(mesh%gauss%dw(mesh_data_info%k_dim, mesh%gauss%n_w, mesh%gauss%l_G, mesh%me))
+      ALLOCATE(mesh%gauss%dw(k_dim, mesh%gauss%n_w, mesh%gauss%l_G, mesh%me))
       ALLOCATE(mesh%gauss%rj(mesh%gauss%l_G, mesh%me))
 
       xx(1) = - one / SQRT(three)

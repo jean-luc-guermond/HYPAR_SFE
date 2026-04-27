@@ -78,7 +78,7 @@ CONTAINS
       ALLOCATE(this%localized_mass(mesh%gauss%n_w,mesh%me))
       this%localized_mass = 0.d0
 
-!CORRECTED VERSION WHEN SEVERAL PROCESSES
+!VB CORRECTED VERSION WHEN SEVERAL PROCESSES
       !  vol_of_Ti = 0.d0
       !  DO m = 1, mesh%me
       !     volK = SUM(mesh%gauss%rj(:,m))
@@ -102,7 +102,7 @@ CONTAINS
       CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL VecGhostUpdateEnd(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL extract(this%x_ghost, 1, 1, this%LA, vol_of_Ti)
-!CORRECTED VERSION WHEN SEVERAL PROCESSES
+!VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
       DO m = 1, mesh%me
          volK = SUM(mesh%gauss%rj(:,m))
@@ -116,7 +116,7 @@ CONTAINS
    END SUBROUTINE init_limiting
 
    SUBROUTINE read_limiting_data(this, section_name)
-      USE character_strings
+      USE read_inputs_module
       IMPLICIT NONE
       CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
       CLASS(limiting_type),    INTENT(INOUT) :: this
@@ -255,24 +255,19 @@ CONTAINS
          !write(*,*)  Lambda_K_minus, Lambda_K_plus
          !=== DEBUGGING ===!
          DO n = 1, nw
-            !===P2 fix
+            !!$ ===P2 fix
             IF (ABS(this%lumped_mass(jloc(n))).LE.this%mass_eps) THEN
-               xx(n,m,:) = uk_plus
-               WRITE(*,*) "(2) P2 fix for m,n", m, n
-               CYCLE
-            END IF
-            !===END fix
+               xx(n,m,:) = uk_plus(:)
+            ELSE
+            !!$ ===END fix
                xx(n,m,:) = xx_loc(n,:) &
-                     +limit_minus(n)*(1-Lambda_K_minus)*(uk_plus-xx_loc(n,:))&
-                     +limit_plus(n) *     Lambda_K_plus*(uK_minus-xx_loc(n,:))
+                     +limit_minus(n)*(1-Lambda_K_minus)*(uk_plus(:)-xx_loc(n,:))&
+                     +limit_plus(n) *     Lambda_K_plus*(uK_minus(:)-xx_loc(n,:))
+            END IF
          END DO
       END DO
 
    !===Now we average over the nodes=========
-   !VB to keep??
-      xx_out = xx_in
-   !VB to keep??
-
       DO comp = 1, syst_size
          CALL cell_averaging(this,xx(:,:,comp), xx_out(:,comp))
       END DO     
@@ -293,17 +288,14 @@ CONTAINS
       nw = SIZE(this%jj,1)
       me = SIZE(this%jj,2)
       xx_inter = 0.d0
-      CALL VecSet(this%xvect, 0.d0, ierr)
+      CALL VecZeroEntries(this%xvect, ierr)
       DO m = 1, me
-         DO n = 1, nw
-            i = this%jj(n,m)
-            IF (ABS(this%lumped_mass(i)).LE.this%mass_eps) THEN
-               xx_out(i) = xx(n,m)
-               v_loc(n)  = 0.d0
-            ELSE
-               v_loc(n) =  xx(n,m)*this%localized_mass(n,m)
-            END IF
-         END DO
+         WHERE(ABS(this%lumped_mass(this%jj(:,m))).GE.this%mass_eps)
+            v_loc =  xx(:,m)*this%localized_mass(:,m)
+         ELSEWHERE
+            xx_out(this%jj(:,m)) = xx(:,m)
+            v_loc = 0.d0
+         END WHERE
          idxm = this%LA%loc_to_glob(1, this%jj(:,m)) -1
          CALL VecSetValues(this%xvect, nw, idxm, v_loc, ADD_VALUES, ierr)
       END DO
@@ -317,12 +309,10 @@ CONTAINS
       CALL extract(this%x_ghost, 1, 1, this%LA, xx_inter)
 
       !===Rescaling
-      DO i = 1, SIZE(xx_out)
-         IF (this%lumped_mass(i).GT.this%mass_eps) THEN
-            xx_out(i)= xx_inter(i)/this%lumped_mass(i)
-         END IF
-      END DO
-    
+      WHERE (this%lumped_mass .GT.this%mass_eps)
+         xx_out= xx_inter/this%lumped_mass
+      END WHERE
+
    END SUBROUTINE cell_averaging
 
    SUBROUTINE relax_min_and_max(bound_relaxing,glob_min,glob_max,jj,un,maxn,minn)

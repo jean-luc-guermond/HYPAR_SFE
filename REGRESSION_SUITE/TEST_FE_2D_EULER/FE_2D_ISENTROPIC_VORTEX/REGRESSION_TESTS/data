@@ -11,8 +11,6 @@ F
 F
 === Type of finite element ===
 1
-=== FE Space dimension ===
-2
 === Number of refinement steps ===
 0
 === Number of subdomains in the mesh ===

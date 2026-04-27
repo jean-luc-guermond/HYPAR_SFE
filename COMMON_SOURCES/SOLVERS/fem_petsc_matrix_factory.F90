@@ -1,6 +1,5 @@
 MODULE fem_petsc_matrix_factory_module
 #include "petsc/finclude/petsc.h"
-   USE mesh_parameters
    USE petsc
    USE def_type_mesh
 CONTAINS
@@ -30,6 +29,7 @@ CONTAINS
   END SUBROUTINE construct_lumped_mass
 
    SUBROUTINE construct_cij(mesh, LA, cij)
+      USE space_dim
       USE def_type_mesh
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
@@ -39,7 +39,7 @@ CONTAINS
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
 
-      DO k = 1, mesh_data_info%k_dim
+      DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
          DO m = 1, mesh%dom_me
             idx = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
