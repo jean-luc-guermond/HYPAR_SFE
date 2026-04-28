@@ -73,7 +73,7 @@ CONTAINS
      REAL(KIND = 8), INTENT(IN) :: time
      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
      INTEGER :: n, k
-     REAL(KIND = 8) :: length, x
+     REAL(KIND = 8) :: length, x, pi=ACOS(-1.d0)
      IF (mesh_data_info%nb_bords==0) THEN
         length=1.d30
      ELSE
@@ -82,7 +82,9 @@ CONTAINS
      IF (SIZE(vv)==0) RETURN
      DO n = 1, SIZE(vv)
         k = floor((rr(1, n) - time)/length)
-        x = rr(1, n) - time -k*length  
+        x = rr(1, n) - time -k*length
+        vv(n) = 2 + COS(2*pi*x) !TESTT
+        CYCLE
         IF (x<x0 .OR. x>x1) THEN
            vv(n) = 1.d0
         ELSE

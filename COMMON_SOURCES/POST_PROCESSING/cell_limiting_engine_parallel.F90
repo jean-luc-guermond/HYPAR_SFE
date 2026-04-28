@@ -78,7 +78,7 @@ CONTAINS
       ALLOCATE(this%localized_mass(mesh%gauss%n_w,mesh%me))
       this%localized_mass = 0.d0
 
-!CORRECTED VERSION WHEN SEVERAL PROCESSES
+!VB CORRECTED VERSION WHEN SEVERAL PROCESSES
       !  vol_of_Ti = 0.d0
       !  DO m = 1, mesh%me
       !     volK = SUM(mesh%gauss%rj(:,m))
@@ -102,7 +102,7 @@ CONTAINS
       CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL VecGhostUpdateEnd(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
       CALL extract(this%x_ghost, 1, 1, this%LA, vol_of_Ti)
-!CORRECTED VERSION WHEN SEVERAL PROCESSES
+!VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
       DO m = 1, mesh%me
          volK = SUM(mesh%gauss%rj(:,m))

@@ -2,7 +2,7 @@ MODULE setup
    USE mesh_parameters
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
-   REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
+   REAL(KIND=8), PARAMETER :: r0=1.d0, x0=0d0, y0=0.0d0
    REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
    REAL(KIND=8) :: chi, beta
    CONTAINS
@@ -15,8 +15,8 @@ MODULE setup
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      REAL(KIND = 8) :: gamma
-      gamma = 7.0 / 5.0
+      !REAL(KIND = 8) :: gamma
+      !gamma = 7.0 / 5.0
       vv = rho * e * (gamma - 1)
    END FUNCTION pressure
 
@@ -61,18 +61,13 @@ MODULE setup
       chi=((gamma-1)/(2*gamma))*beta**2
 
       DO comp = 1, mesh_data_info%k_dim+2
-         !  SELECT CASE(comp)
-         !  CASE(1)
          IF (comp == 1) THEN
             un(:, comp) = rho_anal(time, rr)
-            !  CASE(2:mesh_data_info%k_dim + 1)
          ELSE IF ((2<=comp) .AND. (comp<=mesh_data_info%k_dim + 1)) THEN
             un(:, comp) = mt_anal(comp - 1, time, rr)
          ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-            !  CASE(mesh_data_info%k_dim + 2)
             un(:, comp) = E_anal(time, rr)
          END IF
-         !  END SELECT
       END DO
    END SUBROUTINE init
 
@@ -85,7 +80,7 @@ MODULE setup
       INTEGER :: n
       DO n = 1, SIZE(rr,2)
          rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
-         z(n) = exp(1-rsq/(r0**2))
+         z(n) = exp(1-rsq)
       END DO
       vv = (1-chi*z)**(1.d0/(gamma-1.d0))
    END FUNCTION rho_anal
@@ -109,13 +104,13 @@ MODULE setup
 
       DO n = 1, SIZE(rr,2)
          rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
-         z(n) = exp(0.5d0*(1-rsq/(r0**2)))
+         z(n) = exp(0.5d0*(1-rsq))
       END DO
 
       IF (comp==1) THEN
-         vv = u_infty - beta*z*(rr(2,:)-y0)/r0
+         vv = u_infty - beta*z*(rr(2,:)-y0)
       ELSE
-         vv = beta*z*(rr(1,:)-x0-u_infty*time)/r0
+         vv = beta*z*(rr(1,:)-x0-u_infty*time)
       END IF
    END FUNCTION vit_anal
 
@@ -137,7 +132,6 @@ MODULE setup
       vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
    END FUNCTION mt_anal
 
-
    FUNCTION sol_anal(comp, time, rr) RESULT(vv)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: comp
@@ -147,9 +141,9 @@ MODULE setup
       SELECT CASE(comp)
       CASE(1)
          vv = rho_anal(time, rr)
-      CASE(2)
-         vv = mt_anal(1, time, rr)
-      CASE(3)
+      CASE(2,3)
+         vv = mt_anal(comp-1, time, rr)
+      CASE(4)
          vv = E_anal(time, rr)
       CASE DEFAULT
          WRITE(*, *) ' BUG in sol_anal'

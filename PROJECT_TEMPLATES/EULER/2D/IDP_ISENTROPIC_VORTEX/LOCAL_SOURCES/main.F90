@@ -34,7 +34,7 @@ PROGRAM prog
      WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps
   END IF
 
-  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), 'rho' // trim(adjustl(char)) // '.plt')
+
   CALL errors
 CONTAINS
   SUBROUTINE errors
@@ -44,6 +44,12 @@ CONTAINS
     IMPLICIT NONE
     REAL(KIND=8) :: error_loc, norm_loc, error, norm
     INTEGER :: code
+    CHARACTER(5) :: char
+    WRITE(char, '(I5)') euler%mesh%rank
+    CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), &
+         'rho' // trim(adjustl(char)) // '.plt')
+        CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1)-rho_anal(euler%time,mesh%rr), &
+             'err_rho' // trim(adjustl(char)) // '.plt')
     CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
     CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
     CALL ns_l1(mesh, rho_anal(euler%time,mesh%rr), norm_loc)
