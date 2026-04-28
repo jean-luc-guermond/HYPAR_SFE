@@ -13,7 +13,7 @@ MODULE euler_type_MODULE
    ABSTRACT INTERFACE
       FUNCTION function_template_pressure(rho, ie) RESULT(vv)
          REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
-         REAL(KIND = 8), DIMENSION(SIZE(rho, 1)) :: vv
+         REAL(KIND = 8), DIMENSION(SIZE(rho, 1))  :: vv
       END FUNCTION function_template_pressure
    END INTERFACE
 
@@ -52,7 +52,6 @@ MODULE euler_type_MODULE
       INTEGER, DIMENSION(:), POINTER :: tab
       TYPE(mesh_type),     POINTER :: mesh
       TYPE(petsc_csr_LA),  POINTER :: LA
-      TYPE(periodic_type), POINTER :: per
       TYPE(BT),             PUBLIC :: ERK
       TYPE(euler_bc_type)          :: euler_bc
       TYPE(euler_matrices_type)    :: matrices
@@ -69,7 +68,8 @@ MODULE euler_type_MODULE
    END TYPE euler_type
 
 CONTAINS
-   SUBROUTINE init_euler(this, communicator, name, mesh, LA, per, pressure, impose_bc, times)
+   SUBROUTINE init_euler(this, communicator, name, mesh, LA, pressure, impose_bc, times)
+   ! SUBROUTINE init_euler(this, communicator, name, mesh, LA, per, pressure, impose_bc, times)
       USE space_dim
       USE st_matrix
       USE periodic_data_module
@@ -79,7 +79,7 @@ CONTAINS
       CHARACTER(100) :: name
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
-      TYPE(periodic_type), TARGET, INTENT(IN) :: per
+      ! TYPE(periodic_type), TARGET, INTENT(IN) :: per
       INTEGER :: ierr, n
       REAL(KIND = 8), DIMENSION(2) :: times
       PROCEDURE(function_template_pressure) :: pressure
@@ -92,7 +92,6 @@ CONTAINS
       this%mesh => mesh
       this%communicator = communicator
       this%LA => LA
-      this%per => per
       this%pressure => pressure
       this%impose_bc => impose_bc
       this%euler_bc%syst_dim = this%syst_dim
@@ -116,7 +115,7 @@ CONTAINS
       CALL this%euler_bc%construct_euler_bc(this%mesh)
 
       !===Periodic boundary if any
-      CALL this%matrices%construct(this%communicator, this%mesh, this%LA, this%per)
+      CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
 
       !===Goshting structures
       CALL create_my_ghost(this%mesh, this%LA, ifrom)
@@ -226,7 +225,7 @@ CONTAINS
            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
            !=== add dij un(comp)to x3vec in x2vec
            CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
-           CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x2vec, this%LA)
+           CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
            CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
            CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
            CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -236,8 +235,8 @@ CONTAINS
 
            un(:, comp) = un_temp(:, comp) + rk
 
-           DO k = 1, this%per%nb_bords
-              un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
+           DO k = 1, this%mesh%per%nb_bords
+              un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
            END DO
 
            CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
@@ -268,7 +267,7 @@ CONTAINS
            !TEST Low order
 !!$           IF (comp==1) THEN
 !!$              CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x4vec, ierr)
-!!$              CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x4vec, this%LA)
+!!$              CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x4vec, this%LA)
 !!$              CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
 !!$              CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
 !!$              CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -280,7 +279,7 @@ CONTAINS
            !END TEST
            !=== add dij un(comp)to x3vec in x2vec
            CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
-           CALL periodic_rhs_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%x2vec, this%LA)
+           CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
            CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
            CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
            CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -306,8 +305,8 @@ CONTAINS
         END IF
         !===Periodicity
         DO comp = 1, this%syst_dim 
-           DO k = 1, this%per%nb_bords
-              un(this%per%list(k)%DIL, comp) = un(this%per%perlist(k)%DIL, comp)
+           DO k = 1, this%mesh%per%nb_bords
+              un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
            END DO
         END DO
 

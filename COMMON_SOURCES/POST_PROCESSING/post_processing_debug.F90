@@ -87,21 +87,6 @@ CONTAINS
          END DO
       END IF
 
-
-   !   DO n=1, SIZE(absolute_error)
-   !      READ(in_unit, *) regression_ref
-   !      WRITE(out_unit, *) absolute_error(n)
-   !      relative_error = ABS(absolute_error(n) - regression_ref)/ABS(regression_ref)
-   !      IF (relative_error < tol) THEN
-   !          WRITE(*,*) "Regression test component", n, "passed"
-   !          WRITE(*,*) "Relative error ", relative_error
-   !      ELSE
-   !          WRITE(*,*) "Regression test component", n, "failed"
-   !          WRITE(*,*) "Relative error ", relative_error
-   !          test_passed = .FALSE.
-   !      END IF
-   !   END DO
-
       CLOSE(in_unit)
       CLOSE(out_unit)
 

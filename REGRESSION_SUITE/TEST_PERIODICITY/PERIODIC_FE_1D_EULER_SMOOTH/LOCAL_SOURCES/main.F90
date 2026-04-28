@@ -56,6 +56,8 @@ PROGRAM prog
 !==== END PROGRAM ====!
 !=====================!
 
+  CALL PetscFinalize(code)
+
 CONTAINS
   SUBROUTINE errors
     USE fem_tn

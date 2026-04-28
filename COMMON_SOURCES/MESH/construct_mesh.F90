@@ -114,11 +114,7 @@ CONTAINS
        mesh%edge_stab = .false.
        CALL GAUSS_POINT_1d(mesh)
        mesh%rank = rank
-
-    CASE(-1)
-       IF (rank == 0) WRITE(*, *) 'BUG in construct_mesh: k_dim = -1 => you did not set k_dim in the data file'
-       STOP
-
+       
     CASE DEFAULT
        IF(rank == 0) write(*, *) ' BUG in construct_mesh, k_dim not correct'
        STOP

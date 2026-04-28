@@ -14,6 +14,9 @@ F
 1.d20
 === Final time ===
 0.10d0
+=== Do we compare with analytical reference? (true/false) ===
+T
+!!! WARNING => analytical ref is valid for step fct only !!!
 ===============================================
 !           NL SCALAR CONS PARAMETERS
 ===============================================

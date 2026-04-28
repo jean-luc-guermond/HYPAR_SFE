@@ -7,6 +7,7 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+     CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
   TYPE setup_data_type
      LOGICAL        :: if_regression_test  = .FALSE.
@@ -14,6 +15,7 @@ MODULE start_setup_MODULE
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
      INTEGER :: syst_size
+     LOGICAL        :: if_analytical_ref   = .FALSE.
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
@@ -50,12 +52,11 @@ CONTAINS
       USE read_inputs_module
       IMPLICIT NONE
 
-    CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
+      CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
 
       CLASS(setup_data_type)             :: this
       TYPE(argument_setup_data_type)     :: argument_data
-
-      CHARACTER(LEN=rec_length)     :: string
+      CHARACTER(LEN=rec_length)          :: string
 
 !================
 !=== MANDATORY Reading all data file
@@ -72,8 +73,11 @@ CONTAINS
       !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
-      !===Checkpointing
-    CALL read_real_data(argument_data%final_time, this%final_time)
+      !===Final time
+    CALL read_data(argument_data%final_time, this%final_time)
+
+      !===if_analytical_ref
+    CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
 
       !===Regression test
     CALL getarg(1, string)
@@ -86,8 +90,8 @@ CONTAINS
 !================
 !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
 !================
-     CALL finalize_rewrite_data
+    CALL finalize_rewrite_data
 
-   END SUBROUTINE read_setup_data
+  END SUBROUTINE read_setup_data
 
 END MODULE start_setup_MODULE

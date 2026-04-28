@@ -40,7 +40,7 @@ PROGRAM nl_scalar_cons_fft_1d
 !==== REGRESSION TEST ====!
 !=========================!
 
-  CALL errors(nl_scalar_cons)
+    CALL errors(nl_scalar_cons)
 
 !=====================!
 !==== END PROGRAM ====!
@@ -64,11 +64,24 @@ CONTAINS
     norm = SUM(ABS(r_un))
     WRITE(*,*) ' Error relative L1-norm', error/norm
 
+    ! IF (setup_data%if_regression_test) THEN
+    !    ALLOCATE(tab_norm(1))
+    !    tab_norm(1) = norm
+    !    CALL get_num_test(num_test)
+    !    CALL regression(tab_norm, opt_num_test=num_test)
+    ! END IF
     IF (setup_data%if_regression_test) THEN
-       ALLOCATE(tab_norm(1))
-       tab_norm(1) = norm
-       CALL get_num_test(num_test)
-       CALL regression(tab_norm, opt_num_test=num_test)
+      ALLOCATE(tab_norm(1))
+      IF (setup_data%if_analytical_ref) THEN
+        error = SUM(ABS(r_un-exact_sol_R(fourier_param, nl_scalar_cons%time)))
+        norm = SUM(ABS(r_un))
+        tab_norm(1) = error/norm
+      ELSE
+        norm = SUM(ABS(r_un))
+        tab_norm(1) = norm
+      END IF
+      CALL get_num_test(num_test)
+      CALL regression(tab_norm, opt_num_test=num_test)
     END IF
 
   END SUBROUTINE errors
@@ -92,15 +105,21 @@ CONTAINS
   !   END IF
 
   !   IF (setup_data%if_regression_test) THEN
-  !      ALLOCATE(tab_norm(SIZE(un, 2)))
-  !      DO n=1, SIZE(un, 2)
+  !     ALLOCATE(tab_norm(size(un, 2)))
+  !     DO n=1, SIZE(un,2)
+  !       IF (setup_data%if_analytical_ref) THEN
+  !         CALL ns_l1(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error_loc)
+  !         CALL ns_l1(mesh, sol_anal(n, euler%time,mesh%rr), norm_loc)
+  !         norm_loc = error_loc/norm_loc
+  !       ELSE
   !         CALL ns_l1(mesh, un(:,n), norm_loc)
-  !         CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-  !         tab_norm(n) = norm
-  !      END DO
-  !      CALL regression(tab_norm)
+  !       END IF
+  !       CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+  !       tab_norm(n) = norm
+  !     END DO
+  !     CALL get_num_test(num_test)
+  !     CALL regression(tab_norm, opt_num_test=num_test)
   !   END IF
-
   ! END SUBROUTINE errors
 
 END PROGRAM nl_scalar_cons_fft_1d

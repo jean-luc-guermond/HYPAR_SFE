@@ -50,11 +50,13 @@ PROGRAM prog
 !==== REGRESSION TEST ====!
 !=========================!
 
-  CALL errors
+    CALL errors
 
 !=====================!
 !==== END PROGRAM ====!
 !=====================!
+
+    CALL PetscFinalize(code)
 
 CONTAINS
   SUBROUTINE errors
@@ -75,15 +77,20 @@ CONTAINS
     END IF
 
     IF (setup_data%if_regression_test) THEN
-       ALLOCATE(tab_norm(SIZE(un, 2)))
-       DO n=1, SIZE(un, 2)
+      ALLOCATE(tab_norm(size(un, 2)))
+      DO n=1, SIZE(un,2)
+        IF (setup_data%if_analytical_ref) THEN
+          CALL ns_l1(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error_loc)
+          CALL ns_l1(mesh, sol_anal(n, euler%time,mesh%rr), norm_loc)
+          norm_loc = error_loc/norm_loc
+        ELSE
           CALL ns_l1(mesh, un(:,n), norm_loc)
-          CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-          tab_norm(n) = norm
-       END DO
-       CALL get_num_test(num_test)
-       CALL regression(tab_norm, opt_num_test=num_test)
+        END IF
+        CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+        tab_norm(n) = norm
+      END DO
+      CALL get_num_test(num_test)
+      CALL regression(tab_norm, opt_num_test=num_test)
     END IF
-
   END SUBROUTINE errors
 END PROGRAM prog

@@ -9,45 +9,91 @@ PROGRAM prog
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
-  INTEGER :: n, tot_np, code
+  INTEGER :: n, tot_np, code, num_test
+
+!========================!
+!==== INITIALIZATION ====!
+!========================!
 
   CALL start_setup
-
-  ALLOCATE(un(mesh%np, euler%syst_dim ))
+  ALLOCATE(un(mesh%np, euler%syst_dim))
   CALL init(un, 0.d0, euler%mesh%rr)
 
   WRITE(char, '(I5)') euler%mesh%rank
-  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), 'initrho'//trim(adjustl(char))//'.plt')
+  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'initrho'//TRIM(ADJUSTL(char))//'.plt')
+
+!=====================!
+!==== SOLVER LOOP ====!
+!=====================!
 
   tps = user_time()
   n = 0
   DO WHILE(euler%time < setup_data%final_time)
      CALL euler%update(un)
      n = n + 1
-     IF (euler%mesh%rank==0) write(*,*) euler%time, euler%dt
+     IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
   END DO
   tps = user_time() - tps
+  
+!=========================!
+!==== POST-PROCESSING ====!
+!=========================!
 
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps
+     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
   END IF
+  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
 
-  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:,1), 'rho' // trim(adjustl(char)) // '.plt')
+!=========================!
+!==== REGRESSION TEST ====!
+!=========================!
+
   CALL errors
+
+!=====================!
+!==== END PROGRAM ====!
+!=====================!
+
 CONTAINS
   SUBROUTINE errors
     USE fem_tn
-#include "petsc/finclude/petsc.h"
-    USE petsc
+    USE post_processing_debug_MODULE
     IMPLICIT NONE
-    REAL(KIND=8) :: error_loc, norm_loc, error, norm
-    INTEGER :: code
-    CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
-    CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-    CALL ns_l1(mesh, rho_anal(euler%time,mesh%rr), norm_loc)
-    CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-    if(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'L1 NORM error ', error/norm
+
+    REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
+    REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
+    INTEGER :: n, code
+
+    IF (setup_data%if_analytical_ref) THEN
+       CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
+       CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       CALL ns_l1(mesh, rho_anal(euler%time,mesh%rr), norm_anal_loc)
+       CALL MPI_ALLREDUCE(norm_anal_loc,norm_anal,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error density relative, L1-norm ', error/norm_anal
+       CALL ns_l1(mesh, un(:,2)-mt_anal(1, euler%time,mesh%rr), error_loc)
+       CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       CALL ns_l1(mesh, mt_anal(1,euler%time,mesh%rr), norm_anal_loc)
+       CALL MPI_ALLREDUCE(norm_anal_loc,norm_anal,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error u_x relative, L1-norm ', error/norm_anal
+       CALL ns_l1(mesh, un(:,3)-mt_anal(2,euler%time,mesh%rr), error_loc)
+       CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       CALL ns_l1(mesh, mt_anal(2,euler%time,mesh%rr), norm_anal_loc)
+       CALL MPI_ALLREDUCE(norm_anal_loc,norm_anal,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error u_y relative, L1-norm ', error/norm_anal
+    END IF
+
+    IF (setup_data%if_regression_test) THEN
+       ALLOCATE(tab_norm(SIZE(un, 2)))
+       DO n=1, SIZE(un, 2)
+          CALL ns_l1(mesh, un(:,n), norm_loc)
+          CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+          tab_norm(n) = norm
+       END DO
+       CALL get_num_test(num_test)
+       CALL regression(tab_norm, opt_num_test=num_test)
+    END IF
+
   END SUBROUTINE errors
 END PROGRAM prog

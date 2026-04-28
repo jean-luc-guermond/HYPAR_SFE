@@ -1,5 +1,6 @@
 MODULE setup
-   USE space_dim
+   USE space_dim, ONLY : k_dim
+
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND = 8) :: x0, x1
@@ -31,6 +32,7 @@ CONTAINS
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
       USE def_type_mesh
+      IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       TYPE(euler_bc_type) :: euler_bc
       REAL(KIND = 8) :: time
@@ -193,12 +195,12 @@ CONTAINS
       SELECT CASE(comp)
       CASE(1)
          vv = rho_anal(time, rr)
-      CASE(2)
-         vv = mt_anal(1, time, rr)
-      CASE(3)
+      CASE(2:k_dim+1)
+         vv = mt_anal(comp, time, rr)
+      CASE(k_dim+2)
          vv = E_anal(time, rr)
       CASE DEFAULT
-         WRITE(*, *) ' BUG in sol_anal'
+         WRITE(*, *) ' BUG in sol_anal, comp=', comp, 'should be <=', k_dim+2
          STOP
       END SELECT
    END FUNCTION sol_anal

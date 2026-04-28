@@ -4,7 +4,7 @@
 === Number of Fourier modes ? ===
 20
 === Fourier periodic domain Length ? ===
-1.0
+1.0d0
 ======================================
 !           SETUP PARAMETERS
 ======================================
@@ -14,6 +14,8 @@ F
 1.d20
 === Final time ===
 0.1d0
+=== Do we compare with analytical reference? (true/false) ===
+T
 ===============================================
 !           NL SCALAR CONS PARAMETERS
 ===============================================

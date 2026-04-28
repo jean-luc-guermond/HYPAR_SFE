@@ -68,7 +68,8 @@ CONTAINS
 
     !===Start Euler
     times(2) = setup_data%final_time
-    CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
+    CALL euler%init(communicator, name, mesh, LA, pressure, impose_bc_euler, times)
+    ! CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
 
     !===Read data setup
   END SUBROUTINE start_setup

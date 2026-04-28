@@ -1,5 +1,5 @@
 MODULE setup
-   USE space_dim
+   USE space_dim, ONLY : k_dim
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
@@ -138,12 +138,12 @@ MODULE setup
       SELECT CASE(comp)
       CASE(1)
          vv = rho_anal(time, rr)
-      CASE(2)
-         vv = mt_anal(1, time, rr)
-      CASE(3)
+      CASE(2:k_dim+1)
+         vv = mt_anal(comp-1, time, rr)
+      CASE(k_dim+2)
          vv = E_anal(time, rr)
       CASE DEFAULT
-         WRITE(*, *) ' BUG in sol_anal'
+         WRITE(*, *) ' BUG in sol_anal, comp=', comp, 'should be <=', k_dim+2
          STOP
       END SELECT
    END FUNCTION sol_anal

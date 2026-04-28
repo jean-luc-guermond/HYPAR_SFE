@@ -108,6 +108,8 @@ PROGRAM test_matrix
        CALL regression(tab_norm, opt_num_test=num_test)
   END IF
 
+  CALL PetscFinalize(ierr)
+
 CONTAINS
 
   FUNCTION source(rr) RESULT(uu)

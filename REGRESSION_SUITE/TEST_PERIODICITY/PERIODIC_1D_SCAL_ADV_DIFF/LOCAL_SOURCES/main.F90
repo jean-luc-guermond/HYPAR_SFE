@@ -119,7 +119,8 @@ PROGRAM test_matrix
 
 
   CALL error_petsc('End of test')
-  
+  CALL PetscFinalize(ierr)
+
 CONTAINS
 
   FUNCTION source(rr) RESULT(uu)

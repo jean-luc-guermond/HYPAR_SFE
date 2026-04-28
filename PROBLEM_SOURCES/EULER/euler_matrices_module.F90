@@ -21,14 +21,13 @@ MODULE euler_matrices_module
 
 CONTAINS
 
-  SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA, opt_per)
+  SUBROUTINE construct_euler_matrices(this, communicator, mesh, LA)
     USE space_dim
     USE fem_M
     IMPLICIT NONE
     CLASS(euler_matrices_type) :: this
     TYPE(mesh_type), INTENT(IN) :: mesh
     type(petsc_csr_LA), INTENT(IN) :: LA
-    type(periodic_type) :: opt_per
     INTEGER :: k, ierr
     MPI_Comm       :: communicator
     IS, DIMENSION(1) :: is
@@ -51,10 +50,10 @@ CONTAINS
 
     !===Mat construction
     CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
-    CALL periodic_matrix_petsc(opt_per, LA, this%mass)
+    CALL periodic_matrix_petsc(mesh%per, LA, this%mass)
     CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
-    DO k = 1, opt_per%nb_bords
-       this%lumped_mass(opt_per%list(k)%DIL) = this%lumped_mass(opt_per%perlist(k)%DIL)
+    DO k = 1, mesh%per%nb_bords
+       this%lumped_mass(mesh%per%list(k)%DIL) = this%lumped_mass(mesh%per%perlist(k)%DIL)
     END DO
     CALL construct_cij(mesh, LA, this%cij)
 
