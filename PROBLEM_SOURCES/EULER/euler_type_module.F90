@@ -124,7 +124,6 @@ CONTAINS
       CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x4vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x5vec, ierr)
-      CALL VecDuplicate(this%x1vec, this%x6vec, ierr)
       CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
       CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
@@ -589,50 +588,6 @@ CONTAINS
      CALL extract(this%x2_ghost, 1, 1, this%LA, rk_cp)
      rk = 2*rk - rk_cp/this%matrices%lumped_mass
    END SUBROUTINE divide_by_mass
-   
-   SUBROUTINE compute_flux(this, ff, Vect)
-     USE space_dim
-     IMPLICIT NONE
-     CLASS(euler_type) :: this
-
-     REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff 
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, k_dim) :: f_loc
-     REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
-     REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
-     INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm, jj_loc
-     REAL(KIND = 8) :: x
-     INTEGER :: i, k, m, ni, nj, iglob
-     Vec                                         :: vect
-     PetscErrorCode                              :: ierr
-     CALL VecSet(vect, 0.d0, ierr)
-     v_glb = 0.d0
-     DO m = 1, this%mesh%dom_me
-        jj_loc = this%mesh%jj(:, m)
-        f_loc = ff(jj_loc,:)
-        !<==recompute cij on the fly
-        DO ni = 1, this%mesh%gauss%n_w
-           !wwrj = this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m)
-           x = 0.d0
-           DO k = 1, this%mesh%gauss%k_d
-              DO nj = 1, this%mesh%gauss%n_w
-                 x = x + f_loc(nj,k)* &
-                      !SUM(this%mesh%gauss%dw(k,nj,:,m)*wwrj)
-                  SUM(this%mesh%gauss%dw(k,nj,:,m)*this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m))
-              ENDDO
-           ENDDO
-           v_loc(ni) = x
-        ENDDO
-        idxm = this%LA%loc_to_glob(1, jj_loc) -1
-        v_loc = -v_loc
-        CALL VecSetValues(vect, this%mesh%gauss%n_w, idxm, v_loc, ADD_VALUES, ierr)
-!!$        v_glb(jj_loc) = v_glb(jj_loc) - v_loc
-     ENDDO
-!!$     CALL VecSetValues(vect, this%mesh%np, this%LA%loc_to_glob(1,:)-1, v_glb, INSERT_VALUES, ierr)
-     CALL VecAssemblyBegin(vect, ierr)
-     CALL VecAssemblyEnd(vect, ierr)
-   END SUBROUTINE compute_flux
 
    SUBROUTINE commutator(this, un, alpha)
      USE space_dim
@@ -855,45 +810,46 @@ CONTAINS
    END SUBROUTINE compute_dt_from_dK
 
    SUBROUTINE compute_flux(this, ff, Vect)
-     IMPLICIT NONE
-     CLASS(euler_type) :: this
-     REAL(KIND = 8), DIMENSION(this%mesh%np, mesh_data_info%k_dim) :: ff
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, mesh_data_info%k_dim) :: f_loc
-     REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
-     REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
-     REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
-     INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm, jj_loc
-     REAL(KIND = 8) :: x
-     INTEGER :: i, k, m, ni, nj, iglob
-     Vec                                         :: vect
-     PetscErrorCode                              :: ierr
-     CALL VecSet(vect, 0.d0, ierr)
-     v_glb = 0.d0
-     DO m = 1, this%mesh%dom_me
-        jj_loc = this%mesh%jj(:, m)
-        f_loc = ff(jj_loc,:)
-        !<==recompute cij on the fly
-        DO ni = 1, this%mesh%gauss%n_w
-           !wwrj = this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m)
-           x = 0.d0
-           DO k = 1, this%mesh%gauss%k_d
-              DO nj = 1, this%mesh%gauss%n_w
-                 x = x + f_loc(nj,k)* &
-                      !SUM(this%mesh%gauss%dw(k,nj,:,m)*wwrj)
-                  SUM(this%mesh%gauss%dw(k,nj,:,m)*this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m))
-              ENDDO
-           ENDDO
-           v_loc(ni) = x
-        ENDDO
-        idxm = this%LA%loc_to_glob(1, jj_loc) -1
-        v_loc = -v_loc
-        CALL VecSetValues(vect, this%mesh%gauss%n_w, idxm, v_loc, ADD_VALUES, ierr)
-!!$        v_glb(jj_loc) = v_glb(jj_loc) - v_loc
-     ENDDO
-!!$     CALL VecSetValues(vect, this%mesh%np, this%LA%loc_to_glob(1,:)-1, v_glb, INSERT_VALUES, ierr)
-     CALL VecAssemblyBegin(vect, ierr)
-     CALL VecAssemblyEnd(vect, ierr)
+      USE space_dim
+      IMPLICIT NONE
+      CLASS(euler_type) :: this
+      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
+      REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
+      REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, k_dim) :: f_loc
+      REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
+      REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
+      REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
+      INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm, jj_loc
+      REAL(KIND = 8) :: x
+      INTEGER :: i, k, m, ni, nj, iglob
+      Vec                                         :: vect
+      PetscErrorCode                              :: ierr
+      CALL VecSet(vect, 0.d0, ierr)
+      v_glb = 0.d0
+      DO m = 1, this%mesh%dom_me
+         jj_loc = this%mesh%jj(:, m)
+         f_loc = ff(jj_loc,:)
+         !<==recompute cij on the fly
+         DO ni = 1, this%mesh%gauss%n_w
+            !wwrj = this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m)
+            x = 0.d0
+            DO k = 1, this%mesh%gauss%k_d
+               DO nj = 1, this%mesh%gauss%n_w
+                  x = x + f_loc(nj,k)* &
+                        !SUM(this%mesh%gauss%dw(k,nj,:,m)*wwrj)
+                     SUM(this%mesh%gauss%dw(k,nj,:,m)*this%mesh%gauss%ww(ni,:)*this%mesh%gauss%rj(:,m))
+               ENDDO
+            ENDDO
+            v_loc(ni) = x
+         ENDDO
+         idxm = this%LA%loc_to_glob(1, jj_loc) -1
+         v_loc = -v_loc
+         CALL VecSetValues(vect, this%mesh%gauss%n_w, idxm, v_loc, ADD_VALUES, ierr)
+   !!$        v_glb(jj_loc) = v_glb(jj_loc) - v_loc
+      ENDDO
+   !!$     CALL VecSetValues(vect, this%mesh%np, this%LA%loc_to_glob(1,:)-1, v_glb, INSERT_VALUES, ierr)
+      CALL VecAssemblyBegin(vect, ierr)
+      CALL VecAssemblyEnd(vect, ierr)
    END SUBROUTINE compute_flux
 
 
