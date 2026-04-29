@@ -52,7 +52,7 @@ ADD_CUSTOM_TARGET(native
 
 # Create local sources from local dir
 file(GLOB_RECURSE sources
-	${ROOT_DIR}/SOURCES/*.f90
+  ${ROOT_DIR}/SOURCES/COMMON_SOURCES/fft.f90
 	${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.f90)
 
 # Define runtime output directory

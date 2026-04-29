@@ -7,11 +7,11 @@ MESSAGE(STATUS "")
 project(IDP_SODT_LIMITING VERSION 1.0 LANGUAGES Fortran C)
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 
+<<<<<<< HEAD
 # Define variables for compilation
 include(variables.cmake)
 define_compile_mode()
 set(exe "a.exe")
-
 
 # Building HYPAR_SFE library
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)

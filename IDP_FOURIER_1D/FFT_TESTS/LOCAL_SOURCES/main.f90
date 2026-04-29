@@ -6,7 +6,7 @@ PROGRAM test
   REAL(KIND=8), DIMENSION(Nmaxc) :: ar, ai
   REAL(KIND=8), DIMENSION(2*Nmaxc-1) :: r_u, r_out
   REAL(KIND=8),  DIMENSION(Nmaxc,2)  :: cs_u
-  REAL(KIND=8) :: theta, h,  x
+  REAL(KIND=8) :: theta, h,  x, error
   INTEGER :: i, k
 
   CALL RANDOM_NUMBER(ar)
@@ -52,4 +52,28 @@ PROGRAM test
   DO i = 1, SIZE(r_u)
      write(*,*) r_u(i), r_out(i)
   END DO
+
+
+  !===Third test for Seth
+
+  ai(1) = 0
+  r_u = 0
+  DO i = 1, SIZE(r_u)
+     theta =  2*pi*(i-1)/(2*Nmaxc-1)
+     DO k = 1, Nmaxc
+        ar(k) = (1+k)/(1+k**2)
+        ai(k) = LOG(k**2+1.d0)/(1+k**3)
+        IF (k==1) ai(k)=0
+        r_u(i)  = r_u(i) + ar(k)*COS((k-1)*theta) + ai(k)*SIN((k-1)*theta)
+     END DO
+  END DO
+  CALL real_to_fourier(r_u,cs_u)
+  error = 0
+  DO k = 1, Nmaxc
+     WRITE(10,*) k, SQRT(cs_u(k,1)**2+cs_u(k,2)**2)
+     error = error + ABS((cs_u(k,1)**2+cs_u(k,2)**2)-(ar(k)**2+ai(k)**2))
+  END DO
+  WRITE(*,*) ' Third error', error
+  
+
 END PROGRAM test

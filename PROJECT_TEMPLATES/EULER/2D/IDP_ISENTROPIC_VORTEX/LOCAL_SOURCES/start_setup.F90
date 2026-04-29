@@ -3,9 +3,8 @@ MODULE start_setup_MODULE
    USE petsc
    USE def_type_mesh
    USE euler_type_module
-   USE read_inputs_module, ONLY : clean_data_once
+   USE read_inputs_module, ONLY : clean_data_once, rec_length
    MPI_Comm        :: communicator
-
 
    TYPE argument_setup_data_type
       CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
