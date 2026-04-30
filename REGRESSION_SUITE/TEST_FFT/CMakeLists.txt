@@ -1,5 +1,6 @@
 # Project name and version
 project(CTEST_FFT_1D VERSION 1.0)
+message(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 
 #List of tests
