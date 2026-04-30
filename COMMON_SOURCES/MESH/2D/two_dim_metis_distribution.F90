@@ -203,15 +203,38 @@ CONTAINS
     CALL METIS_PartGraphRecursive(me, 1, xind_dom, xadj_dom, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
          ubvec, metis_opt, edge, part)
     !===End Create partitions
-
-    !TESTTTTT
-    !IF (rank==0) THEN
-    !   CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
-    !END IF
-    !STOP
-    !TEST
-
+         
     !===Create parts and modify part
+
+!VB FIX 30/04/2026 ==> CHECKING IF ON BOUNDARY A NODE POINT IS ON SEVERAL PROCS OR NOT
+!                      IF YES, THEN REASSIGNING TO HIGHER PROC
+
+    !===Search on the boundary whether ms is on a cut.
+    indicator = -1
+    nws = SIZE(mesh%jjs, 1)
+    DO ms = 1, mesh%mes
+      DO ns = 1, nws
+         IF (indicator(mesh%jjs(ns, ms))==-1) THEN
+            indicator(mesh%jjs(ns, ms)) = ms
+         ELSE
+            !> the point (ns, ms) was already found before in (ns, msop)
+            msop = indicator(mesh%jjs(ns, ms))
+            IF (mesh%sides(ms) /= mesh%sides(msop)) THEN
+               !> (ns, msop) belongs to two different boundaries
+               IF (part(ms) /= part(msop)) THEN
+                  !> (ns, msop) currently belongs to two different procs => renaming mandatory!!! 
+                  k = MAX(part(ms), part(msop))
+                  part(ms) = k
+                  part(msop) = k
+               END IF
+            END IF
+         END IF
+      END DO
+    END DO
+
+!VB FIX 30/04/2026
+
+
     !===Search on the boundary whether ms is on a cut.
     IF (SIZE(mesh%jj, 1)/=3) THEN
        WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
