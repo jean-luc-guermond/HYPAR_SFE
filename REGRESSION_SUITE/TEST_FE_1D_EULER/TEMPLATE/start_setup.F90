@@ -3,7 +3,7 @@ MODULE start_setup_MODULE
   USE petsc
   USE def_type_mesh
   USE euler_type_module
-  USE read_inputs_module, ONLY : clean_data_once
+  USE read_inputs_module
   MPI_Comm        :: communicator
 
 
@@ -39,7 +39,7 @@ CONTAINS
   SUBROUTINE start_setup
     use periodic_data_module
     USE construct_mesh
-    USE st_matrix
+    USE st_matrix,          ONLY : st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
     PetscErrorCode :: ierr
@@ -69,7 +69,6 @@ CONTAINS
     !===Start Euler
     times(2) = setup_data%final_time
     CALL euler%init(communicator, name, mesh, LA, pressure, impose_bc_euler, times)
-    ! CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
 
     !===Read data setup
   END SUBROUTINE start_setup
@@ -80,15 +79,12 @@ CONTAINS
   END SUBROUTINE init_setup_data
 
   SUBROUTINE read_setup_data(this)
-    USE character_strings
     IMPLICIT NONE
 
     CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
-
     CLASS(setup_data_type)             :: this
     TYPE(argument_setup_data_type)     :: argument_data
-
-    CHARACTER(LEN=rec_length)     :: string
+    CHARACTER(LEN=rec_length)          :: string
 
     !================
     !=== MANDATORY Reading all data file

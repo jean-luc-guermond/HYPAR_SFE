@@ -26,6 +26,7 @@ MODULE setup
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
       USE def_type_mesh
+      IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       TYPE(euler_bc_type) :: euler_bc
       REAL(KIND = 8) :: time

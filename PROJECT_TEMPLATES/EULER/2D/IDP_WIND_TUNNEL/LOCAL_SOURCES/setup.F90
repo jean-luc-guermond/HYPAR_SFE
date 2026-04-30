@@ -1,5 +1,8 @@
 MODULE setup
-   USE mesh_parameters
+   USE space_dim, ONLY : k_dim
+!VB TEST
+   USE my_util, ONLY: WRITE_rank_0
+!VB TEST
    PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
    PRIVATE
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
@@ -26,6 +29,7 @@ MODULE setup
    SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
       USE euler_bc_arrays
       USE def_type_mesh
+      IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       TYPE(euler_bc_type) :: euler_bc
       REAL(KIND = 8) :: time
@@ -43,54 +47,28 @@ MODULE setup
             un(euler_bc%uy_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%uy_bc%jsd))
          END SELECT
       END DO
-      IF (SIZE(euler_bc%udotn_bc%jsd).NE.0) THEN
+      IF (size(euler_bc%udotn_bc%jsd).NE.0) THEN
          mdotn = euler_bc%udotn_normal_vtx(:,1)*un(euler_bc%udotn_bc%jsd,2) &
          +  euler_bc%udotn_normal_vtx(:,2)*un(euler_bc%udotn_bc%jsd,3)
          un(euler_bc%udotn_bc%jsd,2) = un(euler_bc%udotn_bc%jsd,2) - mdotn*euler_bc%udotn_normal_vtx(:,1)
          un(euler_bc%udotn_bc%jsd,3) = un(euler_bc%udotn_bc%jsd,3) - mdotn*euler_bc%udotn_normal_vtx(:,2)
-         
-         mdotn = euler_bc%udotn_normal_vtx(:,1)*un(euler_bc%udotn_bc%jsd,2) &
-         +  euler_bc%udotn_normal_vtx(:,2)*un(euler_bc%udotn_bc%jsd,3)
       END IF
       
    END SUBROUTINE impose_bc_euler
    
    SUBROUTINE init(un, time, rr)
-     USE def_of_gamma
-     USE lambda_module
-     USE mesh_parameters
-     USE petsc
-     USE my_util
-     IMPLICIT NONE
-     REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-     REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
-     REAL(KIND = 8)   :: time, my_time
-     CHARACTER(len=5) :: char
-     INTEGER :: ierr, rank, my_rank
-     CALL MPI_Comm_rank(PETSC_COMM_WORLD, my_rank, ierr)
-     IF (time<0.d0) THEN !<==Restart
-        WRITE(char, '(I5)') my_rank
-        OPEN(unit = 10, &
-             file = 'restart_'//TRIM(ADJUSTL(char))//'_'//TRIM(ADJUSTL(mesh_data_info%file_name)),&
-             form = 'unformatted', status = 'unknown', err=100)
-        READ(10,err=101,END=101) rank, my_time, un
-        time = my_time
-        IF (rank/=my_rank) THEN
-           CALL error_petsc('Error in setup: Wrong processor mapping')
-        END IF
-        IF (my_rank==0) WRITE(*,*) ' time at checkpoint restart: ', time
-        CLOSE(10)
-        RETURN
-100     CONTINUE
-        CALL error_petsc('Error in setup: error opening restart files. Wrong number of procs?')
-101     CONTINUE
-        CALL error_petsc('Error in setup: error reading restart files.')      
-     ELSE
-        un(:, 1) = rho_anal(time, rr)
-        un(:, 2) = mt_anal(1, time, rr)
-        un(:, 3) = mt_anal(2, time, rr)
-        un(:, 4) = E_anal(time, rr)
-     END IF
+      USE def_type_mesh
+      USE def_of_gamma
+      USE lambda_module
+      IMPLICIT NONE
+      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
+      REAL(KIND = 8), INTENT(IN) :: time
+      un(:, 1) = rho_anal(time, rr)
+      un(:, 2) = mt_anal(1, time, rr)
+      un(:, 3) = mt_anal(2, time, rr)
+      un(:, 4) = E_anal(time, rr)
+      CALL set_gamma_for_riemann_solver(gamma)
    END SUBROUTINE init
    
    FUNCTION rho_anal(time, rr) RESULT(vv)
@@ -100,6 +78,8 @@ MODULE setup
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       IF (SIZE(vv)==0) RETURN
       vv = gamma
+      ! CALL WRITE_rank_0("(IV) FLAG EULER_BC")
+
    END FUNCTION rho_anal
    
    FUNCTION press_anal(time, rr) RESULT(vv)
@@ -111,26 +91,33 @@ MODULE setup
       vv = 1.d0
    END FUNCTION press_anal
    
-   FUNCTION vit_anal(comp, time, rr) RESULT(vv)
+   FUNCTION vit_anal(comp, time, rr, mesh) RESULT(vv)
+      USE def_type_mesh
+      USE petsc
+#include "petsc/finclude/petsc.h"
       IMPLICIT NONE
+      TYPE(mesh_type), optional :: mesh
       INTEGER, INTENT(IN) :: comp
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      INTEGER :: n
+      INTEGER :: n, rank, ierr
+
+      CALL MPI_Comm_Rank(PETSC_COMM_WORLD, rank, ierr)
       IF (SIZE(vv)==0) RETURN
+      ! CALL WRITE_rank_0("(V) FLAG EULER_BC")
+      vv = 0.d0
       IF (comp==1) THEN
          IF (time<1.d-8) THEN
             vv = 3.d0
             RETURN
          END IF
-         DO n = 1, SIZE(vv)
-            IF (rr(1, n)<1.d-8) THEN
-               vv(n) = 3.0
-            ELSE
-               vv(n) = 0.d0
-            END IF
-         END DO
+
+         WHERE(rr(1, :)<1.d-8)
+            vv(:) = 3.d0
+         ELSEWHERE
+            vv(:) = 0.d0
+         END WHERE
       ELSE IF (comp==2) THEN
          vv = 0.d0
       ELSE
@@ -149,6 +136,7 @@ MODULE setup
    END FUNCTION E_anal
    
    FUNCTION mt_anal(comp, time, rr) RESULT(vv)
+      USE def_type_mesh
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: comp
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
@@ -167,15 +155,44 @@ MODULE setup
       SELECT CASE(comp)
       CASE(1)
          vv = rho_anal(time, rr)
-      CASE(2)
-         vv = mt_anal(1, time, rr)
-      CASE(3)
-         vv = mt_anal(2, time, rr)
-      CASE(4)
+      CASE(2:k_dim+1)
+         vv = mt_anal(comp-1, time, rr)
+      CASE(k_dim+2)
          vv = E_anal(time, rr)
       CASE DEFAULT
-         WRITE(*, *) ' BUG in sol_anal'
+         WRITE(*, *) ' BUG in sol_anal, comp=', comp, 'should be <=', k_dim+2
          STOP
       END SELECT
    END FUNCTION sol_anal
+
+
+
+
+
+
+!VB TEST
+
+   SUBROUTINE write_l1_mesh(field_in, mesh, in_char, comp)
+      USE fem_tn, ONLY : ns_l1
+      USE def_type_mesh
+      USE petsc
+#include "petsc/finclude/petsc.h"
+
+      IMPLICIT NONE
+      TYPE(mesh_type) :: mesh
+      REAL(KIND=8), DIMENSION(:), INTENT(IN) :: field_in
+      REAL(KIND=8) :: norm_loc, norm
+      CHARACTER(LEN=*), INTENT(IN) :: in_char
+      INTEGER, INTENT(IN) :: comp
+      INTEGER :: ierr
+
+      CALL ns_l1(mesh, field_in(:), norm_loc)
+      CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,PETSC_COMM_WORLD,ierr)
+      IF(mesh%rank==0) WRITE(*, *) in_char, ' comp= ', comp, '=>  L1 Norm = ', norm
+
+   END SUBROUTINE write_l1_mesh
+
+!VB TEST
+
+
 END MODULE setup

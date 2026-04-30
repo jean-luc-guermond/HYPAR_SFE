@@ -2,8 +2,9 @@ MODULE cell_limiting_engine_parallel_module
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
-   USE st_matrix
-   INTEGER, PARAMETER, PRIVATE :: rec_length = 200
+   USE st_matrix, ONLY : extract_through_ghost, create_my_ghost
+   USE read_inputs_module
+   ! INTEGER, PARAMETER, PRIVATE :: rec_length = 200
    TYPE argument_limiting_type
       CHARACTER(LEN=rec_length) :: if_limiting       = '=== Apply cell-limiting (T/F) ? ==='
       CHARACTER(LEN=rec_length) :: if_relax_bounds   = '=== Apply bound relaxation for limiting (T/F) ? ==='
@@ -95,13 +96,17 @@ CONTAINS
          idxm = this%LA%loc_to_glob(1, this%jj(:,m)) -1
          CALL VecSetValues(this%xvect, mesh%gauss%n_w, idxm, vol_of_Ti_loc, ADD_VALUES, ierr)
       END DO
-      CALL VecAssemblyBegin(this%xvect, ierr)
-      CALL VecAssemblyEnd(this%xvect, ierr)
 
-      CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
-      CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL VecGhostUpdateEnd(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL extract(this%x_ghost, 1, 1, this%LA, vol_of_Ti)
+      CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, vol_of_Ti, &
+                                'insert', opt_assemble=.TRUE.)
+
+      ! CALL VecAssemblyBegin(this%xvect, ierr)
+      ! CALL VecAssemblyEnd(this%xvect, ierr)
+
+      ! CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
+      ! CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL VecGhostUpdateEnd(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL extract(this%x_ghost, 1, 1, this%LA, vol_of_Ti)
 !VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
       DO m = 1, mesh%me
@@ -300,13 +305,16 @@ CONTAINS
          CALL VecSetValues(this%xvect, nw, idxm, v_loc, ADD_VALUES, ierr)
       END DO
 
-      CALL VecAssemblyBegin(this%xvect, ierr)
-      CALL VecAssemblyEnd(this%xvect, ierr)
+      CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, xx_inter, &
+                                'insert', opt_assemble=.TRUE.)
 
-      CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
-      CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL VecGhostUpdateEnd  (this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL extract(this%x_ghost, 1, 1, this%LA, xx_inter)
+      ! CALL VecAssemblyBegin(this%xvect, ierr)
+      ! CALL VecAssemblyEnd(this%xvect, ierr)
+
+      ! CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
+      ! CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL VecGhostUpdateEnd  (this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL extract(this%x_ghost, 1, 1, this%LA, xx_inter)
 
       !===Rescaling
       WHERE (this%lumped_mass .GT.this%mass_eps)

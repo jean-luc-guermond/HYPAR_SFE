@@ -38,7 +38,10 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
-
+!TEST VB
+      ! REAL(KIND = 8) :: norm
+      ! INTEGER :: rank
+!TEST VB
       DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
          DO m = 1, mesh%dom_me
@@ -54,7 +57,14 @@ CONTAINS
          ENDDO
          CALL MatAssemblyBegin(cij(k), MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (cij(k), MAT_FINAL_ASSEMBLY, ierr)
+
+!TEST VB !!! PASSED !!!
+         ! CALL MPI_Comm_Rank(PETSC_COMM_WORLD, rank, ierr)
+         ! CALL MatNorm(cij(k), NORM_1, norm, ierr)
+         ! IF(rank==0) WRITE(*, *) '(INI)  mat cij k= ', k, '=>  L1 Norm = ', norm
+!TEST VB
       END DO
+
 
    END SUBROUTINE construct_cij
 END MODULE fem_petsc_matrix_factory_module

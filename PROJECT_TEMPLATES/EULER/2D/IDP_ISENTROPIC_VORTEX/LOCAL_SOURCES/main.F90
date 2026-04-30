@@ -61,7 +61,6 @@ CONTAINS
     USE fem_tn
     USE post_processing_debug_MODULE
     IMPLICIT NONE
-<<<<<<< HEAD
 
     REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
     REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm

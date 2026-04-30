@@ -128,12 +128,7 @@ MODULE setup
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
    END FUNCTION mt_anal
-<<<<<<< HEAD
    
-   
-=======
-
->>>>>>> b39bc79d912921108d8e0b6c9b2117d89ee84db8
    FUNCTION sol_anal(comp, time, rr) RESULT(vv)
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: comp

@@ -1,13 +1,17 @@
 MODULE euler_type_MODULE
+!>> limited global uses to avoid unexpected behaviors
 #include "petsc/finclude/petsc.h"
    USE petsc
-   USE def_type_mesh
-   USE euler_bc_arrays
+   USE st_matrix,       ONLY : extract_through_ghost!, extract
+   USE euler_bc_arrays, ONLY : euler_bc_type
+   USE petsc_tools,     ONLY : array_to_petsc_vec
    USE Butcher_tableau
-   USE euler_matrices_module
-   USE periodic_data_module
-   USE cell_limiting_engine_parallel_module
-   USE read_inputs_module
+   USE euler_matrices_module, ONLY : euler_matrices_type
+   USE cell_limiting_engine_parallel_module, ONLY : limiting_type
+   USE def_type_mesh, ONLY : mesh_type, petsc_csr_LA
+   USE read_inputs_module,    ONLY : rec_length
+!>> limited global uses to avoid unexpected behaviors
+
    IMPLICIT NONE
 
    ABSTRACT INTERFACE
@@ -43,7 +47,8 @@ MODULE euler_type_MODULE
       INTEGER                      :: erk_sv    = -21
       !===Parameters built along way
       MPI_Comm :: communicator
-      Vec :: x1vec, x2vec, x3vec, x4vec, x5vec, x2_ghost, vec_loc
+      Vec, POINTER :: x1vec, x2vec, x2_ghost, vec_loc
+      Vec          :: x3vec, x4vec, x5vec
       CHARACTER(100) :: name
       LOGICAL :: no_iter
       INTEGER :: syst_dim
@@ -68,17 +73,16 @@ MODULE euler_type_MODULE
 
 CONTAINS
    SUBROUTINE init_euler(this, communicator, name, mesh, LA, pressure, impose_bc, times)
-   ! SUBROUTINE init_euler(this, communicator, name, mesh, LA, per, pressure, impose_bc, times)
       USE space_dim
-      USE st_matrix
-      USE periodic_data_module
+      USE euler_matrices_module, ONLY : init_my_vectors,&
+      x1vec, x2vec, x2_ghost, vec_loc
+      USE st_matrix, ONLY : create_my_ghost
       IMPLICIT NONE
       CLASS(euler_type), INTENT(INOUT) :: this
       MPI_Comm, INTENT(IN) :: communicator
       CHARACTER(100) :: name
       TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
-      ! TYPE(periodic_type), TARGET, INTENT(IN) :: per
       INTEGER :: ierr, n
       REAL(KIND = 8), DIMENSION(2) :: times
       PROCEDURE(function_template_pressure) :: pressure
@@ -110,27 +114,26 @@ CONTAINS
 
       this%matrices%method = this%method !<==transfer this%method to this%matrices
 
-      !===Boundary conditions
-      CALL this%euler_bc%construct_euler_bc(this%mesh)
-
       !===Periodic boundary if any
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
 
       !===Goshting structures
-      CALL create_my_ghost(this%mesh, this%LA, ifrom)
-      CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
-           PETSC_DETERMINE, SIZE(ifrom), ifrom, this%x1vec, ierr)
-      CALL VecDuplicate(this%x1vec, this%x2vec, ierr)
+      CALL init_my_vectors(this%communicator, this%mesh, this%LA)
+      this%x1vec => x1vec
+      this%x2vec => x2vec
+      this%x2_ghost => x2_ghost
+      this%vec_loc => vec_loc
       CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x4vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x5vec, ierr)
-      CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
 
-      CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
       ALLOCATE(this%tab(this%mesh%dom_np))
       DO n = 1, this%mesh%dom_np
          this%tab(n) = n - 1
       END DO
+
+      !===Boundary conditions
+      CALL this%euler_bc%construct_euler_bc(this%mesh, this%LA)
 
       !===Limiting
       CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
@@ -138,6 +141,7 @@ CONTAINS
    END SUBROUTINE init_euler
 
    SUBROUTINE read_euler_data(this, section_name)
+     USE read_inputs_module
      IMPLICIT NONE
      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
 
@@ -181,87 +185,93 @@ CONTAINS
    END SUBROUTINE read_euler_data
 
    SUBROUTINE update(this, un)
-     USE space_dim
-     USE petsc_tools
-     USE st_matrix
-     USE my_util
-     USE cell_limiting_engine_module
-     USE sub_plot
-     CLASS(euler_type)                                                     :: this
-     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
-     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
-     REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
-     REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
-     REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
-     INTEGER :: comp, k, ierr, it, code
-     REAL(KIND = 8) :: norm
-     INTEGER, PARAMETER :: limit_max = 2 !<<FIXME
-     un_temp = un
-     SELECT CASE(this%method)
-     CASE('viscous')
-        !===compute dijL and dt
-        CALL this%compute_dij(un_temp, bounds)
-        CALL this%compute_dt
+      USE space_dim
+      USE my_util, ONLY : error_petsc
+      USE cell_limiting_engine_module
+      USE sub_plot
+      USE compute_periodic, ONLY : periodic_rhs_petsc
+      CLASS(euler_type)                                                     :: this
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp, un_dummy
+      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
+      REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
+      REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
+      INTEGER :: comp, k, ierr, it, code
+      REAL(KIND = 8) :: norm
 
-        this%time = this%time + this%dt
+      INTEGER, PARAMETER :: limit_max = 2 !<<FIXME
+      un_temp = un
+      SELECT CASE(this%method)
+      CASE('viscous')
 
-        DO comp = 1, this%syst_dim
-           ff = 0.d0
-           ff = this%flux(comp, un_temp)
+         !===compute dijL and dt
+         CALL this%compute_dij(un_temp, bounds)
+         CALL this%compute_dt
 
-           CALL VecSet(this%x3vec, 0.d0, ierr)
-           DO k = 1, k_dim
-              !=== set flux_k in x1vec
-              CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
-              !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
-              CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-              !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
-              CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
-           END DO
+         this%time = this%time + this%dt
 
-           !=== set un(comp) in x1vec
-           CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
-           !=== add dij un(comp)to x3vec in x2vec
-           CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
-           CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-           CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-           CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-           CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-           CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
+         DO comp = 1, this%syst_dim
+            ff = 0.d0
+            ff = this%flux(comp, un_temp)
+            
+            CALL VecZeroEntries(this%x3vec, ierr)
+            DO k = 1, k_dim
+               !=== set flux_k in x1vec
+               CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
+               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+               CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
+            END DO
 
-           rk = rk * this%dt / this%matrices%lumped_mass
+            !=== set un(comp) in x1vec
+            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
+            !=== add dij un(comp)to x3vec in x2vec
+            CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
+            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
-           un(:, comp) = un_temp(:, comp) + rk
+            CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk, &
+                                    'insert', opt_assemble=.FALSE.)
 
-           DO k = 1, this%mesh%per%nb_bords
-              un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
-           END DO
+            ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+            ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
-           CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
-        END DO
-     CASE('high')
-        !===compute dijL and dt
-        CALL this%compute_dij(un_temp, bounds)
-        CALL this%compute_dt
+            rk = rk * this%dt / this%matrices%lumped_mass
 
-        this%time = this%time + this%dt
+            un(:, comp) = un_temp(:, comp) + rk
 
-        DO comp = 1, this%syst_dim
-           ff = this%flux(comp, un_temp)
+            DO k = 1, this%mesh%per%nb_bords
+               un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
+            END DO
 
-           CALL VecSet(this%x3vec, 0.d0, ierr)
-           DO k = 1, k_dim
-              !=== set flux_k in x1vec
-              CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
-              !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
-              CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-              !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
-              CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
-           END DO
+            CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
 
-           !=== set un(comp) in x1vec
-           CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
-           !TEST Low order
+         END DO
+      CASE('high')
+         !===compute dijL and dt
+         CALL this%compute_dij(un_temp, bounds)
+         CALL this%compute_dt
+
+         this%time = this%time + this%dt
+
+         DO comp = 1, this%syst_dim
+            ff = this%flux(comp, un_temp)
+
+            CALL VecSet(this%x3vec, 0.d0, ierr)
+            DO k = 1, k_dim
+               !=== set flux_k in x1vec
+               CALL array_to_petsc_vec(ff(:, k), this%x1vec, this%mesh, this%LA, 'insert')
+               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+               CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
+            END DO
+
+            !=== set un(comp) in x1vec
+            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
+            !TEST Low order
 !!$           IF (comp==1) THEN
 !!$              CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x4vec, ierr)
 !!$              CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x4vec, this%LA)
@@ -274,47 +284,50 @@ CONTAINS
 !!$              bounds(:,2) = un(:, 1)
 !!$           END IF
            !END TEST
-           !=== add dij un(comp)to x3vec in x2vec
-           CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
-           CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-           CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-           CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-           CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-           CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
+            !=== add dij un(comp)to x3vec in x2vec
+            CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
+            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
-           !rk = rk * this%dt / this%matrices%lumped_mass
-           !===FIXME
-           rk = rk*this%dt
-           CALL divide_by_mass(this,rk)
-           !===FIXME
+            CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk, &
+                                    'insert', opt_assemble=.FALSE.)
+            ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+            ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
-           un(:, comp) = un_temp(:, comp) + rk
-        END DO
-        !===Limiting
-        IF (this%limiting%if_limiting) THEN
-           DO it = 1, limit_max
-               CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,1),&
-                   psi_rho_min,zero_of_psi_rho_min,un_temp)
-               un(:,:) = un_temp(:,:)
-           END DO
-           DO it = 1, limit_max
-               CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
-                   psi_rho_max,zero_of_psi_rho_max,un_temp)
-               un(:,:) = un_temp(:,:)
-           END DO
-        END IF
-        !===Periodicity
-        DO comp = 1, this%syst_dim 
-           DO k = 1, this%mesh%per%nb_bords
-              un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
-           END DO
-        END DO
+            ! rk = rk * this%dt / this%matrices%lumped_mass
+            !===FIXME
+            rk = rk*this%dt
+            CALL divide_by_mass(this,rk)
+            !===FIXME
 
-        !===Boundary conditions
-        CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
-     CASE DEFAULT
-        CALL error_petsc('Wrong method in euler update')
-     END SELECT
+            un(:, comp) = un_temp(:, comp) + rk
+         END DO
+         !===Limiting
+         IF (this%limiting%if_limiting) THEN
+            DO it = 1, limit_max
+                  CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,1),&
+                     psi_rho_min,zero_of_psi_rho_min,un_temp)
+                  un(:,:) = un_temp(:,:)
+            END DO
+            DO it = 1, limit_max
+                  CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
+                     psi_rho_max,zero_of_psi_rho_max,un_temp)
+                  un(:,:) = un_temp(:,:)
+            END DO
+         END IF
+         !===Periodicity
+         DO comp = 1, this%syst_dim 
+            DO k = 1, this%mesh%per%nb_bords
+               un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
+            END DO
+         END DO
+
+         !===Boundary conditions
+         CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
+      CASE DEFAULT
+         CALL error_petsc('Wrong method '//this%method//' in euler update, should be "viscous" or "high"')
+      END SELECT
 
    CONTAINS
      FUNCTION psi_rho_min(x,psi_m) RESULT(v)
@@ -349,7 +362,7 @@ CONTAINS
 
    FUNCTION flux(this, comp, un) RESULT(vv)  
       USE space_dim
-      USE my_util
+      USE my_util, ONLY : error_petsc, itoa
       IMPLICIT NONE
       CLASS(euler_type)                           :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
@@ -428,11 +441,10 @@ CONTAINS
    SUBROUTINE compute_dij(this, un, bounds)
      USE space_dim
      USE petsc
-     USE my_util
+     USE my_util, ONLY : error_petsc
      USE def_type_mesh
      USE arbitrary_eos_lambda_module
      USE compute_periodic
-     USE petsc_tools, ONLY : array_to_petsc_vec
      IMPLICIT NONE
      CLASS(euler_type) :: this
      TYPE(mesh_type), POINTER :: mesh
@@ -549,50 +561,54 @@ CONTAINS
 
      END DO
 
-     CALL MatAssemblyBegin(this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
-     CALL MatAssemblyEnd  (this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyBegin(this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyEnd  (this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
 
-     IF (this%method=='high') THEN
-        CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-        CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-        !VB: CORRECTION ==> compatibility with several procs
-        CALL array_to_petsc_vec(bounds(:,1), this%x1vec, this%mesh, this%LA, 'insert')
-        CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
-        CALL VecGhostUpdateBegin(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
-        CALL VecGhostUpdateEnd(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
-        CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 1))
+      IF (this%method=='high') THEN
+         CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+         CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+         !VB: CORRECTION ==> compatibility with several procs
+         CALL array_to_petsc_vec(bounds(:,1), this%x1vec, this%mesh, this%LA, 'insert')
+         CALL extract_through_ghost(this%x1vec, this%x2_ghost, 1, 1, this%LA, bounds(:, 1), &
+                                 'min', opt_assemble=.FALSE.)
+         ! CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
+         ! CALL VecGhostUpdateBegin(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
+         ! CALL VecGhostUpdateEnd(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
+         ! CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 1))
 
-        CALL array_to_petsc_vec(bounds(:,2), this%x1vec, this%mesh, this%LA, 'insert')
-        CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
-        CALL VecGhostUpdateBegin(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
-        CALL VecGhostUpdateEnd(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
-        CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 2))
-        !VB: CORRECTION ==> compatibility with several procs
-     END IF
+         CALL array_to_petsc_vec(bounds(:,2), this%x1vec, this%mesh, this%LA, 'insert')
+         CALL extract_through_ghost(this%x1vec, this%x2_ghost, 1, 1, this%LA, bounds(:, 2), &
+                                 'max', opt_assemble=.FALSE.)
+         ! CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
+         ! CALL VecGhostUpdateBegin(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         ! CALL VecGhostUpdateEnd(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         ! CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 2))
+         !VB: CORRECTION ==> compatibility with several procs
+      END IF
    END SUBROUTINE compute_dij
 
    SUBROUTINE divide_by_mass(this,rk)
-     USE petsc_tools
-     IMPLICIT NONE
-     CLASS(euler_type) :: this
+      IMPLICIT NONE
+      CLASS(euler_type) :: this
 
-     REAL(KIND = 8), DIMENSION(:) :: rk
-     REAL(KIND = 8), DIMENSION(SIZE(rk)) :: rk_cp
-     INTEGER :: ierr
-     rk = rk/this%matrices%lumped_mass
-     CALL array_to_petsc_vec(rk, this%x1vec, this%mesh, this%LA, 'insert')
-     CALL MatMult(this%matrices%mass, this%x1vec, this%x2vec, ierr)
-     CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-     CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL extract(this%x2_ghost, 1, 1, this%LA, rk_cp)
-     rk = 2*rk - rk_cp/this%matrices%lumped_mass
+      REAL(KIND = 8), DIMENSION(:) :: rk
+      REAL(KIND = 8), DIMENSION(SIZE(rk)) :: rk_cp
+      INTEGER :: ierr
+      rk = rk/this%matrices%lumped_mass
+      CALL array_to_petsc_vec(rk, this%x1vec, this%mesh, this%LA, 'insert')
+      CALL MatMult(this%matrices%mass, this%x1vec, this%x2vec, ierr)
+
+      CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk_cp, &
+                              'insert', opt_assemble=.FALSE.)
+      ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+      ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk_cp)
+      rk = 2*rk - rk_cp/this%matrices%lumped_mass
    END SUBROUTINE divide_by_mass
 
    SUBROUTINE commutator(this, un, alpha)
      USE space_dim
-     USE petsc_tools
-     USE st_matrix
      USE sub_plot
      IMPLICIT NONE
      CLASS(euler_type) :: this
@@ -638,15 +654,19 @@ CONTAINS
      END DO
      !IF (this%mesh%rank==0) write(*,*) 'error', norm_diff/norm_log, norm_diff, norm_log
      
-     CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
-     CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
+      CALL extract_through_ghost(this%x4vec, this%x2_ghost, 1, 1, this%LA, rk, &
+                              'insert', opt_assemble=.FALSE.)
+   !   CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
+   !   CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+   !   CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+   !   CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
-     CALL VecGhostGetLocalForm(this%x5vec, this%x2_ghost, ierr)
-     CALL VecGhostUpdateBegin(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL VecGhostUpdateEnd(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-     CALL extract(this%x2_ghost, 1, 1, this%LA, rk_norm)
+      CALL extract_through_ghost(this%x5vec, this%x2_ghost, 1, 1, this%LA, rk_norm, &
+                              'insert', opt_assemble=.FALSE.)
+   !   CALL VecGhostGetLocalForm(this%x5vec, this%x2_ghost, ierr)
+   !   CALL VecGhostUpdateBegin(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+   !   CALL VecGhostUpdateEnd(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+   !   CALL extract(this%x2_ghost, 1, 1, this%LA, rk_norm)
     
      norm_log = norm_log/np_tot
   
@@ -696,6 +716,7 @@ CONTAINS
   !GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE GARBADGE
   SUBROUTINE compute_dk (this, un)
     USE arbitrary_eos_lambda_module
+    USE my_util, ONLY : error_petsc
     IMPLICIT NONE
     CLASS(euler_type) :: this
     REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
@@ -851,6 +872,5 @@ CONTAINS
       CALL VecAssemblyBegin(vect, ierr)
       CALL VecAssemblyEnd(vect, ierr)
    END SUBROUTINE compute_flux
-
 
  END MODULE euler_type_MODULE

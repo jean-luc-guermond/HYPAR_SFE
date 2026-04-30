@@ -1,8 +1,9 @@
 MODULE euler_post_proc_module
 #include "petsc/finclude/petsc.h"
   USE petsc
-  USE euler_type_MODULE
-  USE petsc_tools
+  USE euler_type_MODULE, ONLY : euler_type
+  USE petsc_tools,       ONLY : array_to_petsc_vec
+  USE st_matrix,         ONLY : extract_through_ghost
   CONTAINS
     SUBROUTINE schlieren(this,un,grad)
       implicit none
@@ -23,10 +24,12 @@ MODULE euler_post_proc_module
          CALL VecAXPY(this%x2vec, 1.0d0, this%x4vec, ierr)
       END DO
 
-      CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-      CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CALL extract(this%x2_ghost, 1, 1, this%LA, grad)
+      ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
+      ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      ! CALL extract(this%x2_ghost, 1, 1, this%LA, grad)
+      CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, grad, &
+                                'insert', opt_assemble=.FALSE.)
       grad = sqrt(grad)/this%matrices%lumped_mass
 
 

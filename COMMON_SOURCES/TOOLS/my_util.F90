@@ -1,6 +1,6 @@
 MODULE my_util
   IMPLICIT NONE
-  PUBLIC :: user_time, error_Petsc, itoa
+  PUBLIC :: user_time, error_Petsc, itoa, WRITE_rank_0
 CONTAINS
   !
   !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
@@ -26,6 +26,17 @@ CONTAINS
     CALL PetscFinalize(ierr)
     STOP
   END SUBROUTINE error_Petsc
+
+  SUBROUTINE WRITE_rank_0(string)
+#include "petsc/finclude/petsc.h"
+    USE petsc
+    IMPLICIT NONE
+    CHARACTER(LEN=*),       INTENT(IN) :: string
+    INTEGER                            :: rank
+    PetscErrorCode :: ierr
+    CALL MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr)
+    IF (rank==0) WRITE(*,*) string
+  END SUBROUTINE WRITE_rank_0
 
    !========================================================================
    

@@ -6,7 +6,7 @@ MODULE st_matrix
       ! PUBLIC :: st_aij_csr_glob_block, extract, create_my_ghost, st_aij_csr, tri_jlg, st_aij_csr_loc_block, &
       !   st_csr, st_csr_block, st_csr_bloc, st_aij_csr_glob_block_with_extra_layer
 !!!>>> Old subroutines removed here, can still be found in SFEMaNS
-   PUBLIC :: extract, create_my_ghost, tri_jlg, st_aij_csr_glob_block_with_extra_layer
+   PUBLIC :: extract, extract_through_ghost, create_my_ghost, tri_jlg, st_aij_csr_glob_block_with_extra_layer
    PRIVATE
 #include "petsc/finclude/petsc.h"
 CONTAINS
@@ -63,6 +63,51 @@ CONTAINS
       END DO
       CALL VecRestoreArrayF90(xghost, x_loc, ierr)
    END SUBROUTINE extract
+
+   SUBROUTINE extract_through_ghost(xvec, xghost, ks, ke, LA, phi, operation_ghost, opt_assemble)
+      !> VB 30/04/2026 => subroutine to simplify readability of code
+      !! instead of always having to copy/paste the same lines
+      !! see SUBROUTINE extract() for more information
+
+      !! opt_assemble = .TRUE. if need assembling xvec, .FALSE. by default
+
+      USE def_type_mesh, ONLY : petsc_csr_LA
+      USE my_util,       ONLY : error_Petsc
+#include "petsc/finclude/petsc.h"
+      USE petsc
+      IMPLICIT NONE
+      INTEGER,                      INTENT(IN)  :: ks, ke
+      CHARACTER(len=*),             INTENT(IN)  :: operation_ghost
+      REAL(KIND = 8), DIMENSION(:), INTENT(OUT) :: phi
+      LOGICAL, OPTIONAL                         :: opt_assemble
+      TYPE(petsc_csr_LA)                        :: LA    
+      INTEGER :: ierr
+      Vec :: xvec, xghost
+
+      IF (PRESENT(opt_assemble)) THEN
+         IF (opt_assemble) THEN
+            CALL VecAssemblyBegin(xvec, ierr)
+            CALL VecAssemblyEnd(xvec, ierr)
+         END IF
+      END IF
+
+      CALL VecGhostGetLocalForm(xvec, xghost, ierr)
+      SELECT CASE(operation_ghost)
+      CASE('insert')
+         CALL VecGhostUpdateBegin(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CASE('min')
+         CALL VecGhostUpdateBegin(xvec, MIN_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(xvec, MIN_VALUES, SCATTER_FORWARD, ierr)
+      CASE('max')
+         CALL VecGhostUpdateBegin(xvec, MAX_VALUES, SCATTER_FORWARD, ierr)
+         CALL VecGhostUpdateEnd(xvec, MAX_VALUES, SCATTER_FORWARD, ierr)
+      CASE DEFAULT
+         CALL error_petsc("unavailable operation_ghost in extract_through_ghost '"//operation_ghost//"'.&
+          Available for now => 'insert/min/max'")
+      END SELECT
+      CALL extract(xghost, ks, ke, LA, phi)
+   END SUBROUTINE extract_through_ghost
 
    SUBROUTINE block_index(communicator, kmax, mesh, loc_to_glob_LA)
       USE def_type_mesh
