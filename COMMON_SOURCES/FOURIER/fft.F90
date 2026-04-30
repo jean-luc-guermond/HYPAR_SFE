@@ -53,8 +53,6 @@ CONTAINS
     ! COMPLEX(KIND=8), DIMENSION(SIZE(cs_in,1))  :: cin !===Complex size N
     INTEGER, INTENT(IN) :: Nmax_pad
     REAL(KIND=8), DIMENSION(2*Nmax_pad-1) :: r_out_pad !===size 2N-1
-    !REAL(KIND=8) :: scaling
-    INTEGER(kind=8) :: plan
     INTEGER :: Nmax, N
     Nmax = SIZE(cs_in,1)
     N = 2*SIZE(cs_in,1)-1

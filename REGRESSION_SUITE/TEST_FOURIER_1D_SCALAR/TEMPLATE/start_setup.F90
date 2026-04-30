@@ -44,7 +44,6 @@ CONTAINS
   SUBROUTINE init_setup_data(this)
     IMPLICIT NONE
     CLASS(setup_data_type), INTENT(INOUT) :: this
-    INTEGER :: i
     CALL this%read()
   END SUBROUTINE init_setup_data
 

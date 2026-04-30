@@ -66,7 +66,7 @@ CONTAINS
 
     REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
     REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
-    INTEGER :: n, code
+    INTEGER :: code
 
     IF (setup_data%if_analytical_ref) THEN
        CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)

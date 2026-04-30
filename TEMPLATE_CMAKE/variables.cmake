@@ -1,8 +1,9 @@
+# Variables for personal laptop
 #==== Mandatory for any application ====
-set(HYPAR_SFE_DIR "path_to_hypar/HYPAR_SFE")
+set(HYPAR_SFE_DIR "my_path_to_hypar/HYPAR_SFE_VIRGIN/HYPAR_SFE")
 set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
 set(release_bounds "-O3")
-###set(FE_dim "2")  <=== do not use in CTEST, only for app
+set(FE_dim "1") #1 or 2
 
 #==== Specific to CTEST ====
 set(RUN_PRE_PROC "mpirun")

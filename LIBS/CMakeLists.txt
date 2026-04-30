@@ -1,6 +1,8 @@
 # Project name and version
 project(hypar_lib)
+MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 include(variables_lib.cmake)
 

@@ -22,7 +22,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)   :: string_default
       LOGICAL, INTENT(OUT)           :: okay
       INTEGER, INTENT(OUT)           :: end_idx_record
-      INTEGER                        :: i, j
+      INTEGER                        :: i
       
       okay = .TRUE.
       index_list_info_data = index_list_info_data+1
@@ -37,7 +37,8 @@ CONTAINS
             RETURN
          END IF
       END DO
-      WRITE(*,*) ' File reading error for list(index_list_info_data) =   ', TRIM(ADJUSTL(list_info_for_new_data(index_list_info_data)))
+      WRITE(*,*) ' File reading error for list(index_list_info_data) =   '&
+              , TRIM(ADJUSTL(list_info_for_new_data(index_list_info_data)))
       index_list_info_data = index_list_info_data+1
       list_info_for_new_data(index_list_info_data) = string_default
       okay = .FALSE.
@@ -153,7 +154,8 @@ CONTAINS
       !========== MANDATORY INITIALIZING record_info_from_data AND list_info_for_new_data
       
       IF (.NOT. data_cleaned) THEN
-         CALL error_petsc('BUG in character_strings.F90 (read_data_init_list): you should have called "clean_data_once" before reading data for the first time')
+         CALL error_petsc('BUG in character_strings.F90 (read_data_init_list): &
+                 you should have called "clean_data_once" before reading data for the first time')
       END IF
       
       IF (ALLOCATED(record_info_from_data) .OR. ALLOCATED(list_info_for_new_data)) THEN

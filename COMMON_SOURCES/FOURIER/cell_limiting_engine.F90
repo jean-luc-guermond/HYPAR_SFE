@@ -155,8 +155,7 @@ CONTAINS
     REAL(KIND=8), DIMENSION(:,:) :: xx_in, xx_out
     REAL(KIND=8), DIMENSION(:)   :: loc_min
     INTEGER,      DIMENSION(:,:) :: jj
-    REAL(KIND=8), DIMENSION(SIZE(xx_in,2))            :: uk_minus, uk_plus, err
-    REAL(KIND=8), DIMENSION(SIZE(jj,1),SIZE(jj,2))    :: xx
+    REAL(KIND=8), DIMENSION(SIZE(xx_in,2))            :: uk_minus, uk_plus
     REAL(KIND=8), DIMENSION(SIZE(jj,1),SIZE(xx_in,2)) :: xx_loc
     REAL(KIND=8), DIMENSION(SIZE(jj,1)) :: loc_min_loc
     REAL(KIND=8), DIMENSION(SIZE(jj,1)) :: lambda_minus, lambda_plus
@@ -167,7 +166,6 @@ CONTAINS
     REAL(KIND=8) :: mass_plus, mass_minus, &
          lambda_K_minus, lambda_K_plus, &
          lambda_star_minus, lambda_star_plus
-    REAL(KIND=8) :: xx_inter(SIZE(xx_in))
     me = SIZE(jj,2)
     nw = SIZE(jj,1)
     syst_size = SIZE(xx_in,2)
@@ -260,7 +258,6 @@ CONTAINS
     REAL(KIND=8), DIMENSION(SIZE(un))      :: alpha, denom
     INTEGER, DIMENSION(SIZE(un)) ::   beta 
     INTEGER      :: i, j, m, me, nw, n, np
-    REAL(KIND=8) :: norm
  
     me = SIZE(jj,2)
     nw = SIZE(jj,1)

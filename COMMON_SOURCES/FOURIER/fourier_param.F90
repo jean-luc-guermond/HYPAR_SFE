@@ -53,7 +53,6 @@ CONTAINS
 
     CLASS(fourier_param_type), INTENT(INOUT):: this
     TYPE(argument_fourier_param_type)  :: argument_data
-    CHARACTER(LEN=rec_length)                         :: string
 
 !================
 !=== MANDATORY Reading all data file

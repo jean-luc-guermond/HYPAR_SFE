@@ -87,7 +87,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(2) :: times
       PROCEDURE(function_template_pressure) :: pressure
       PROCEDURE(function_template_impose_bc) :: impose_bc
-      INTEGER, POINTER, DIMENSION(:) :: ifrom
 
       this%syst_dim = k_dim + 2
 
@@ -192,12 +191,11 @@ CONTAINS
       USE compute_periodic, ONLY : periodic_rhs_petsc
       CLASS(euler_type)                                                     :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
-      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp, un_dummy
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
-      INTEGER :: comp, k, ierr, it, code
-      REAL(KIND = 8) :: norm
+      INTEGER :: comp, k, ierr, it
 
       INTEGER, PARAMETER :: limit_max = 2 !<<FIXME
       un_temp = un
@@ -450,13 +448,13 @@ CONTAINS
      TYPE(mesh_type), POINTER :: mesh
      TYPE(petsc_csr_LA), POINTER :: LA
      REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, comp, rank
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
-     REAL(KIND = 8), DIMENSION(1) :: dijH_c, extrem_value
+     REAL(KIND = 8), DIMENSION(1) :: dijH_c
      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-     REAL(KIND = 8) :: pstar, max_lambda, uijbar, norm_petsc
+     REAL(KIND = 8) :: pstar, max_lambda, uijbar
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
 
@@ -616,7 +614,7 @@ CONTAINS
      REAL(KIND = 8), DIMENSION(:), INTENT(OUT):: alpha
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: rk, rk_norm, eta, logeta
      INTEGER :: k, ierr, np_tot
-     REAL(KIND = 8) :: norm_diff, norm_log, pi=ACOS(-1.d0)
+     REAL(KIND = 8) :: norm_diff, norm_log
      CHARACTER(5) :: char
      PetscReal :: norm
      CALL VecGetSize(this%x5vec, np_tot, ierr)
@@ -838,11 +836,9 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
       REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, k_dim) :: f_loc
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
-      REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
-      REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
       INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm, jj_loc
       REAL(KIND = 8) :: x
-      INTEGER :: i, k, m, ni, nj, iglob
+      INTEGER :: k, m, ni, nj
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
       CALL VecSet(vect, 0.d0, ierr)

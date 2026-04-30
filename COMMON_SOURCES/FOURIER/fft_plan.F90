@@ -19,7 +19,7 @@ CONTAINS
     REAL(KIND=8),    DIMENSION(SIZE(r_in,1),SIZE(r_in,2)/2+1,2), INTENT(OUT) :: cs_out
     REAL(KIND=8)          :: scaling
     INTEGER(KIND=8)       :: plan
-    INTEGER, DIMENSION(1) :: N_fourier, N_theta, inemebed
+    INTEGER, DIMENSION(1) :: N_fourier, N_theta
     INTEGER :: i, howmany_simult_FFT, fft_dim, mesh_np
     INTEGER :: inembed,istride,idist,onembed,ostride,odist
 
@@ -79,8 +79,8 @@ CONTAINS
     COMPLEX(KIND=8), DIMENSION(SIZE(cs_in,1),SIZE(cs_in,2))  :: c_in !===Complex size N
     REAL(KIND=8), DIMENSION(SIZE(cs_in,1),2*SIZE(cs_in,2)-1), INTENT(OUT) :: r_out !===size 2N-1
     INTEGER(KIND=8)       :: plan
-    INTEGER, DIMENSION(1) :: N_fourier, N_theta, inemebed
-    INTEGER :: i, howmany_simult_FFT, fft_dim, mesh_np
+    INTEGER, DIMENSION(1) :: N_fourier, N_theta
+    INTEGER :: howmany_simult_FFT, fft_dim, mesh_np
     INTEGER :: inembed,istride,idist,onembed,ostride,odist
 
     N_theta = 2*SIZE(cs_in,2)-1
