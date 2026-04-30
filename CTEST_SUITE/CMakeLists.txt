@@ -8,7 +8,29 @@ project(REGRESSION_TEST LANGUAGES C Fortran)
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 
 include(variables.cmake)
-define_compile_mode()
+# define_compile_mode()
+
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
+set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
+    " Flags used by the compiler during release builds. ")
+set(CMAKE_Fortran_FLAGS_NATIVE ${native_bounds} CACHE STRING
+        " Flags used by the compiler during native builds. ")
+
+ADD_CUSTOM_TARGET(debug
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Debug")
+
+ADD_CUSTOM_TARGET(release
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Release")
+
+ADD_CUSTOM_TARGET(native
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Native ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Native")
+
 include(function_regression_test.cmake)
 include(CTest)
 
