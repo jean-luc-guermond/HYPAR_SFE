@@ -56,7 +56,9 @@ CONTAINS
         a = SQRT(gamma * in_p / (in_rho * x))
         p2 = in_p(1)
         pstar = p2
-        CALL no_iter_update_lambda(in_u(1), in_p(1), a(1), gamma(1), in_u(2), in_p(2), a(2), gamma(2), p2, lambda_max(1), lambda_max(2))
+        CALL no_iter_update_lambda(in_u(1), in_p(1), a(1), gamma(1),&
+                in_u(2), in_p(2), a(2), gamma(2),&
+                p2, lambda_max(1), lambda_max(2))
         RETURN
      END IF
      !===End check

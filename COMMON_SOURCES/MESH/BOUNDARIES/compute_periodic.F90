@@ -3,7 +3,7 @@ MODULE compute_periodic
    USE periodic_data_module
    IMPLICIT NONE
 
-   PUBLIC :: periodic_matrix_petsc, periodic_rhs_petsc
+   PUBLIC :: periodic_matrix_petsc, periodic_rhs_petsc, periodic_vector_petsc
    PRIVATE
 
 CONTAINS
@@ -123,5 +123,40 @@ CONTAINS
       END DO
 
    END SUBROUTINE periodic_rhs_petsc
+
+   SUBROUTINE periodic_vector_petsc(nb_per_edges, list, perlist, vec_in, LA)
+      USE dyn_line_type
+      USE def_type_mesh
+#include "petsc/finclude/petsc.h"
+      USE petsc
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: nb_per_edges
+      TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
+      TYPE(petsc_csr_la), INTENT(IN) :: LA
+      INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
+      REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals, bs
+      INTEGER :: n, k, n_D
+      Vec                                          :: vec_in
+      PetscErrorCode                               :: ierr
+
+      DO k = 1, SIZE(LA%loc_to_glob, 1)
+         DO n = 1, nb_per_edges
+            n_D = SIZE(list(n)%DIL)
+            ALLOCATE(idxn(n_D), vals(n_D), jdxn(n_D), bs(n_D))
+            idxn = LA%loc_to_glob(k, list(n)%DIL(:)) - 1
+            jdxn = LA%loc_to_glob(k, perlist(n)%DIL(:)) - 1
+            CALL VecGetValues(vec_in, n_D, jdxn, vals, ierr)
+            CALL VecAssemblyBegin(vec_in, ierr)
+            CALL VecAssemblyEnd(vec_in, ierr)
+
+            CALL VecSetValues(vec_in, n_D, idxn, vals, INSERT_VALUES, ierr)
+            CALL VecAssemblyBegin(vec_in, ierr)
+            CALL VecAssemblyEnd(vec_in, ierr)
+
+            IF (ALLOCATED(idxn)) DEALLOCATE(idxn, jdxn, vals, bs)
+         END DO
+      END DO
+
+   END SUBROUTINE periodic_vector_petsc
 
 END MODULE compute_periodic

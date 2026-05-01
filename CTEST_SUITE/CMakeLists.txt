@@ -5,11 +5,17 @@ MESSAGE(STATUS "")
 
 # Project name and version
 project(REGRESSION_TEST LANGUAGES C Fortran)
+MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 include(variables.cmake)
-# define_compile_mode()
+include(function_regression_test.cmake)
+include(CTest)
 
+#==========================================================================
+#=============== setting compile flags
+#==========================================================================
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
 set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
     " Flags used by the compiler during release builds. ")
@@ -30,9 +36,6 @@ ADD_CUSTOM_TARGET(native
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Native ${CMAKE_SOURCE_DIR}
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
     COMMENT "Switch CMAKE_BUILD_TYPE to Native")
-
-include(function_regression_test.cmake)
-include(CTest)
 
 #==========================================================================
 #=============== compilation of HYPAR_SFE libs

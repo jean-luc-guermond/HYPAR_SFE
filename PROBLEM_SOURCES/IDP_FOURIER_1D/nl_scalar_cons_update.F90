@@ -106,11 +106,10 @@ CONTAINS
   SUBROUTINE read_nl_scalar_cons(this)
     IMPLICIT NONE
 
-    CHARACTER(LEN=rec_length) :: section_name='NL SCALAR CONS PARAMETERS'
+    CHARACTER(LEN=rec_length)                :: section_name='NL SCALAR CONS PARAMETERS'
 
     CLASS(nl_scalar_cons_type), INTENT(INOUT):: this
-    TYPE(argument_nl_scalar_cons)  :: argument_data
-    CHARACTER(LEN=rec_length)                         :: string
+    TYPE(argument_nl_scalar_cons)            :: argument_data
 
 !================
 !=== MANDATORY Reading all data file
@@ -182,7 +181,7 @@ CONTAINS
     REAL(KIND=8), DIMENSION(nl_scalar_cons%Nmax,2,nl_scalar_cons%ERK%s) :: flux_rk
     REAL(KIND=8), DIMENSION(nl_scalar_cons%Nmax,2) :: cs_diff, cs_dflux, cs_zz
     REAL(KIND=8), DIMENSION(nl_scalar_cons%Nmax_real) :: u_max, u_min
-    REAL(KIND=8), DIMENSION(nl_scalar_cons%Nmax_real,1) :: r_in, r_out
+    REAL(KIND=8), DIMENSION(nl_scalar_cons%Nmax_real,1) :: r_in
     INTEGER  :: stage, l, it
     !===Compute viscous flux, actual flux, and u_min, u_max (for limiting)
     CALL compute_dt_viscous_flux_min_max(nl_scalar_cons,stage,&
@@ -239,7 +238,7 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real)   :: diag_dijL
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta, eta, etap
-    REAL(KIND = 8) :: x, y, ul, ur, cij, lambda, uijbar, length
+    REAL(KIND = 8) :: ul, ur, cij, lambda, uijbar
     INTEGER :: i, j, m, n, np
 
     CALL Fourier_to_real(u_visc,r_out)
@@ -304,7 +303,8 @@ CONTAINS
          CALL real_to_fourier(r_flux,cs_flux)
 
          IF (nl_scalar_cons%if_limiting) THEN
-            CALL relax_min_and_max(nl_scalar_cons%bound_relaxing,nl_scalar_cons%glob_min,nl_scalar_cons%glob_max,nl_scalar_cons%jj,r_out,umax,umin)
+            CALL relax_min_and_max(nl_scalar_cons%bound_relaxing,nl_scalar_cons%glob_min,&
+                    nl_scalar_cons%glob_max,nl_scalar_cons%jj,r_out,umax,umin)
          END IF
       ELSE
          WRITE(*,*) 'BUG in compute_dt_viscous_flux_min_max, method should be &
@@ -350,7 +350,6 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax,2)   :: cs_diff, cs_flux
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real):: alpha, beta, eta, etap, r_flux
     REAL(KIND = 8) :: Length, x, avg
-    INTEGER :: i
     !===Compute entropy commutator (eta'*dx(f(u))-f'(u)*dx(eta(u)))
     length=nl_scalar_cons%dx*nl_scalar_cons%Nmax_real
     x = sum(r_out)/nl_scalar_cons%Nmax_real

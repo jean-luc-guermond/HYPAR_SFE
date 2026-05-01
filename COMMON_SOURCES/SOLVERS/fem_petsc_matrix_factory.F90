@@ -28,6 +28,29 @@ CONTAINS
     CALL extract(x_ghost, 1, 1, LA, lumped_mass)
   END SUBROUTINE construct_lumped_mass
 
+   SUBROUTINE construct_lumped_mass_vector(mesh, LA, mass, lumped_mass)
+      USE st_matrix, ONLY : create_my_ghost
+      USE compute_periodic, ONLY : periodic_vector_petsc
+      IMPLICIT NONE
+      TYPE(mesh_type), INTENT(IN) :: mesh
+      type(petsc_csr_LA), INTENT(IN) :: LA
+      Mat, INTENT(IN) :: mass
+      Vec :: vec_one, lumped_mass
+      INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
+      INTEGER :: ierr
+
+      !===Create ghost structure
+      CALL create_my_ghost(mesh, LA, ifrom)
+      CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
+            PETSC_DETERMINE, SIZE(ifrom), ifrom, lumped_mass, ierr)
+      CALL VecDuplicate(lumped_mass, vec_one, ierr)
+
+      CALL VecSet(vec_one, 1.d0, ierr)
+      CALL MatMult(mass, vec_one, lumped_mass, ierr)
+      CALL periodic_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, lumped_mass, LA)
+   END SUBROUTINE construct_lumped_mass_vector
+
+
    SUBROUTINE construct_cij(mesh, LA, cij)
       USE space_dim
       USE def_type_mesh
@@ -38,10 +61,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
-!TEST VB
-      ! REAL(KIND = 8) :: norm
-      ! INTEGER :: rank
-!TEST VB
       DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
          DO m = 1, mesh%dom_me
@@ -57,12 +76,6 @@ CONTAINS
          ENDDO
          CALL MatAssemblyBegin(cij(k), MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (cij(k), MAT_FINAL_ASSEMBLY, ierr)
-
-!TEST VB !!! PASSED !!!
-         ! CALL MPI_Comm_Rank(PETSC_COMM_WORLD, rank, ierr)
-         ! CALL MatNorm(cij(k), NORM_1, norm, ierr)
-         ! IF(rank==0) WRITE(*, *) '(INI)  mat cij k= ', k, '=>  L1 Norm = ', norm
-!TEST VB
       END DO
 
 

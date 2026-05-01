@@ -6,14 +6,14 @@ PROGRAM test_fourier_1D_plan
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE read_inputs_module, ONLY : clean_data_once
-   USE my_util, ONLY : error_petsc, itoa
+   USE my_util, ONLY : error_petsc, to_str
 
    IMPLICIT NONE
    TYPE(fourier_param_type)  :: fourier_param
    REAL(KIND=8), PARAMETER ::pi=ACOS(-1.d0)!, Length=2.d0
    REAL(KIND=8), DIMENSION(:,:),   ALLOCATABLE :: ar, ai
    REAL(KIND=8), DIMENSION(:),     ALLOCATABLE :: kvec
-   REAL(KIND=8), DIMENSION(:,:),   ALLOCATABLE :: r_u, r_out, r1, r2
+   REAL(KIND=8), DIMENSION(:,:),   ALLOCATABLE :: r_u, r_out
    REAL(KIND=8), DIMENSION(:,:,:), ALLOCATABLE :: cs_u
    REAL(KIND=8) :: theta, h,  x, r_tol, err
    INTEGER :: i, k, rank, size_glob, dim_1

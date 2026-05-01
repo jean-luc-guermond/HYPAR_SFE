@@ -101,7 +101,7 @@ CONTAINS
     !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
-    !===Checkpointing
+    !===Final time
     CALL read_data(argument_data%final_time, this%final_time)
 
     !===Analytical reference

@@ -5,15 +5,18 @@ MODULE euler_matrices_module
    USE solver_petsc
    USE periodic_data_module
    USE compute_periodic
-   USE fem_petsc_matrix_factory_module
+   USE fem_petsc_matrix_factory_module, &
+              ONLY : construct_lumped_mass_vector, construct_cij
+   USE st_matrix, ONLY : extract_through_ghost
    TYPE euler_matrices_type
       CHARACTER(LEN=200) :: method
-      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
+      ! REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
       REAL(KIND = 8), DIMENSION(:), POINTER :: dK
       Mat :: mass, dijL, stiffL, cij_norm_loc
       Mat :: dijH
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
       Mat, DIMENSION(:,:), ALLOCATABLE :: cij_loc
+      Vec                              :: lump_mass_vec
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_euler_matrices
       PROCEDURE, PRIVATE :: construct_loc_nij
@@ -36,6 +39,9 @@ CONTAINS
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 
+      !===Init global vectors
+      CALL init_my_vectors(communicator, mesh, LA)
+
       IF (.NOT. ALLOCATED(this%cij)) THEN
          ALLOCATE(this%cij(k_dim))
          ALLOCATE(this%nij_loc(k_dim))
@@ -49,16 +55,28 @@ CONTAINS
          CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
       END DO
 
-      ALLOCATE(this%lumped_mass(mesh%np))
+      ! ALLOCATE(this%lumped_mass(mesh%np))
       ALLOCATE(this%dK(mesh%me))
 
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
+      !>>> VB is this correct?? 
+      !>>> because this subroutine is designed to solve AX=Y but does not technically periodize A
       CALL periodic_matrix_petsc(mesh%per, LA, this%mass)
-      CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
-      DO k = 1, mesh%per%nb_bords
-         this%lumped_mass(mesh%per%list(k)%DIL) = this%lumped_mass(mesh%per%perlist(k)%DIL)
-      END DO
+      !>>> VB is this correct??
+
+
+      !>>>> Version with arrays
+      ! CALL construct_lumped_mass(mesh, LA, this%mass, this%lumped_mass)
+      ! DO k = 1, mesh%per%nb_bords
+      !    this%lumped_mass(mesh%per%list(k)%DIL) = this%lumped_mass(mesh%per%perlist(k)%DIL)
+      ! END DO
+      
+      !>>>> Version with petsc vec
+      CALL VecDuplicate(x1vec, this%lump_mass_vec, ierr)
+      CALL construct_lumped_mass_vector(mesh, LA, this%mass, this%lump_mass_vec)
+      
+
       CALL construct_cij(mesh, LA, this%cij)
 
       CALL ISCreateGeneral(communicator, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)

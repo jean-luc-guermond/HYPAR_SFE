@@ -87,7 +87,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(2) :: times
       PROCEDURE(function_template_pressure) :: pressure
       PROCEDURE(function_template_impose_bc) :: impose_bc
-      INTEGER, POINTER, DIMENSION(:) :: ifrom
 
       this%syst_dim = k_dim + 2
 
@@ -118,7 +117,6 @@ CONTAINS
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
 
       !===Goshting structures
-      CALL init_my_vectors(this%communicator, this%mesh, this%LA)
       this%x1vec => x1vec
       this%x2vec => x2vec
       this%x2_ghost => x2_ghost
@@ -189,15 +187,14 @@ CONTAINS
       USE my_util, ONLY : error_petsc
       USE cell_limiting_engine_module
       USE sub_plot
-      USE compute_periodic, ONLY : periodic_rhs_petsc
+      USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
       CLASS(euler_type)                                                     :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT) :: un
-      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp, un_dummy
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim) :: ff
       REAL(KIND = 8), DIMENSION(this%mesh%np)                       :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%np,2)                     :: bounds
-      INTEGER :: comp, k, ierr, it, code
-      REAL(KIND = 8) :: norm
+      INTEGER :: comp, k, ierr, it
 
       INTEGER, PARAMETER :: limit_max = 2 !<<FIXME
       un_temp = un
@@ -207,7 +204,6 @@ CONTAINS
          !===compute dijL and dt
          CALL this%compute_dij(un_temp, bounds)
          CALL this%compute_dt
-
          this%time = this%time + this%dt
 
          DO comp = 1, this%syst_dim
@@ -228,26 +224,21 @@ CONTAINS
             CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
             !=== add dij un(comp)to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
-            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
-            CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk, &
+            !=== VB WRONG?????
+            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
+            !=== VB WRONG?????
+
+            !=== x3 <-- x2 / lumped_mass
+            CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
+            !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
+            CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+            !=== un+1 <-- x3
+            CALL extract_through_ghost(this%x3vec, this%x2_ghost, 1, 1, this%LA, un(:, comp), &
                                     'insert', opt_assemble=.FALSE.)
 
-            ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-            ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-            ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-            ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
-
-            rk = rk * this%dt / this%matrices%lumped_mass
-
-            un(:, comp) = un_temp(:, comp) + rk
-
-            DO k = 1, this%mesh%per%nb_bords
-               un(this%mesh%per%list(k)%DIL, comp) = un(this%mesh%per%perlist(k)%DIL, comp)
-            END DO
-
             CALL this%impose_bc(un, this%euler_bc, this%mesh, this%time)
-
          END DO
       CASE('high')
          !===compute dijL and dt
@@ -286,22 +277,36 @@ CONTAINS
            !END TEST
             !=== add dij un(comp)to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
+!VB wrong???
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-
-            CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk, &
+!VB wrong???
+            !=== Inverting mass matrix and updating un with dt
+!======================== USING LUMPED MASS =========================!
+            ! !=== x3 <-- x2 / lumped_mass
+            ! CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
+            ! !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
+            ! CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+            ! CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+            ! !=== un+1 <-- x3
+            ! CALL extract_through_ghost(this%x3vec, this%x2_ghost, 1, 1, this%LA, un(:, comp), &
+            !                         'insert', opt_assemble=.FALSE.)
+!======================== USING FULL MASS =========================!
+            !=== x2 = rk
+            !=== x3 <-- lump_inv @ rk
+            CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
+            !=== x4 <-- Mass @ x3 (x4 <-- Mass@lump_inv@rk)
+            CALL MatMult(this%matrices%mass, this%x3vec, this%x4vec, ierr)
+            !=== x2 <-- lump_inv @ x4 (x2 <-- lump_inv @ Mass @ lump_inv @ rk)
+            CALL VecPointWiseDivide(this%x2vec, this%x4vec, this%matrices%lump_mass_vec, ierr)
+            !=== x3 <-- 2*x3 - x2 = (2I - lump_inv @ Mass) @ lump_inv @ rk
+            !=== in petsc, VecAXPBY(y_vec, alpha, beta, x_vec) ==> y <-- y*beta + x*alpha ... ...
+            CALL VecAXPBY(this%x3vec, -1.d0, 2.d0, this%x2vec, ierr)
+            !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
+            CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+            !=== Manually make un periodic and extract the result
+            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+            CALL extract_through_ghost(this%x3vec, this%x2_ghost, 1, 1, this%LA, un(:, comp), &
                                     'insert', opt_assemble=.FALSE.)
-            ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-            ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-            ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-            ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
-
-            ! rk = rk * this%dt / this%matrices%lumped_mass
-            !===FIXME
-            rk = rk*this%dt
-            CALL divide_by_mass(this,rk)
-            !===FIXME
-
-            un(:, comp) = un_temp(:, comp) + rk
          END DO
          !===Limiting
          IF (this%limiting%if_limiting) THEN
@@ -362,7 +367,7 @@ CONTAINS
 
    FUNCTION flux(this, comp, un) RESULT(vv)  
       USE space_dim
-      USE my_util, ONLY : error_petsc, itoa
+      USE my_util, ONLY : error_petsc, to_str
       IMPLICIT NONE
       CLASS(euler_type)                           :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: un
@@ -397,7 +402,7 @@ CONTAINS
             vv(:, k) = (un(:, k + 1) / un(:, 1)) * H
          END DO
       CASE DEFAULT
-         CALL error_petsc(' BUG in flux, wrong comp = '//itoa(comp)//" with k_dim="//itoa(k_dim))
+         CALL error_petsc(' BUG in flux, wrong comp = '//to_str(comp)//" with k_dim="//to_str(k_dim))
       END SELECT
     END FUNCTION flux
 
@@ -428,14 +433,12 @@ CONTAINS
       REAL(KIND = 8) :: dt_min_loc, dt_min_glob
       INTEGER :: ierr
 
-      CALL MatGetDiagonal(this%matrices%dijL, this%vec_loc, ierr)
-      CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dijL_diag, ierr)
-      dijL_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dijL_diag)
+      CALL MatGetDiagonal(this%matrices%dijL, this%x1vec, ierr)
+      CALL VecAbs(this%x1vec, ierr)
+      CALL VecPointWiseDivide(this%x2vec, this%matrices%lump_mass_vec, this%x1vec, ierr)
+      CALL VecMin(this%x2vec, PETSC_NULL_INTEGER, dt_min_glob, ierr)
 
-      dt_min_loc = MINVAL(dijL_diag) / 2.d0
-
-      CALL MPI_ALLREDUCE(dt_min_loc, dt_min_glob, 1, MPI_DOUBLE_PRECISION, MPI_MIN, PETSC_COMM_WORLD, ierr)
-      this%dt = this%CFL * dt_min_glob
+      this%dt = this%CFL * dt_min_glob / 2
    END SUBROUTINE compute_dt
 
    SUBROUTINE compute_dij(this, un, bounds)
@@ -450,13 +453,13 @@ CONTAINS
      TYPE(mesh_type), POINTER :: mesh
      TYPE(petsc_csr_LA), POINTER :: LA
      REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, comp, rank
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
-     REAL(KIND = 8), DIMENSION(1) :: dijH_c, extrem_value
+     REAL(KIND = 8), DIMENSION(1) :: dijH_c
      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-     REAL(KIND = 8) :: pstar, max_lambda, uijbar, norm_petsc
+     REAL(KIND = 8) :: pstar, max_lambda, uijbar
      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
 
@@ -567,45 +570,32 @@ CONTAINS
       IF (this%method=='high') THEN
          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-         !VB: CORRECTION ==> compatibility with several procs
+
          CALL array_to_petsc_vec(bounds(:,1), this%x1vec, this%mesh, this%LA, 'insert')
          CALL extract_through_ghost(this%x1vec, this%x2_ghost, 1, 1, this%LA, bounds(:, 1), &
                                  'min', opt_assemble=.FALSE.)
-         ! CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
-         ! CALL VecGhostUpdateBegin(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
-         ! CALL VecGhostUpdateEnd(this%x1vec, MIN_VALUES, SCATTER_FORWARD, ierr)
-         ! CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 1))
 
          CALL array_to_petsc_vec(bounds(:,2), this%x1vec, this%mesh, this%LA, 'insert')
          CALL extract_through_ghost(this%x1vec, this%x2_ghost, 1, 1, this%LA, bounds(:, 2), &
                                  'max', opt_assemble=.FALSE.)
-         ! CALL VecGhostGetLocalForm(this%x1vec, this%x2_ghost, ierr)
-         ! CALL VecGhostUpdateBegin(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
-         ! CALL VecGhostUpdateEnd(this%x1vec, MAX_VALUES, SCATTER_FORWARD, ierr)
-         ! CALL extract(this%x2_ghost, 1, 1, this%LA, bounds(:, 2))
-         !VB: CORRECTION ==> compatibility with several procs
       END IF
    END SUBROUTINE compute_dij
 
-   SUBROUTINE divide_by_mass(this,rk)
-      IMPLICIT NONE
-      CLASS(euler_type) :: this
+   ! SUBROUTINE divide_by_mass(this,rk)
+   !    IMPLICIT NONE
+   !    CLASS(euler_type) :: this
 
-      REAL(KIND = 8), DIMENSION(:) :: rk
-      REAL(KIND = 8), DIMENSION(SIZE(rk)) :: rk_cp
-      INTEGER :: ierr
-      rk = rk/this%matrices%lumped_mass
-      CALL array_to_petsc_vec(rk, this%x1vec, this%mesh, this%LA, 'insert')
-      CALL MatMult(this%matrices%mass, this%x1vec, this%x2vec, ierr)
+   !    REAL(KIND = 8), DIMENSION(:) :: rk
+   !    REAL(KIND = 8), DIMENSION(SIZE(rk)) :: rk_cp
+   !    INTEGER :: ierr
+   !    rk = rk/this%matrices%lumped_mass
+   !    CALL array_to_petsc_vec(rk, this%x1vec, this%mesh, this%LA, 'insert')
+   !    CALL MatMult(this%matrices%mass, this%x1vec, this%x2vec, ierr)
 
-      CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk_cp, &
-                              'insert', opt_assemble=.FALSE.)
-      ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-      ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL extract(this%x2_ghost, 1, 1, this%LA, rk_cp)
-      rk = 2*rk - rk_cp/this%matrices%lumped_mass
-   END SUBROUTINE divide_by_mass
+   !    CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, rk_cp, &
+   !                            'insert', opt_assemble=.FALSE.)
+   !    rk = 2*rk - rk_cp/this%matrices%lumped_mass
+   ! END SUBROUTINE divide_by_mass
 
    SUBROUTINE commutator(this, un, alpha)
      USE space_dim
@@ -616,7 +606,7 @@ CONTAINS
      REAL(KIND = 8), DIMENSION(:), INTENT(OUT):: alpha
      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: rk, rk_norm, eta, logeta
      INTEGER :: k, ierr, np_tot
-     REAL(KIND = 8) :: norm_diff, norm_log, pi=ACOS(-1.d0)
+     REAL(KIND = 8) :: norm_diff, norm_log
      CHARACTER(5) :: char
      PetscReal :: norm
      CALL VecGetSize(this%x5vec, np_tot, ierr)
@@ -805,7 +795,7 @@ CONTAINS
      PetscErrorCode                              :: ierr
      CALL VecSet(vect, 0.d0, ierr)
 
-     WRITE(*,*) "VB: WARNING ==> this subroutine does not call any ghost points???"
+     WRITE(*,*) "VB: WARNING (20/04/2026) ==> this subroutine does not call any ghost points???"
      STOP
 
      DO m = 1, this%mesh%me
@@ -822,7 +812,11 @@ CONTAINS
      CALL VecAssemblyEnd(vect, ierr)
 
      CALL VecGetValues(this%vec_loc, this%mesh%dom_np, this%tab, dijL_diag, ierr)
-     dijL_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dijL_diag)
+
+     WRITE(*,*) "VB: WARNING (01/05/2026) ==> this subroutine (not used right now) uses lumped_mass.",&
+     " Must be rewritten using lump_mass_vec instead"
+     STOP
+   !   dijL_diag = this%matrices%lumped_mass(1:this%mesh%dom_np) / ABS(dijL_diag)
 
      dt_min_loc = MINVAL(dijL_diag) / 2.d0
 
@@ -838,11 +832,9 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w) :: v_loc
       REAL(KIND = 8), DIMENSION(this%mesh%gauss%n_w, k_dim) :: f_loc
       REAL(KIND = 8), DIMENSION(this%mesh%np) :: v_glb
-      REAL(KIND = 8), DIMENSION(this%mesh%me) :: volK
-      REAL(KIND = 8), DIMENSION(this%mesh%gauss%l_G) :: wwrj
       INTEGER, DIMENSION(this%mesh%gauss%n_w) :: idxm, jj_loc
       REAL(KIND = 8) :: x
-      INTEGER :: i, k, m, ni, nj, iglob
+      INTEGER :: k, m, ni, nj
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
       CALL VecSet(vect, 0.d0, ierr)

@@ -24,13 +24,11 @@ MODULE euler_post_proc_module
          CALL VecAXPY(this%x2vec, 1.0d0, this%x4vec, ierr)
       END DO
 
-      ! CALL VecGhostGetLocalForm(this%x2vec, this%x2_ghost, ierr)
-      ! CALL VecGhostUpdateBegin(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL VecGhostUpdateEnd(this%x2vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL extract(this%x2_ghost, 1, 1, this%LA, grad)
-      CALL extract_through_ghost(this%x2vec, this%x2_ghost, 1, 1, this%LA, grad, &
+      CALL VecSqrtAbs(this%x2vec, ierr)
+      CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
+      CALL extract_through_ghost(this%x3vec, this%x2_ghost, 1, 1, this%LA, grad, &
                                 'insert', opt_assemble=.FALSE.)
-      grad = sqrt(grad)/this%matrices%lumped_mass
+      ! grad = sqrt(grad)/this%matrices%lumped_mass
 
 
       mxmn(1)=MAXVAL(grad)

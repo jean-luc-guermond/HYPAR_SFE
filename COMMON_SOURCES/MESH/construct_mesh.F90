@@ -18,12 +18,11 @@ CONTAINS
     USE Dir_nodes
     USE space_dim
     USE mesh_parameters
+    USE my_util, ONLY : error_petsc, to_str
 
     IMPLICIT NONE
     LOGICAL, OPTIONAL :: opt_edge_stab
     INTEGER, OPTIONAL :: opt_fe
-    !TYPE(periodic_type), DIMENSION(:), OPTIONAL :: opt_pers
-    ! TYPE(mesh_data_type) :: mesh_data
     INTEGER, DIMENSION(1) :: list_dom = 1
     INTEGER, DIMENSION(0) :: list_inter
     INTEGER, DIMENSION(:), ALLOCATABLE :: part
@@ -116,8 +115,8 @@ CONTAINS
        mesh%rank = rank
        
     CASE DEFAULT
-       IF(rank == 0) write(*, *) ' BUG in construct_mesh, k_dim not correct'
-       STOP
+       CALL error_petsc("BUG in construct_mesh, incorrect k_dim="//to_str(k_dim)//&
+                         "  should be 1 or 2")
     END SELECT
 
     mesh%edge_stab = .false. !FIXME remove edge_stab
@@ -174,11 +173,13 @@ CONTAINS
                list_dom(nx) = list_loc(i)
                perlist_dom(nx) = perlist_loc(i)
             ELSE IF (MIN(list_loc(i), perlist_loc(i)) .LE. mesh%dom_np) THEN
-               WRITE(*, *) 'BUG in prep_periodic_scal, one of the boundary point is not attributed the same processor.'
+               WRITE(*, *) 'BUG in prep_periodic_scal, one of the boundary point is not attributed the same processor.',&
+                           'rank = ', mesh%rank, list_loc(i), perlist_loc(i), mesh%dom_np
                STOP
             END IF
          END DO
-         IF (n_b /= nx) WRITE(*, *) 'WARNING, I have removed', n_b - nx, ' periodic pairs in prep_periodic_scal'
+         IF (n_b /= nx) WRITE(*, *) 'WARNING on bord n=',n,', I have removed', n_b - nx, &
+                                   ' periodic pairs in prep_periodic_scal for rank ', mesh%rank
          n_b = nx
 
          ALLOCATE (periodic%list(n)%DIL(n_b), periodic%perlist(n)%DIL(n_b))

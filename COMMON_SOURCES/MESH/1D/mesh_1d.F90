@@ -7,7 +7,7 @@ CONTAINS
 
    SUBROUTINE load_mesh_1d(directory, file_name, mesh, if_mesh_formatted)
       USE mesh_parameters
-      USE my_util, ONLY : error_petsc, itoa
+      USE my_util, ONLY : error_petsc, to_str
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       CHARACTER(*) :: directory, file_name
@@ -107,13 +107,13 @@ CONTAINS
       mesh%domedge(1) = mesh%medge
 
       IF (mesh_data_info%nb_refinement > 0) THEN
-         CALL error_petsc(' BUG load_mesh_1d: refinements '//itoa(mesh_data_info%nb_refinement)//' &
+         CALL error_petsc(' BUG load_mesh_1d: refinements '//to_str(mesh_data_info%nb_refinement)//' &
          not programmed yet, only "0" available')
       END IF
       IF (type_fe==1) THEN
          CALL GAUSS_POINT_1d(mesh)
       ELSE
-         CALL error_petsc(' BUG load_mesh_1d: FE '//itoa(type_fe)//' &
+         CALL error_petsc(' BUG load_mesh_1d: FE '//to_str(type_fe)//' &
          not programmed yet, only "1" available')
       END IF
 

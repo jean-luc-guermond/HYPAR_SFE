@@ -1,6 +1,6 @@
 MODULE my_util
   IMPLICIT NONE
-  PUBLIC :: user_time, error_Petsc, itoa, WRITE_rank_0
+  PUBLIC :: user_time, error_Petsc, to_str, WRITE_rank_0
 CONTAINS
   !
   !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
@@ -40,13 +40,13 @@ CONTAINS
 
    !========================================================================
    
-   FUNCTION itoa(i) RESULT (str)
+   FUNCTION to_str(i) RESULT (str)
       INTEGER, INTENT(IN) :: i
       CHARACTER(LEN=:), ALLOCATABLE :: str
       CHARACTER(LEN=32) :: tmp
 
       WRITE(tmp, '(I0)') i
       str = trim(tmp)
-   END FUNCTION itoa
+   END FUNCTION to_str
 
 END MODULE my_util

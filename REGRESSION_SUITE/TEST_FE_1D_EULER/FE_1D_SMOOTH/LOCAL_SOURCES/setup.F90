@@ -50,14 +50,26 @@ CONTAINS
    SUBROUTINE init(un, time, rr)
       USE def_of_gamma
       USE lambda_module
+      USE my_util, ONLY : error_petsc, to_str
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
       REAL(KIND = 8), INTENT(IN) :: time
+      INTEGER :: comp
 
-      un(:, 1) = rho_anal(time, rr)
-      un(:, 2) = mt_anal(1, time, rr)
-      un(:, 3) = E_anal(time, rr)
+      DO comp=1, SIZE(un, 2)
+         SELECT CASE(comp)
+         CASE(1)
+            un(:, comp) = rho_anal(time, rr)
+         CASE(2:k_dim+1)
+            un(:, comp) = mt_anal(comp-1, time, rr)
+         CASE(k_dim+2)
+            un(:, comp) = E_anal(time, rr)
+         CASE DEFAULT
+            CALL error_petsc("BUG in init setup, wrong component "//to_str(comp)//&
+                             " Max authorized is "//to_str(k_dim+2))
+         END SELECT
+      END DO
       CALL set_gamma_for_riemann_solver(gamma)
    END SUBROUTINE init
 
