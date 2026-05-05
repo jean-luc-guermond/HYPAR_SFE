@@ -4,7 +4,7 @@ MODULE cell_limiting_engine_parallel_module
    USE def_type_mesh
    USE st_matrix, ONLY : extract_through_ghost, create_my_ghost
    USE read_inputs_module
-   ! INTEGER, PARAMETER, PRIVATE :: rec_length = 200
+
    TYPE argument_limiting_type
       CHARACTER(LEN=rec_length) :: if_limiting       = '=== Apply cell-limiting (T/F) ? ==='
       CHARACTER(LEN=rec_length) :: if_relax_bounds   = '=== Apply bound relaxation for limiting (T/F) ? ==='
@@ -27,9 +27,32 @@ MODULE cell_limiting_engine_parallel_module
       PROCEDURE, PUBLIC  :: init => init_limiting
       PROCEDURE, PUBLIC  :: read => read_limiting_data
       PROCEDURE, PUBLIC  :: iterative_cell_limiting_procedure
-   END type limiting_type
+   END TYPE limiting_type
 
+   ABSTRACT INTERFACE
+      FUNCTION template_zero_of_psi(psi_m,u0,P) RESULT(v)
+         IMPLICIT NONE
+         REAL(KIND=8), DIMENSION(:), INTENT(IN) :: u0, P
+         REAL(KIND=8), INTENT(IN)  :: psi_m
+         REAL(KIND=8), INTENT(OUT) :: v
+      END FUNCTION template_zero_of_psi
+
+      FUNCTION template_psi(x,psi_m) RESULT(v)
+         IMPLICIT NONE
+         REAL(KIND=8), DIMENSION(:), INTENT(IN) :: x
+         REAL(KIND=8), INTENT(IN) :: psi_m
+         REAL(KIND=8), INTENT(OUT):: v
+      END FUNCTION template_psi
+   END INTERFACE
+
+   TYPE :: limiting_bounds_type
+   CONTAINS
+      PROCEDURE(template_psi),         DEFERRED :: psi_min, psi_max
+      PROCEDURE(template_zero_of_psi), DEFERRED :: zero_of_psi_min, zero_of_psi_max
+   END TYPE limiting_bounds_type
+   
 CONTAINS
+
    SUBROUTINE init_limiting(this, communicator, name, mesh, LA)
 #include "petsc/finclude/petsc.h"
       USE petsc 
@@ -44,8 +67,8 @@ CONTAINS
       CHARACTER(100),             INTENT(IN) :: name
       TYPE(mesh_type),    TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
-      REAL(KIND=8), DIMENSION(mesh%np) :: vol_of_Ti
-      REAL(KIND=8), DIMENSION(mesh%gauss%n_w) :: vol_of_Ti_loc
+      REAL(KIND=8), DIMENSION(mesh%np)         :: vol_of_Ti
+      REAL(KIND=8), DIMENSION(mesh%gauss%n_w)  :: vol_of_Ti_loc
       INTEGER, DIMENSION(SIZE(mesh%jj,1))      :: idxm
 
       INTEGER, POINTER, DIMENSION(:) :: ifrom
@@ -80,13 +103,6 @@ CONTAINS
       this%localized_mass = 0.d0
 
 !VB CORRECTED VERSION WHEN SEVERAL PROCESSES
-      !  vol_of_Ti = 0.d0
-      !  DO m = 1, mesh%me
-      !     volK = SUM(mesh%gauss%rj(:,m))
-      !     DO n = 1, mesh%gauss%n_w
-      !        vol_of_Ti(mesh%jj(n,m)) =  vol_of_Ti(mesh%jj(n,m)) + volK
-      !     END DO
-      !  END DO
       vol_of_Ti_loc = 0.d0
       DO m = 1, mesh%me
          volK = SUM(mesh%gauss%rj(:,m))
@@ -99,14 +115,6 @@ CONTAINS
 
       CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, vol_of_Ti, &
                                 'insert', opt_assemble=.TRUE.)
-
-      ! CALL VecAssemblyBegin(this%xvect, ierr)
-      ! CALL VecAssemblyEnd(this%xvect, ierr)
-
-      ! CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
-      ! CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL VecGhostUpdateEnd(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL extract(this%x_ghost, 1, 1, this%LA, vol_of_Ti)
 !VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
       DO m = 1, mesh%me
@@ -154,20 +162,27 @@ CONTAINS
       CALL finalize_rewrite_data
    END SUBROUTINE read_limiting_data
 
-   SUBROUTINE iterative_cell_limiting_procedure(this,xx_in,loc_min,psi,zero_of_psi,xx_out)  
+   SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, min_max, xx_out)  
+   ! SUBROUTINE iterative_cell_limiting_procedure(this,xx_in,loc_min,psi,zero_of_psi,xx_out)  
       IMPLICIT NONE
-      INTERFACE
-         FUNCTION psi(x,psi_min) RESULT(v)
-            REAL(KIND=8), DIMENSION(:) :: x
-            REAL(KIND=8) :: psi_min, v
-         END FUNCTION psi
-         FUNCTION zero_of_psi(psi_min,u0,P) RESULT(v)
-            REAL(KIND=8), DIMENSION(:) :: u0, P
-            REAL(KIND=8) :: psi_min, v
-         END FUNCTION zero_of_psi
-      END INTERFACE
-      CLASS(limiting_type), INTENT(INOUT) :: this
-      REAL(KIND=8), DIMENSION(:,:) :: xx_in, xx_out
+      ! INTERFACE
+      !    FUNCTION psi(x,psi_min) RESULT(v)
+      !       REAL(KIND=8), DIMENSION(:) :: x
+      !       REAL(KIND=8) :: psi_min, v
+      !    END FUNCTION psi
+      !    FUNCTION zero_of_psi(psi_min,u0,P) RESULT(v)
+      !       REAL(KIND=8), DIMENSION(:) :: u0, P
+      !       REAL(KIND=8) :: psi_min, v
+      !    END FUNCTION zero_of_psi
+      ! END INTERFACE
+      CLASS(limiting_type),         INTENT(IN) :: this
+      CLASS(limiting_bounds_type),  INTENT(IN) :: lim_bounds
+      PROCEDURE(template_zero_of_psi), POINTER :: zero_of_psi
+      PROCEDURE(template_psi)        , POINTER :: psi
+      CHARACTER(LEN=*),             INTENT(IN) :: minmax
+      REAL(KIND=8), DIMENSION(:,:),                         INTENT(IN) :: xx_in
+      REAL(KIND=8), DIMENSION(SIZE(xx_in,1),SIZE(xx_in,2)), INTENT(OUT):: xx_out
+
       REAL(KIND=8), DIMENSION(:)   :: loc_min
       REAL(KIND=8), DIMENSION(SIZE(xx_in,2))               :: uk_minus, uk_plus
       REAL(KIND=8), DIMENSION(SIZE(this%jj,1),SIZE(this%jj,2),SIZE(xx_in,2))    :: xx
@@ -181,6 +196,18 @@ CONTAINS
       REAL(KIND=8) :: mass_plus, mass_minus, &
             lambda_K_minus, lambda_K_plus, &
             lambda_star_minus, lambda_star_plus
+
+      SELECT CASE(minmax)
+      CASE('MAX')
+         zero_of_psi => lim_bounds%zero_of_psi_max
+         psi         => lim_bounds%psi_max
+      CASE('MIN')
+         zero_of_psi => lim_bounds%zero_of_psi_min
+         psi         => lim_bounds%psi_min
+      CASE DEFAULT
+         CALL error_petsc("BUG in iterative_cell_limiting_procedure: you selected "//minmax//&
+         ", please select either MIN or MAX.")
+      END SELECT
 
       me = SIZE(this%jj,2)
       nw = SIZE(this%jj,1)
