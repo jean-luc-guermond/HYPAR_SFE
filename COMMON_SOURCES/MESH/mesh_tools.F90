@@ -12,7 +12,10 @@ CONTAINS
 
       mesh2%me = mesh1%me
       mesh2%mes = mesh1%mes
-      mesh2%mes_int = mesh1%mes
+!VB CORRECTION
+      mesh2%mes_int = mesh1%mes_int
+      ! mesh2%mes_int = mesh1%mes
+!VB CORRECTION
       mesh2%np = mesh1%np
       mesh2%nps = mesh1%nps
       mesh2%mi = mesh1%mi

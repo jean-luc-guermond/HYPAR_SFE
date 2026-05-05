@@ -61,7 +61,6 @@ CONTAINS
           CLOSE(51)
        ELSE
           IF (rank == 0) WRITE(*, *) 'create partition'
-!!$          CALL part_mesh(nb_proc, mesh_glob, list_inter, part, opt_pers)
           CALL part_mesh(nb_proc, mesh_glob, list_inter, part)
           IF (rank==0) THEN
              OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'replace', FORM = 'formatted')
@@ -175,6 +174,7 @@ CONTAINS
             ELSE IF (MIN(list_loc(i), perlist_loc(i)) .LE. mesh%dom_np) THEN
                WRITE(*, *) 'BUG in prep_periodic_scal, one of the boundary point is not attributed the same processor.',&
                            'rank = ', mesh%rank, list_loc(i), perlist_loc(i), mesh%dom_np
+               WRITE(*,*) "BUG IS OCURRING AT COORDINATES LIST = ", mesh%rr(:, list_loc(i)), "PERLIST = ", mesh%rr(:, perlist_loc(i))
                STOP
             END IF
          END DO

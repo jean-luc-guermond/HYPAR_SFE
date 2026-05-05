@@ -6,366 +6,517 @@ MODULE two_dim_metis_distribution
    PRIVATE
    REAL(KIND = 8) :: epsilon = 1.d-10
 CONTAINS
-  SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part)!, my_periodics)
-    USE def_type_mesh
-    USE my_util
-    USE sub_plot
-    ! USE periodic_data_module
-    USE mesh_parameters
-    IMPLICIT NONE
-!!$ Dummy for metis...
-    INTEGER, PARAMETER :: METIS_NOPTIONS = 40
-!!$ Dummy for metis...
-    TYPE(mesh_type) :: mesh
-    INTEGER, DIMENSION(mesh%me) :: part
-    INTEGER, DIMENSION(:) :: list_of_interfaces
-    ! TYPE(periodic_type), DIMENSION(:), TARGET, OPTIONAL :: my_periodics
-    ! TYPE(periodic_type), POINTER :: my_periodic
-    LOGICAL, DIMENSION(mesh%mes) :: virgins
-    INTEGER, DIMENSION(3, mesh%me) :: neigh_new
-    INTEGER, DIMENSION(5) :: opts
-    INTEGER, DIMENSION(SIZE(mesh%jjs, 1)) :: i_loc
-    INTEGER, DIMENSION(:), ALLOCATABLE :: xind_dom, xadj_dom
-    INTEGER, DIMENSION(:), ALLOCATABLE :: vwgt, adjwgt
-    INTEGER, DIMENSION(1) :: jm_loc
-    INTEGER, DIMENSION(mesh%np, 3) :: per_pts
-    INTEGER, DIMENSION(mesh%np) :: indicator
-    INTEGER, DIMENSION(3) :: j_loc
-    INTEGER :: nb_neigh, edge, m, ms, n, nb, numflag, p, wgtflag, j, &
-         ns, nws, msop, nsop, proc, iop, mop, s2, k, me
-    REAL(KIND = 8) :: err
-    LOGICAL :: test
-    !===(JLG) Feb 20, 2019. Petsc developpers decide to use REAL(KIND=4) to interface with metis
-    !REAL(KIND=8), DIMENSION(:), ALLOCATABLE  :: tpwgts
-    !REAL(KIND=8), DIMENSION(1)               :: ubvec
-    REAL(KIND = 4), DIMENSION(:), ALLOCATABLE :: tpwgts
-    REAL(KIND = 4), DIMENSION(1) :: ubvec
-    REAL(KIND = 4) :: one_K4 = 1.0
-    !===(JLG)Feb 20, 2019.
-    INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
-    PetscMPIInt    :: nb_proc
-!!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
-    PetscErrorCode :: ierr
-    PetscMPIInt    :: rank
-    CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
-!!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
+   SUBROUTINE part_mesh(nb_proc, mesh, list_of_interfaces, part)
+      USE def_type_mesh
+      USE my_util
+      USE sub_plot
+      ! USE periodic_data_module
+      USE mesh_parameters
+      IMPLICIT NONE
+   !!$ Dummy for metis...
+      INTEGER, PARAMETER :: METIS_NOPTIONS = 40
+   !!$ Dummy for metis...
+      TYPE(mesh_type) :: mesh
+      INTEGER, DIMENSION(mesh%me) :: part
+      INTEGER, DIMENSION(:) :: list_of_interfaces
 
-    me = mesh%me
-    IF (me == 0) THEN
-       RETURN
-    END IF
+      INTEGER, DIMENSION(3, mesh%me) :: neigh_new
+      INTEGER, DIMENSION(:), ALLOCATABLE :: xind_dom, xadj_dom
+      INTEGER, DIMENSION(:), ALLOCATABLE :: vwgt, adjwgt
+      INTEGER, DIMENSION(mesh%np, 3) :: per_pts
+      INTEGER :: edge, me
 
-    IF (nb_proc==1) THEN
-       part = 1
-       RETURN
-    END IF
+      !===(JLG) Feb 20, 2019. Petsc developpers decide to use REAL(KIND=4) to interface with metis
+      !REAL(KIND=8), DIMENSION(:), ALLOCATABLE  :: tpwgts
+      !REAL(KIND=8), DIMENSION(1)               :: ubvec
+      REAL(KIND = 4), DIMENSION(:), ALLOCATABLE :: tpwgts
+      REAL(KIND = 4), DIMENSION(1) :: ubvec
+      !===(JLG)Feb 20, 2019.
+      INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
+      PetscMPIInt    :: nb_proc
+   !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
+      PetscErrorCode :: ierr
+      PetscMPIInt    :: rank
+      CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
+   !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
 
-    neigh_new = mesh%neigh
+      me = mesh%me
+      IF (me == 0) RETURN
 
-    !===Create neigh_new for interfaces
-    nws = SIZE(mesh%jjs, 1)
-    IF (SIZE(list_of_interfaces)/=0) THEN
-       virgins = .TRUE.
-       DO ms = 1, mesh%mes
-          IF (.NOT.virgins(ms)) CYCLE
-          IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
-          i_loc = mesh%jjs(:, ms)
-          DO msop = 1, mesh%mes
-             IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
-             IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
-             DO ns = 1, nws
-                test = .FALSE.
-                DO nsop = 1, nws
-                   iop = mesh%jjs(nsop, msop)
-                   IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
-                      test = .TRUE.
-                      EXIT
-                   END IF
-                END DO
-                IF (.NOT.test) THEN
-                   EXIT !==This msop does not coincide with ms
-                END IF
-             END DO
-             IF (test) EXIT
-          END DO
-          IF (.NOT.test) THEN
-             CALL error_Petsc('BUG in part_mesh_M_T_H_phi, .NOT.test ')
-          END IF
-          DO n = 1, 3
-             IF (neigh_new(n, mesh%neighs(msop))==0) THEN
-                neigh_new(n, mesh%neighs(msop)) = mesh%neighs(ms)
-             END IF
-             IF (neigh_new(n, mesh%neighs(ms))==0) THEN
-                neigh_new(n, mesh%neighs(ms)) = mesh%neighs(msop)
-             END IF
-          END DO
-          virgins(ms) = .FALSE.
-          virgins(msop) = .FALSE.
-       END DO
-    END IF
-    !===End Create neigh_new for interfaces
+      IF (nb_proc==1) THEN
+         part = 1
+         RETURN
+      END IF
 
-    !===Create neigh_new for periodic faces
-    IF (mesh_data_info%nb_bords/=0) THEN
-       ! IF (PRESENT(my_periodics)) THEN
-       ! DO k = 1, SIZE(my_periodics)
-       !  my_periodic => my_periodics(k)
-       !  IF (mesh_%nb_bords/=0) THEN
-       DO ms = 1, mesh%mes
-          m = mesh%neighs(ms)
-          IF (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) == 0) THEN
-             jm_loc = MINLOC(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :)))
-             s2 =  mesh_data_info%list_periodic(2, jm_loc(1))
-             test = .FALSE.
-             DO msop = 1, mesh%mes
-                IF (mesh%sides(msop) /= s2) CYCLE
+      neigh_new = mesh%neigh
 
-                err = 0.d0
-                DO ns = 1, SIZE( mesh_data_info%vect_e, 1)
-                   err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                        +mesh_data_info%vect_e(ns, jm_loc(1))))
-                END DO
+      !===Create neigh_new for interfaces
+      IF (SIZE(list_of_interfaces)/=0) THEN
+         CALL create_neigh_interfaces(mesh, neigh_new, list_of_interfaces)
+      END IF
+      !===End Create neigh_new for interfaces
 
-                IF (err .LE. epsilon) THEN
-                   test = .TRUE.
-                   EXIT
-                END IF
-             END DO
-             IF (.NOT.test) THEN
-                CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
-             END IF
-             mop = mesh%neighs(msop)
-             DO n = 1, 3
-                IF (neigh_new(n, m) == 0) THEN
-                   neigh_new(n, m) = mop
-                END IF
-                IF (neigh_new(n, mop) == 0) THEN
-                   neigh_new(n, mop) = m
-                END IF
-             END DO
-          END IF
-       END DO
-       ! END IF
-       !END DO
-    END IF
-    !===End Create neigh_new for periodic faces
+      !===Create neigh_new for periodic faces
+      IF (mesh_data_info%nb_bords/=0) THEN
+         CALL create_neigh_periodics(mesh, neigh_new, &
+                               mesh_data_info%list_periodic, mesh_data_info%vect_e)
+      END IF
+      !===End Create neigh_new for periodic faces
 
+      !===Begin Create partitions
+      CALL create_connectivity_METIS(neigh_new, xind_dom, xadj_dom)
+      CALL init_METIS(nb_proc, me, xadj_dom, tpwgts, metis_opt, ubvec, vwgt, adjwgt)
+      ! CALL prelim_METIS_arrays(nb_proc, neigh_new, xind_dom, xadj_dom, tpwgts, metis_opt, ubvec, vwgt, adjwgt)
+      CALL METIS_PartGraphRecursive(me, 1, xind_dom, xadj_dom, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
+            ubvec, metis_opt, edge, part)
+      !===End Create partitions
+            
+      !===Create parts and modify part
+      !===Search on the boundary whether ms is on a cut.
+      CALL reassign_boundary_side_cut(mesh, part)
 
-    !===Create the connectivity arrays Xind and Xadj based on neigh (for Metis)
-    nb_neigh = SIZE(mesh%neigh, 1)
-    ALLOCATE(xind_dom(me + 1))
+      !===Search on the boundary whether ms is on a cut.
+      IF (SIZE(mesh%jj, 1)/=3) THEN
+         WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
+         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)/=3')
+      END IF
+      IF (SIZE(list_of_interfaces)/=0) THEN
+         CALL reassign_interfaces(mesh, part, list_of_interfaces)
+      END IF
 
-    xind_dom(1) = 1
-    DO k = 1, me
-       nb = 0
-       DO n = 1, nb_neigh
-          mop = neigh_new(n, k)
-          IF (mop==0) CYCLE
-          nb = nb + 1
-       END DO
-       xind_dom(k + 1) = xind_dom(k) + nb
-    END DO
+      IF (mesh_data_info%nb_bords/=0) THEN
+         CALL find_per_elements_along_same_pts(mesh, per_pts)
+         CALL reassign_per_pts(mesh, part, per_pts)
+         CALL reassign_pairs_of_periodic_ms(mesh, part, &
+                            mesh_data_info%list_periodic, mesh_data_info%vect_e)
+      END IF
+      !===End Move the two elements with one periodic face on same processor
 
-    ALLOCATE(xadj_dom(xind_dom(me + 1) - 1))
-    p = 0
-    DO k = 1, me
-       DO n = 1, nb_neigh
-          mop = neigh_new(n, k)
-          IF (mop==0) CYCLE
-          p = p + 1
-          xadj_dom(p) =  neigh_new(n,k) !=== (= k) Bug corrected March 20, 2026
-       END DO
-    END DO
-    !TESTTT
-    !DO k = 1, me
-    !   WRITE(*,*) 'xind_dom, xadj_dom', xind_dom(k), xadj_dom(k)
-    !   !WRITE(*,*) mesh%neigh(:,k)
-    !END DO
-    !TESTT
-    IF (p/=xind_dom(me + 1) - 1) THEN
-       CALL error_Petsc('BUG in  part_mesh, p/=xind_dom(me+1)-1')
-    END IF
-    !===End Create the connectivity arrays Xind and Xadj based on neigh (for Metis)
+      !================================================
+      IF (rank==0) THEN
+         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
+      END IF
+      !================================================
 
-    !===Create partitions
-    opts = 0
-    numflag = 1
-    wgtflag = 2
-    ALLOCATE(tpwgts(nb_proc))
-    tpwgts = one_K4 / nb_proc
-    CALL METIS_SetDefaultOptions(metis_opt)
-    metis_opt(18) = 1
-    ubvec = 1.001
+      DEALLOCATE(vwgt, adjwgt)
+      DEALLOCATE(xadj_dom)
+      DEALLOCATE(xind_dom)
 
-    ALLOCATE(vwgt(me), adjwgt(SIZE(xadj_dom)))
-    vwgt = 1
-    adjwgt = 1
-    CALL METIS_PartGraphRecursive(me, 1, xind_dom, xadj_dom, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
-         ubvec, metis_opt, edge, part)
-    !===End Create partitions
+      DEALLOCATE(tpwgts)
+
+   CONTAINS
+
+!=================================================================!
+!============== SUBROUTINES FOR METIS PRELIM =====================!
+!=================================================================!
+
+      SUBROUTINE create_connectivity_METIS(neigh_new, xind_dom, xadj_dom)
+         IMPLICIT NONE
+         INTEGER, DIMENSION(:, :),           INTENT(IN)  :: neigh_new
+         INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: xind_dom, xadj_dom
+         INTEGER :: nb, p, k, me
+
+         !===(JLG)Feb 20, 2019.
+         me = SIZE(neigh_new, 2)
+         ALLOCATE(xind_dom(me + 1))
+         xind_dom(1) = 1
+         DO k = 1, me
+            nb = COUNT(neigh_new(:, k) /= 0)
+            xind_dom(k + 1) = xind_dom(k) + nb
+         END DO
+
+         ALLOCATE(xadj_dom(xind_dom(me + 1) - 1))
+         p = 0
+         DO k = 1, me
+            nb = COUNT(neigh_new(:, k) /= 0)
+            xadj_dom(p+1: p+nb) = PACK(neigh_new(:,k), neigh_new(:,k)/=0)
+            p = p + nb
+         END DO
+
+         IF (p/=xind_dom(me + 1) - 1) THEN
+            CALL error_Petsc('BUG in  part_mesh, p/=xind_dom(me+1)-1')
+         END IF
+         !===End Create the connectivity arrays Xind and Xadj based on neigh (for Metis)
+      END SUBROUTINE create_connectivity_METIS
+
+      SUBROUTINE init_METIS(nb_proc, me, xadj_dom, tpwgts, metis_opt, ubvec, vwgt, adjwgt)
+         IMPLICIT NONE
+         INTEGER, DIMENSION(:),              INTENT(IN)  :: xadj_dom
+         INTEGER,                            INTENT(IN)  :: me
+         INTEGER, DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: vwgt, adjwgt
+         !===(VB) 05/05/2026 useless?
+         ! INTEGER :: numflag, wgtflag
+         ! INTEGER, DIMENSION(5) :: opts
+         !===(JLG) Feb 20, 2019. Petsc developpers decide to use REAL(KIND=4) to interface with metis
+         !REAL(KIND=8), DIMENSION(:), ALLOCATABLE  :: tpwgts
+         !REAL(KIND=8), DIMENSION(1)               :: ubvec
+         REAL(KIND = 4), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: tpwgts
+         REAL(KIND = 4), DIMENSION(1),              INTENT(OUT) :: ubvec
+         REAL(KIND = 4) :: one_K4 = 1.0
+         !===(JLG)Feb 20, 2019.
+         INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
+         PetscMPIInt    :: nb_proc
+         !===Create partitions
+   !VB 05/05/2026 useless?
+         ! opts = 0
+         ! numflag = 1
+         ! wgtflag = 2
+   !VB 05/05/2026 useless?
+
+         ALLOCATE(tpwgts(nb_proc))
+         tpwgts = one_K4 / nb_proc
+         CALL METIS_SetDefaultOptions(metis_opt)
+         metis_opt(18) = 1
+         ubvec = 1.001
+
+         ALLOCATE(vwgt(me), adjwgt(SIZE(xadj_dom)))
+         vwgt = 1
+         adjwgt = 1
+      END SUBROUTINE init_METIS
+
+!=================================================================!
+!============== SUBROUTINES FOR GENERIC BOUNDARIES ===============!
+!=================================================================!
+
+      SUBROUTINE reassign_boundary_side_cut(mesh, part)
+   !VB FIX 30/04/2026 ==> CHECKING IF ON BOUNDARY A NODE POINT IS ON SEVERAL PROCS OR NOT
+   !                      IF YES, THEN REASSIGNING TO LOWER PROC         
+         IMPLICIT NONE
+         TYPE(mesh_type)                      :: mesh
+         INTEGER, DIMENSION(:), INTENT(INOUT) :: part
+
+         INTEGER, DIMENSION(mesh%np) :: indicator
+         INTEGER ::  ms, ns, nws, msop, k
+
+         indicator = -1
+         nws = SIZE(mesh%jjs, 1)
+         DO ms = 1, mesh%mes
+            DO ns = 1, nws
+               IF (indicator(mesh%jjs(ns, ms))==-1) THEN
+                  indicator(mesh%jjs(ns, ms)) = ms
+               ELSE
+                  !> the point (ns, ms) was already found before in (ns, msop)
+                  msop = indicator(mesh%jjs(ns, ms))
+                  IF (mesh%sides(ms) /= mesh%sides(msop)) THEN
+                     !> (ns, msop) belongs to two different boundaries
+                     IF (part(ms) /= part(msop)) THEN
+                        !> (ns, msop) currently belongs to two different procs => renaming mandatory!!! 
+                        k = MIN(part(ms), part(msop))
+                        part(ms) = k
+                        part(msop) = k
+                     END IF
+                  END IF
+               END IF
+            END DO
+         END DO
+   !VB FIX 30/04/2026
+      END SUBROUTINE reassign_boundary_side_cut
+
+!=========================================================!
+!============== SUBROUTINES FOR INTERFACES ===============!
+!=========================================================!
+
+      SUBROUTINE find_interface_pair(mesh, ms, msop, list_of_interfaces, virgins)
+         IMPLICIT NONE
+         TYPE(mesh_type)                           :: mesh
+         INTEGER,               INTENT(IN)  :: ms
+         INTEGER, DIMENSION(:), INTENT(IN)  :: list_of_interfaces
+         LOGICAL, DIMENSION(:), INTENT(IN)  :: virgins
+         INTEGER,               INTENT(OUT) :: msop
+
+         INTEGER :: nws, ns, nsop, iop
+         LOGICAL :: found_interface_pair
+         INTEGER, DIMENSION(SIZE(mesh%jjs, 1)) :: i_loc
+
+         nws = SIZE(mesh%jjs, 1)
+         i_loc = mesh%jjs(:, ms)
+         DO msop = 1, mesh%mes
+            IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
+            IF (.NOT. ANY(mesh%sides(msop)==list_of_interfaces)) CYCLE !==ms not on a cut
+            DO ns = 1, nws
+               found_interface_pair = .FALSE.
+               DO nsop = 1, nws
+                  iop = mesh%jjs(nsop, msop)
+                  IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
+                     found_interface_pair = .TRUE.
+                     EXIT
+                  END IF
+               END DO
+               IF (.NOT.found_interface_pair) EXIT !==This msop does not coincide with ms
+            END DO
+            IF (found_interface_pair) EXIT
+         END DO
+         IF (.NOT.found_interface_pair) THEN
+            CALL error_Petsc('BUG in find_interface_pair (part_mesh_M_T_H_phi) &
+                  ==> the declared interface did not find the pair close to (x,y)=('//&
+            to_str(mesh%rr(1,i_loc(ns)))//','//to_str(mesh%rr(2,i_loc(ns)))//')')
+         END IF
+
+      END SUBROUTINE find_interface_pair
+
+      SUBROUTINE create_neigh_interfaces(mesh, neigh_new, list_of_interfaces)
+
+         IMPLICIT NONE
+         TYPE(mesh_type)                        :: mesh
+         INTEGER, DIMENSION(:),   INTENT(IN)    :: list_of_interfaces
+         INTEGER, DIMENSION(:,:), INTENT(INOUT) :: neigh_new
+
+         LOGICAL, DIMENSION(mesh%mes) :: virgins
+         INTEGER :: ms, msop, m, mop
+
+         !===Create neigh_new for interfaces
+         virgins = .TRUE.
+         DO ms = 1, mesh%mes
+            IF (virgins(ms) .AND. ANY(mesh%sides(ms)==list_of_interfaces)) THEN
+               CALL find_interface_pair(mesh, ms, msop, list_of_interfaces, virgins)
+
+               m = mesh%neighs(ms)
+               mop = mesh%neighs(msop)
+
+               WHERE (neigh_new(:, mop)==0) neigh_new(:, mop) = m
+               WHERE (neigh_new(:, m)==0) neigh_new(:, m) = mop
+
+               virgins(ms) = .FALSE.
+               virgins(msop) = .FALSE.
+            END IF
+         END DO
+         !===End Create neigh_new for interfaces
+      END SUBROUTINE create_neigh_interfaces
+
+      SUBROUTINE reassign_interfaces(mesh, part, list_of_interfaces)
          
-    !===Create parts and modify part
+         IMPLICIT NONE
+         TYPE(mesh_type)                      :: mesh
+         INTEGER, DIMENSION(:), INTENT(INOUT) :: part
+         INTEGER, DIMENSION(:), INTENT(IN)    :: list_of_interfaces
 
-!VB FIX 30/04/2026 ==> CHECKING IF ON BOUNDARY A NODE POINT IS ON SEVERAL PROCS OR NOT
-!                      IF YES, THEN REASSIGNING TO HIGHER PROC
+         LOGICAL, DIMENSION(mesh%mes)          :: virgins
+         INTEGER, DIMENSION(mesh%np)           :: indicator
+         INTEGER, DIMENSION(3)                 :: j_loc
+         INTEGER :: m, mop, ms, msop, proc, n
 
-    !===Search on the boundary whether ms is on a cut.
-    indicator = -1
-    nws = SIZE(mesh%jjs, 1)
-    DO ms = 1, mesh%mes
-      DO ns = 1, nws
-         IF (indicator(mesh%jjs(ns, ms))==-1) THEN
-            indicator(mesh%jjs(ns, ms)) = ms
-         ELSE
-            !> the point (ns, ms) was already found before in (ns, msop)
-            msop = indicator(mesh%jjs(ns, ms))
-            IF (mesh%sides(ms) /= mesh%sides(msop)) THEN
-               !> (ns, msop) belongs to two different boundaries
-               IF (part(ms) /= part(msop)) THEN
-                  !> (ns, msop) currently belongs to two different procs => renaming mandatory!!! 
-                  k = MAX(part(ms), part(msop))
-                  part(ms) = k
-                  part(msop) = k
+
+         indicator = -1
+
+         virgins = .TRUE.
+         DO ms = 1, mesh%mes
+            IF (virgins(ms) .AND. ANY(mesh%sides(ms)==list_of_interfaces)) THEN
+               CALL find_interface_pair(mesh, ms, msop, list_of_interfaces, virgins)
+
+               m = mesh%neighs(ms)
+               mop = mesh%neighs(msop)
+               IF (part(m) /= part(mop)) THEN ! ==> ms badly partitioned
+                  proc = MIN(part(m), part(mop))
+                  part(m) = proc !make sure interface are internal
+                  part(mop) = proc !make sure interface are internal
+                  virgins(ms) = .FALSE.
+                  virgins(msop) = .FALSE.
+                  indicator(mesh%jjs(:, ms)) = proc
+                  indicator(mesh%jjs(:, msop)) = proc
                END IF
             END IF
+         END DO
+
+         !===Fix the partition so that all the cells having one vertex on an
+         !===interface belong to the same processor as those sharing this vertices and
+         !===having two vertices on the interface (JLG + DCQ July 22 2015)
+         DO m = 1, mesh%me
+            j_loc = mesh%jj(:, m)
+            n = MAXVAL(indicator(j_loc))
+            IF (n == -1) CYCLE
+            IF (indicator(j_loc(1)) * indicator(j_loc(2)) * indicator(j_loc(3))<0) CYCLE
+            part(m) = n
+         END DO
+         !===End create parts and modify part
+
+      END SUBROUTINE reassign_interfaces
+
+!=========================================================!
+!============== SUBROUTINES FOR PERIODICITY ==============!
+!=========================================================!
+
+      SUBROUTINE find_periodic_pair(mesh, ms, msop, list_periodic, vect_e)
+         IMPLICIT NONE
+         TYPE(mesh_type)                           :: mesh
+         INTEGER,                      INTENT(IN)  :: ms
+         INTEGER,      DIMENSION(:,:), INTENT(IN)  :: list_periodic
+         REAL(KIND=8), DIMENSION(:,:), INTENT(IN)  :: vect_e
+         INTEGER,                      INTENT(OUT) :: msop
+
+         INTEGER :: ns, s2
+         INTEGER, DIMENSION(1) :: jm_loc
+         LOGICAL      :: found_periodic_pair
+         REAL(KIND=8) :: err
+         
+         jm_loc = MINLOC(ABS(mesh%sides(ms) - list_periodic(1, :)))
+         s2 =  list_periodic(2, jm_loc(1))
+         found_periodic_pair = .FALSE.
+         DO msop = 1, mesh%mes
+            IF (mesh%sides(msop) /= s2) CYCLE
+
+            err = 0.d0
+            DO ns = 1, SIZE( vect_e, 1)
+               err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
+                     +vect_e(ns, jm_loc(1))))
+            END DO
+
+            IF (err .LE. epsilon) THEN
+               found_periodic_pair = .TRUE.
+               EXIT
+            END IF
+         END DO
+         IF (.NOT.found_periodic_pair) THEN
+            CALL error_Petsc('BUG in find_periodic_pair (part_mesh_M_T_H_phi), msop not found for pbc &
+            '//to_str(mesh%sides(ms))//&
+            "==> Either required periodicity for given mesh or vect_e, is wrong.")
          END IF
-      END DO
-    END DO
 
-!VB FIX 30/04/2026
+      END SUBROUTINE find_periodic_pair
 
+      SUBROUTINE create_neigh_periodics(mesh, neigh_new, list_periodic, vect_e)
 
-    !===Search on the boundary whether ms is on a cut.
-    IF (SIZE(mesh%jj, 1)/=3) THEN
-       WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
-       CALL error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)/=3')
-    END IF
-    indicator = -1
-    nws = SIZE(mesh%jjs, 1)
-    IF (SIZE(list_of_interfaces)/=0) THEN
-       virgins = .TRUE.
-       DO ms = 1, mesh%mes
-          IF (.NOT.virgins(ms)) CYCLE
-          IF (MINVAL(ABS(mesh%sides(ms) - list_of_interfaces))/=0) CYCLE !==ms not on a cut
-          i_loc = mesh%jjs(:, ms)
-          DO msop = 1, mesh%mes
-             IF (msop==ms .OR. .NOT.virgins(msop)) CYCLE
-             IF (MINVAL(ABS(mesh%sides(msop) - list_of_interfaces))/=0) CYCLE !==msop not on a cut
-             DO ns = 1, nws
-                test = .FALSE.
-                DO nsop = 1, nws
-                   iop = mesh%jjs(nsop, msop)
-                   IF (MAXVAL(ABS(mesh%rr(:, i_loc(ns)) - mesh%rr(:, iop))).LT.epsilon) THEN
-                      test = .TRUE.
-                      EXIT
-                   END IF
-                END DO
-                IF (.NOT.test) THEN
-                   EXIT !==This msop does not coincide with ms
-                END IF
-             END DO
-             IF (test) EXIT
-          END DO
-          IF (.NOT.test) THEN
-             CALL error_Petsc('BUG in part_mesh_M_T_H_phi, .NOT.test ')
-          END IF
-          IF (part(mesh%neighs(ms)) == part(mesh%neighs(msop))) CYCLE !==ms is an internal cut
-          proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-          part(mesh%neighs(ms)) = proc !make sure interface are internal
-          part(mesh%neighs(msop)) = proc !make sure interface are internal
-          virgins(ms) = .FALSE.
-          virgins(msop) = .FALSE.
-          indicator(mesh%jjs(:, ms)) = proc
-          indicator(mesh%jjs(:, msop)) = proc
-       END DO
-    END IF
-    !===Fix the partition so that all the cells having one vertex on an
-    !===interface belong to the same processor as those sharing this vertices and
-    !===having two vertices on the interface (JLG + DCQ July 22 2015)
-    DO m = 1, mesh%me
-       j_loc = mesh%jj(:, m)
-       n = MAXVAL(indicator(j_loc))
-       IF (n == -1) CYCLE
-       IF (indicator(j_loc(1)) * indicator(j_loc(2)) * indicator(j_loc(3))<0) CYCLE
-       part(m) = n
-    END DO
-    !===End create parts and modify part
+         IMPLICIT NONE
+         TYPE(mesh_type)                             :: mesh
+         INTEGER,      DIMENSION(:,:), INTENT(IN)    :: list_periodic
+         REAL(KIND=8), DIMENSION(:,:), INTENT(IN)    :: vect_e
+         INTEGER,      DIMENSION(:,:), INTENT(INOUT) :: neigh_new
 
-    !===Move the two elements with one periodic face on same processor
-    !IF (PRESENT(my_periodics)) THEN
-    !DO k = 1, SIZE(my_periodics)
-    !my_periodic => my_periodics(k)
-    IF (mesh_data_info%nb_bords/=0) THEN
-       DO j = 1, mesh%np
-          per_pts(j, 1) = j
-       END DO
-       per_pts(:, 2:3) = 0
-       DO ms = 1, mesh%mes
-          m = mesh%neighs(ms)
-          IF ((MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) /=0) .AND. &
-               (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(2, :))) /=0)) CYCLE
-          DO ns = 1, SIZE(mesh%jjs, 1)
-             j = mesh%jjs(ns, ms)
-             per_pts(j, 2) = m
-             DO msop = 1, mesh%mes
-                IF (MINVAL(ABS(mesh%sides(msop) - mesh_data_info%list_periodic(:, :))) /=0) CYCLE
-                IF (msop == ms) CYCLE
-                DO nsop = 1, SIZE(mesh%jjs, 1)
-                   IF (mesh%jjs(nsop, msop)==j) THEN
-                      per_pts(j, 3) = mesh%neighs(msop)
-                   END IF
-                END DO
-             END DO
-          END DO
-       END DO
-       CALL reassign_per_pts(mesh, part, per_pts)
-       DO ms = 1, mesh%mes
-          m = mesh%neighs(ms)
-          IF (MINVAL(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :))) /= 0) CYCLE
-          jm_loc = MINLOC(ABS(mesh%sides(ms) - mesh_data_info%list_periodic(1, :)))
-          s2 = mesh_data_info%list_periodic(2, jm_loc(1))
-          test = .FALSE.
-          DO msop = 1, mesh%mes
-             IF (mesh%sides(msop) /= s2) CYCLE
-             err = 0.d0
-             DO ns = 1, SIZE(mesh_data_info%vect_e, 1)
-                err = err + ABS(SUM(mesh%rr(ns, mesh%jjs(:, ms)) - mesh%rr(ns, mesh%jjs(:, msop)) &
-                     + mesh_data_info%vect_e(ns, jm_loc(1))))
-             END DO
-             IF (err .LE. epsilon) THEN
-                test = .TRUE.
-                EXIT
-             END IF
-          END DO
-          IF (.NOT.test) THEN
-             CALL error_Petsc('BUG in part_mesh_M_T_H_phi, mop not found')
-          END IF
-          IF (part(mesh%neighs(ms)) /= part(mesh%neighs(msop))) THEN !==ms is an internal cut
-             proc = MIN(part(mesh%neighs(ms)), part(mesh%neighs(msop)))
-             part(mesh%neighs(ms)) = proc !make sure interface are internal
-             part(mesh%neighs(msop)) = proc !make sure interface are internal
-          END IF
-       END DO
-    END IF
-    !END DO
-    !END IF
-    !===End Move the two elements with one periodic face on same processor
+         INTEGER :: m, ms, mop, msop
 
-!!$ WARNING, FL 1/2/13 : TO BE ADDED IF NEEDED
-    !================================================
-    IF (rank==0) THEN
-       CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
-    END IF
-    !================================================
-!!$ WARNING, FL 1/2/13 : TO BE ADDED IF NEEDED
+         DO ms = 1, mesh%mes
+            IF (ANY(mesh%sides(ms)==list_periodic(1, :))) THEN
+               CALL find_periodic_pair(mesh, ms, msop, list_periodic, vect_e)
+               m = mesh%neighs(ms)
+               mop = mesh%neighs(msop)
+               WHERE(neigh_new(:, m) == 0) neigh_new(:, m) = mop
+               WHERE(neigh_new(:, mop) == 0) neigh_new(:, mop) = m
+            END IF
+         END DO
+      END SUBROUTINE create_neigh_periodics
 
-    DEALLOCATE(vwgt, adjwgt)
-    DEALLOCATE(xadj_dom)
-    DEALLOCATE(xind_dom)
+      SUBROUTINE find_per_elements_along_same_pts(mesh, per_pts)
+   !VB COMMENT 5/5/2026 => finds points on per boundaries which belong to two ADJACENT (not periodic!!!!) elements ms and msop
 
-    DEALLOCATE(tpwgts)
+         IMPLICIT NONE
+         TYPE(mesh_type)                      :: mesh
+         INTEGER, DIMENSION(mesh%np, 3), INTENT(OUT) :: per_pts
 
-  END SUBROUTINE part_mesh
+         INTEGER :: m, ms, j, ns, msop, nsop
+         LOGICAL :: test
+
+         per_pts(:, 1) = [(j, j = 1, mesh%np)]
+         per_pts(:, 2:3) = 0
+         DO ms = 1, mesh%mes
+            IF (.NOT. (ANY(mesh%sides(ms)==mesh_data_info%list_periodic(:,:)))) CYCLE
+            m = mesh%neighs(ms)
+            DO ns = 1, SIZE(mesh%jjs, 1)
+               j = mesh%jjs(ns, ms)
+               per_pts(j, 2) = m
+               test = .FALSE.
+               DO msop = 1, mesh%mes
+                  IF (.NOT. (ANY(mesh%sides(msop)==mesh_data_info%list_periodic(:,:)))) CYCLE
+                  IF (msop == ms) CYCLE
+                  DO nsop = 1, SIZE(mesh%jjs, 1)
+                     IF (mesh%jjs(nsop, msop)==j) THEN
+                        per_pts(j, 3) = mesh%neighs(msop)
+                        test = .TRUE.
+                        EXIT
+                     END IF
+                  END DO
+               END DO
+               ! VB: ADDED TEST
+               IF (.NOT. test) THEN
+                  CALL error_petsc("BUG in part_mesh: did not find msop periodic element of m")
+               END IF
+               ! VB: ADDED TEST
+            END DO
+         END DO
+
+      END SUBROUTINE find_per_elements_along_same_pts
+
+      SUBROUTINE reassign_per_pts(mesh, partition, list_pts)
+         USE def_type_mesh
+         USE my_util
+         IMPLICIT NONE
+
+         TYPE(mesh_type), INTENT(IN) :: mesh
+         INTEGER, DIMENSION(mesh%me), INTENT(INOUT) :: partition
+         INTEGER, DIMENSION(mesh%np, 3), INTENT(IN) :: list_pts
+
+         INTEGER :: i, j_loc, proc_min, index, i_loc, m, mop, n, proc1, proc2
+         INTEGER, DIMENSION(50) :: list_elmts
+         LOGICAL :: okay
+
+         list_elmts = 0
+         DO i = 1, mesh%np
+            IF (list_pts(i, 2)==0) CYCLE
+            j_loc = list_pts(i, 1)
+            list_elmts = 0
+            index = 1
+            list_elmts(index) = list_pts(i, 2)
+            okay = .TRUE.
+            DO WHILE (okay)
+               m = list_elmts(index)
+               okay = .FALSE.
+               i_loc = index
+               DO n = 1, SIZE(mesh%neigh, 1)
+               ! DO n = 1, 3
+                  mop = mesh%neigh(n, m)
+                  IF (mop == 0) CYCLE !i.e the edge leads to exterior
+                  IF (MINVAL(ABS(mesh%jj(:, mop) - j_loc)) /=0) CYCLE !i.e list_points(i,1) outside jj(:,neigh(n,m)) 
+                                                                     ! where typically m = list_pts(i, 2)
+                  IF (MINVAL(ABS(mop - list_elmts))==0) CYCLE !i.e mop = neigh(n, m) already in list_elmts
+                  okay = .TRUE.
+                  i_loc = i_loc + 1
+                  IF (i_loc - index==2) THEN
+                     CALL error_Petsc('BUG in reassign_per_pts, how is that possible?')
+                  END IF
+                  list_elmts(i_loc) = mop ! eventually add mop to list_elmts
+               END DO
+               index = i_loc
+            END DO
+            !!$       WRITE(*,*) i, list_elmts(1:index)
+            IF (list_pts(i, 3) == 0) THEN  ! point au bord du bord periodique, ou sur une arete
+               proc_min = MINVAL(partition(list_elmts(1:index)))
+               partition(list_elmts(1)) = proc_min
+            ELSE ! deux elements du bord periodique touchent le point
+               IF (list_elmts(index) /= list_pts(i, 3)) THEN
+                  CALL error_Petsc('BUG in reassign_per_pts, wrong element')
+               END IF
+               proc1 = partition(list_elmts(1))
+               proc2 = partition(list_elmts(2))
+               partition(list_elmts(2:index - 1)) = MIN(proc1, proc2)
+            END IF
+         END DO
+
+      END SUBROUTINE reassign_per_pts
+
+      SUBROUTINE reassign_pairs_of_periodic_ms(mesh, part, list_periodic, vect_e)
+         
+         IMPLICIT NONE
+         TYPE(mesh_type)                           :: mesh
+         INTEGER,      DIMENSION(:,:), INTENT(IN)  :: list_periodic
+         REAL(KIND=8), DIMENSION(:,:), INTENT(IN)  :: vect_e
+         INTEGER,      DIMENSION(:), INTENT(INOUT) :: part
+
+         INTEGER        :: ms, msop, m, mop, proc
+
+         DO ms = 1, mesh%mes
+            IF (ANY(mesh%sides(ms)==list_periodic(1, :))) THEN
+               CALL find_periodic_pair(mesh, ms, msop, list_periodic, vect_e)
+               m = mesh%neighs(ms)
+               mop = mesh%neighs(msop)
+               IF (part(m) /= part(mop)) THEN !==ms is an internal cut
+                  proc = MIN(part(m), part(mop))
+                  part(m) = proc !make sure interface are internal
+                  part(mop) = proc !make sure interface are internal
+               END IF
+            END IF
+         END DO
+
+      END SUBROUTINE reassign_pairs_of_periodic_ms
+
+   END SUBROUTINE part_mesh
 
    SUBROUTINE extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh_loc)
       USE def_type_mesh
@@ -395,19 +546,11 @@ CONTAINS
       ! End create parts
 
       ! Create list_m
-      i = 0
-      DO m = 1, mesh_glob%me
-         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(m)))/=0) CYCLE
-         i = i + 1
-      END DO
-      mesh%me = i
+      mesh%me = COUNT([ (ANY(list_dom == mesh_glob%i_d(m)), m = 1, mesh_glob%me) ])
       ALLOCATE (list_m(mesh%me))
-      i = 0
-      DO m = 1, mesh_glob%me
-         IF (MINVAL(ABS(list_dom - mesh_glob%i_d(m)))/=0) CYCLE
-         i = i + 1
-         list_m(i) = m
-      END DO
+      ! only keeping elements which are in list_dom (i.e declared by the user in data file)
+      list_m = PACK([(m, m = 1, mesh_glob%me)], &
+              [(ANY(list_dom == mesh_glob%i_d(m)), m = 1, mesh_glob%me)])
       !End create list_m
 
       ! Count elements on processors
@@ -1230,60 +1373,5 @@ CONTAINS
       IF (.NOT. okay) m2 = -1
 
    END SUBROUTINE find_cell_interface
-
-   SUBROUTINE reassign_per_pts(mesh, partition, list_pts)
-      USE def_type_mesh
-      USE my_util
-      IMPLICIT NONE
-
-      TYPE(mesh_type), INTENT(IN) :: mesh
-      INTEGER, DIMENSION(mesh%me), INTENT(INOUT) :: partition
-      INTEGER, DIMENSION(mesh%np, 3), INTENT(IN) :: list_pts
-
-      INTEGER :: i, j_loc, proc_min, index, i_loc, m, mop, n, proc1, proc2
-      INTEGER, DIMENSION(50) :: list_elmts
-      LOGICAL :: okay
-
-      list_elmts = 0
-      DO i = 1, mesh%np
-         IF (list_pts(i, 2)==0) CYCLE
-         j_loc = list_pts(i, 1)
-         list_elmts = 0
-         index = 1
-         list_elmts(index) = list_pts(i, 2)
-         okay = .TRUE.
-         DO WHILE (okay)
-            m = list_elmts(index)
-            okay = .FALSE.
-            i_loc = index
-            DO n = 1, 3
-               mop = mesh%neigh(n, m)
-               IF (mop == 0) CYCLE
-               IF (MINVAL(ABS(mesh%jj(:, mop) - j_loc)) /=0) CYCLE
-               IF (MINVAL(ABS(mop - list_elmts))==0) CYCLE
-               okay = .TRUE.
-               i_loc = i_loc + 1
-               IF (i_loc - index==2) THEN
-                  CALL error_Petsc('BUG in reassign_per_pts, how is that possible?')
-               END IF
-               list_elmts(i_loc) = mop
-            END DO
-            index = i_loc
-         END DO
-         !!$       WRITE(*,*) i, list_elmts(1:index)
-         IF (list_pts(i, 3) == 0) THEN  ! point au bord du bord periodique, ou sur une arete
-            proc_min = MINVAL(partition(list_elmts(1:index)))
-            partition(list_elmts(1)) = proc_min
-         ELSE ! deux elements du bord periodique touchent le point
-            IF (list_elmts(index) /= list_pts(i, 3)) THEN
-               CALL error_Petsc('BUG in reassign_per_pts, wrong element')
-            END IF
-            proc1 = partition(list_elmts(1))
-            proc2 = partition(list_elmts(2))
-            partition(list_elmts(2:index - 1)) = MIN(proc1, proc2)
-         END IF
-      END DO
-
-   END SUBROUTINE reassign_per_pts
 
 END MODULE two_dim_metis_distribution

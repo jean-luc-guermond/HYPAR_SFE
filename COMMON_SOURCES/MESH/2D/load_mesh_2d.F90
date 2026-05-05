@@ -128,13 +128,9 @@ CONTAINS
             WRITE(*, *) ' BUG in load_mesh, neighs1=0 '
             STOP
          END IF
-         IF (MINVAL(ABS(i_d_lect(neighs1) - list_dom))==0) THEN
-            t1 = .TRUE.
-         ELSE
-            t1 = .FALSE.
-         END IF
+         t1 = ANY(i_d_lect(neighs1)==list_dom)
          DO n = 1, nw
-            IF (MINVAL(ABS(jjs_lect(:, ms) - jj_lect(n, neighs1))) /= 0) EXIT ! n not on the interface
+            IF (.NOT. ANY(jjs_lect(:, ms)==jj_lect(n, neighs1))) EXIT ! n not on the interface
          END DO
          neighs2 = neigh_lect(n, neighs1)
          IF (neighs2==0) THEN
@@ -146,11 +142,7 @@ CONTAINS
             CYCLE
          END IF
          ! neighs2 /=0
-         IF (MINVAL(ABS(i_d_lect(neighs2) - list_dom))==0) THEN
-            t2 = .TRUE.
-         ELSE
-            t2 = .FALSE.
-         END IF
+         t2 = ANY(i_d_lect(neighs2)==list_dom)
 
          IF (t1) THEN
             IF (t2) THEN

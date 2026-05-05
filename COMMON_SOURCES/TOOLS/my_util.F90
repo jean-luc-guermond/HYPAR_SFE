@@ -1,5 +1,10 @@
 MODULE my_util
   IMPLICIT NONE
+
+  INTERFACE to_str
+      MODULE PROCEDURE to_str_int, to_str_real
+  END INTERFACE to_str
+
   PUBLIC :: user_time, error_Petsc, to_str, WRITE_rank_0
 CONTAINS
   !
@@ -40,13 +45,22 @@ CONTAINS
 
    !========================================================================
    
-   FUNCTION to_str(i) RESULT (str)
+   FUNCTION to_str_int(i) RESULT (str)
       INTEGER, INTENT(IN) :: i
       CHARACTER(LEN=:), ALLOCATABLE :: str
       CHARACTER(LEN=32) :: tmp
 
       WRITE(tmp, '(I0)') i
       str = trim(tmp)
-   END FUNCTION to_str
+   END FUNCTION to_str_int
+
+   FUNCTION to_str_real(i) RESULT (str)
+      REAL(KIND=8), INTENT(IN) :: i
+      CHARACTER(LEN=:), ALLOCATABLE :: str
+      CHARACTER(LEN=32) :: tmp
+
+      WRITE(tmp, '(F0.6)') i
+      str = trim(tmp)
+   END FUNCTION to_str_real
 
 END MODULE my_util

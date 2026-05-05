@@ -1,10 +1,12 @@
 PROGRAM nl_scalar_cons_fft_1d
+#include "petsc/finclude/petsc.h"
+  USE petsc
   USE setup_module
   USE start_setup_MODULE
   USE my_util
   USE fft_1D
   IMPLICIT NONE
-  INTEGER :: n, num_test
+  INTEGER :: n, num_test, code
   REAL(KIND = 8) :: tps
 
 !========================!
@@ -45,6 +47,8 @@ PROGRAM nl_scalar_cons_fft_1d
 !=====================!
 !==== END PROGRAM ====!
 !=====================!
+
+    CALL PetscFinalize(code)
 
 CONTAINS
   SUBROUTINE errors(nl_scalar_cons)
