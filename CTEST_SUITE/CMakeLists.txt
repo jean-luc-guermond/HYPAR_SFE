@@ -14,6 +14,21 @@ include(function_regression_test.cmake)
 include(CTest)
 
 #==========================================================================
+#=============== messaging concerning parallelization test level
+#==========================================================================
+
+if(PARALLEL_TEST_LEVEL GREATER 4)
+    MESSAGE(FATAL_ERROR "invalid Level of parallelization ${PARALLEL_TEST_LEVEL} > 4, double check variables.cmake")
+elseif(PARALLEL_TEST_LEVEL EQUAL 4)
+    MESSAGE(WARNING "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing ==> BE AWARE THAT THESE TESTS MIGHT BE VERY HEAVY/LONG")
+elseif(PARALLEL_TEST_LEVEL EQUAL 0)
+    MESSAGE(STATUS "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing ==> will only test default number of procs")
+else()
+    MESSAGE(STATUS "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing")
+endif()
+MESSAGE(STATUS "")
+
+#==========================================================================
 #=============== setting compile flags
 #==========================================================================
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
@@ -68,3 +83,7 @@ add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FOURIER_1D_SCALAR
 # TEST_PERIODICITY
 add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PERIODICITY/
   ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PERIODICITY/BUILD)
+
+# TEST_HYPAR_TOOLS
+add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_TOOLS/
+  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_TOOLS/BUILD)

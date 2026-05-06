@@ -793,10 +793,6 @@ CONTAINS
       ENDDO
 
       !===Internal surface elements
-!VB TEST
-      WRITE(*,*) "FLAG 1", mes_int, size(mesh_p1%jj, 1), size(mesh_p1%jj, 2), &
-      size(mesh_p1%jjs_int, 1), size(mesh_p1%jjs_int, 2), MAXVAL(mesh_p1%neighs_int(1, :))
-!VB TEST
       DO ms = 1, mes_int
          m = mesh_p1%neighs_int(1, ms)
          !===Finding the corresponding side in the cell

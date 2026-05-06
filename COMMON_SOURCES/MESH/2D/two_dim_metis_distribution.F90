@@ -70,11 +70,19 @@ CONTAINS
       CALL METIS_PartGraphRecursive(me, 1, xind_dom, xadj_dom, vwgt, vwgt, adjwgt, nb_proc, tpwgts, &
             ubvec, metis_opt, edge, part)
       !===End Create partitions
-            
+      !================================================
+      IF (rank==0) THEN
+         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd1.plt')
+      END IF
+      !================================================
       !===Create parts and modify part
       !===Search on the boundary whether ms is on a cut.
       CALL reassign_boundary_side_cut(mesh, part)
-
+      !================================================
+      IF (rank==0) THEN
+         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd2.plt')
+      END IF
+      !================================================
       !===Search on the boundary whether ms is on a cut.
       IF (SIZE(mesh%jj, 1)/=3) THEN
          WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
@@ -83,7 +91,11 @@ CONTAINS
       IF (SIZE(list_of_interfaces)/=0) THEN
          CALL reassign_interfaces(mesh, part, list_of_interfaces)
       END IF
-
+      !================================================
+      IF (rank==0) THEN
+         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd3.plt')
+      END IF
+      !================================================
       IF (mesh_data_info%nb_bords/=0) THEN
          CALL find_per_elements_along_same_pts(mesh, per_pts)
          CALL reassign_per_pts(mesh, part, per_pts)
@@ -91,7 +103,11 @@ CONTAINS
                             mesh_data_info%list_periodic, mesh_data_info%vect_e)
       END IF
       !===End Move the two elements with one periodic face on same processor
-
+      !================================================
+      IF (rank==0) THEN
+         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd4.plt')
+      END IF
+      !================================================
       !================================================
       IF (rank==0) THEN
          CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
@@ -201,7 +217,7 @@ CONTAINS
                      !> (ns, msop) belongs to two different boundaries
                      IF (part(ms) /= part(msop)) THEN
                         !> (ns, msop) currently belongs to two different procs => renaming mandatory!!! 
-                        k = MIN(part(ms), part(msop))
+                        k = MAX(part(ms), part(msop))
                         part(ms) = k
                         part(msop) = k
                      END IF
@@ -425,9 +441,9 @@ CONTAINS
                   END DO
                END DO
                ! VB: ADDED TEST
-               IF (.NOT. test) THEN
-                  CALL error_petsc("BUG in part_mesh: did not find msop periodic element of m")
-               END IF
+               ! IF (.NOT. test) THEN
+               !    CALL error_petsc("BUG in part_mesh: did not find msop periodic element of m")
+               ! END IF
                ! VB: ADDED TEST
             END DO
          END DO

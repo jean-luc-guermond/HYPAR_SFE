@@ -225,9 +225,7 @@ CONTAINS
             !=== add dij un(comp)to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
 
-            !=== VB WRONG?????
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-            !=== VB WRONG?????
 
             !=== x3 <-- x2 / lumped_mass
             CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
@@ -277,9 +275,8 @@ CONTAINS
            !END TEST
             !=== add dij un(comp)to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
-!VB wrong???
+
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-!VB wrong???
             !=== Inverting mass matrix and updating un with dt
 !======================== USING LUMPED MASS =========================!
             ! !=== x3 <-- x2 / lumped_mass
@@ -315,6 +312,7 @@ CONTAINS
                      psi_rho_min,zero_of_psi_rho_min,un_temp)
                   un(:,:) = un_temp(:,:)
             END DO
+
             DO it = 1, limit_max
                   CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,2),&
                      psi_rho_max,zero_of_psi_rho_max,un_temp)
@@ -453,7 +451,8 @@ CONTAINS
      TYPE(mesh_type), POINTER :: mesh
      TYPE(petsc_csr_LA), POINTER :: LA
      REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge
+     REAL(KIND = 8), DIMENSION(this%mesh%np) :: arr
+     INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, n_size
      INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
@@ -646,30 +645,21 @@ CONTAINS
      
       CALL extract_through_ghost(this%x4vec, this%x2_ghost, 1, 1, this%LA, rk, &
                               'insert', opt_assemble=.FALSE.)
-   !   CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
-   !   CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-   !   CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-   !   CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
 
       CALL extract_through_ghost(this%x5vec, this%x2_ghost, 1, 1, this%LA, rk_norm, &
                               'insert', opt_assemble=.FALSE.)
-   !   CALL VecGhostGetLocalForm(this%x5vec, this%x2_ghost, ierr)
-   !   CALL VecGhostUpdateBegin(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-   !   CALL VecGhostUpdateEnd(this%x5vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-   !   CALL extract(this%x2_ghost, 1, 1, this%LA, rk_norm)
+      norm_log = norm_log/np_tot
+   
+      rk = abs(rk)/max(abs(rk_norm),1.d-1*norm_log)
+      alpha = MIN(10*rk,1.d0)
+      alpha = threshold(alpha)
     
-     norm_log = norm_log/np_tot
-  
-     rk = abs(rk)/max(abs(rk_norm),1.d-1*norm_log)
-     alpha = MIN(10*rk,1.d0)
-     alpha = threshold(alpha)
-    
-     !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
-     IF (this%time+1.5*this%dt>this%final_time) THEN
-        WRITE(char, '(I5)') this%mesh%rank
-        CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, alpha, 'a'//trim(adjustl(char))//'.plt')
-        CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, eta, 'eta'//trim(adjustl(char))//'.plt')
-     END IF
+      !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
+      IF (this%time+1.5*this%dt>this%final_time) THEN
+         WRITE(char, '(I5)') this%mesh%rank
+         CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, alpha, 'a'//trim(adjustl(char))//'.plt')
+         CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, eta, 'eta'//trim(adjustl(char))//'.plt')
+      END IF
    END SUBROUTINE commutator
 
  FUNCTION threshold(x) RESULT(g)
