@@ -1,7 +1,9 @@
 #!/bin/bash
 datatest=data
 
-nproc=8
+# nproc=8
+i_nproc=$((3 + $3 + 1))
+nproc=${!i_nproc}
 
 for ((i=1; i<=$3; i++)); do
     #=== define executable

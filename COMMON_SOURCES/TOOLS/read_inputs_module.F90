@@ -11,7 +11,7 @@ MODULE read_inputs_module
     CHARACTER(LEN = rec_length), DIMENSION(:), ALLOCATABLE, PRIVATE :: record_info_from_data, list_info_for_new_data
     INTEGER, PARAMETER, PRIVATE :: in_unit=21
     INTEGER, PRIVATE :: index_list_info_data, record_size
-    LOGICAL, PRIVATE :: data_cleaned = .FALSE.
+    LOGICAL, PRIVATE :: data_cleaned = .FALSE., if_regression_test
 
 
 CONTAINS
@@ -87,7 +87,16 @@ CONTAINS
       data_cleaned = .TRUE.
       
       CALL MPI_Comm_rank(PETSC_COMM_WORLD, rank, ierr)
-      
+    
+!==== FIX VB 05/05/2026 ==> NO DATA REWRITING if_regression_test
+      CALL getarg(1, control)
+      IF (trim(adjustl(control))=='regression') THEN
+         if_regression_test = .TRUE.
+      ELSE
+         if_regression_test = .FALSE.
+      END IF
+!==== FIX VB 05/05/2026 ==> NO DATA REWRITING if_regression_test
+
       IF (rank == 0) THEN 
          raw_record_size = 0
          record_size_clean = 0
@@ -123,12 +132,14 @@ CONTAINS
          CLOSE(in_unit)
          
          !===Rewriting data after cleaning
-         OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
-         DO j = 1, record_size_clean
-            IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
-            WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
-         END DO
-         CLOSE(in_unit)
+         IF (.NOT. if_regression_test) THEN
+            OPEN(UNIT = in_unit, FILE = 'data', FORM = 'formatted', STATUS = 'unknown')
+            DO j = 1, record_size_clean
+               IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
+               WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
+            END DO
+            CLOSE(in_unit)
+         END IF
 
       END IF
       CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
@@ -232,17 +243,21 @@ CONTAINS
       CALL MPI_Comm_rank(PETSC_COMM_WORLD, rank, ierr)
       
       !=== WRITING NEW DATA IN DATA FILE
-      OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
-      IF (rank == 0) THEN 
-         DO j = 1, record_size
-            IF (TRIM(ADJUSTL(record_info_from_data(j)))=='') CYCLE
-            WRITE(in_unit,'(A)') TRIM(ADJUSTL(record_info_from_data(j)))
-         END DO
-         DO j = 1, index_list_info_data
-            WRITE(in_unit,'(A)') TRIM(ADJUSTL(list_info_for_new_data(j)))
-         END DO
+!==== FIX VB 05/05/2026 ==> NO DATA REWRITING if_regression_test
+      IF (.NOT. if_regression_test) THEN
+         OPEN(unit=in_unit,file='data',FORM='FORMATTED',STATUS='UNKNOWN')
+         IF (rank == 0) THEN 
+            DO j = 1, record_size
+               IF (TRIM(ADJUSTL(record_info_from_data(j)))=='') CYCLE
+               WRITE(in_unit,'(A)') TRIM(ADJUSTL(record_info_from_data(j)))
+            END DO
+            DO j = 1, index_list_info_data
+               WRITE(in_unit,'(A)') TRIM(ADJUSTL(list_info_for_new_data(j)))
+            END DO
+         END IF
+         CLOSE(in_unit)
       END IF
-      CLOSE(in_unit)
+!==== FIX VB 05/05/2026 ==> NO DATA REWRITING if_regression_test
       
       !=== REINITIALIZING DATA TO ZERO AND FALSE BY DEFAULT
       DEALLOCATE(record_info_from_data)

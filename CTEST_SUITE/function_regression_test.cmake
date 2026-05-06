@@ -8,11 +8,12 @@ function(add_regression_test)
 # IN PARAMETERS:
     set(options)
     set(oneValueArgs TEST_NAME NB_REGEX INCLUDE_TEMPLATE FE_DIM)
-    set(multiValueArgs)
+    set(multiValueArgs LIST_N_PROCS)
     cmake_parse_arguments(LOCAL "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 # IN PARAMETERS:
 
-    message("==> ${LOCAL_TEST_NAME}")
+    message(STATUS "==> ${LOCAL_TEST_NAME}")
+    message(STATUS "np_procs testing = ${LOCAL_LIST_N_PROCS}")
     set(TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${LOCAL_TEST_NAME})
     
     #===================================================
@@ -60,8 +61,95 @@ function(add_regression_test)
     list(GET LIST_REGEX ${index_regex} passRegex)
 
     #=== effective test definition
-    add_test(NAME ${LOCAL_TEST_NAME}
-      WORKING_DIRECTORY ${TEST_DIR}/REGRESSION_TESTS
-      COMMAND ${MY_CMD})
-    set_property (TEST ${LOCAL_TEST_NAME} PROPERTY PASS_REGULAR_EXPRESSION "${passRegex}")
+    foreach(n_proc IN LISTS LOCAL_LIST_N_PROCS)
+        add_test(NAME ${LOCAL_TEST_NAME}_PROC_${n_proc}
+        WORKING_DIRECTORY ${TEST_DIR}/REGRESSION_TESTS
+        COMMAND ${MY_CMD} ${n_proc})
+        set_property (TEST "${LOCAL_TEST_NAME}_PROC_${n_proc}" PROPERTY PASS_REGULAR_EXPRESSION "${passRegex}")
+    endforeach()
+endfunction()
+
+
+#===========================================================================================
+#======== FUNCTIONS GENERATING A RANDOM LIST TO TEST NUMBER OF PROCESSES RANDOMLY ==========
+#===========================================================================================
+function(generate_random_number OUT_INT MIN MAX)
+    math(EXPR range_size "${MAX} - ${MIN} + 1")    
+    string(RANDOM LENGTH 5 ALPHABET "0123456789" raw_val)
+    math(EXPR final_val "(${raw_val} % ${range_size} + ${MIN})")
+    set(${OUT_INT} "${final_val}" PARENT_SCOPE)
+
+endfunction()
+
+function(generate_random_procs_list OUT_VAR)
+
+# IN PARAMETERS:
+    set(options)
+    set(oneValueArgs MIN MAX LEVEL DEFAULT)
+    set(multiValueArgs LIST_LEVEL)
+    cmake_parse_arguments(LOCAL "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+# IN PARAMETERS:
+
+    if(LOCAL_LEVEL EQUAL 0)
+        # Return result
+        set(result ${LOCAL_DEFAULT})
+        set(${OUT_VAR} "${result}" PARENT_SCOPE)
+    else()
+        # Get number of different tests to perform
+        list(GET LOCAL_LIST_LEVEL ${LOCAL_LEVEL} N)
+
+        # Safety check
+        math(EXPR range_size "${LOCAL_MAX} - ${LOCAL_MIN} + 1")
+        if(N GREATER range_size)
+        message(FATAL_ERROR
+            "Cannot generate ${N} unique numbers in range [${LOCAL_MIN}, ${LOCAL_MAX}]")
+        endif()
+
+        # Decide strategy
+        math(EXPR range_size "${LOCAL_MAX} - ${LOCAL_MIN} + 1")    
+        math(EXPR half_range "${range_size} / 2")
+        if(N GREATER half_range)
+            math(EXPR small_N "${range_size} - ${N}")
+        else()
+            math(EXPR small_N "${N}")
+        endif()
+
+        # List hosting random numbers
+        set(tmp_list)
+
+        while(TRUE)
+            list(LENGTH tmp_list len)
+            # Exit condition if found all random integers
+            if(len EQUAL small_N)
+                break()
+            endif()
+
+            # Generate random integer, check it was already generated before
+            generate_random_number(RAND_INT ${LOCAL_MIN} ${LOCAL_MAX})
+            # math(RANDOM OUTPUT_VARIABLE r RANGE ${MIN} ${MAX})
+            list(FIND tmp_list ${RAND_INT} idx)
+            if(idx EQUAL -1)
+                list(APPEND tmp_list ${RAND_INT})
+            endif()
+        endwhile()
+
+        # Assemble final list
+        if(N GREATER half_range)
+            # Take the complementary in this case
+            set(result)
+            foreach(v RANGE ${LOCAL_MIN} ${LOCAL_MAX})
+                list(FIND tmp_list ${v} idx)
+                if(idx EQUAL -1)
+                    list(APPEND result ${v})
+                endif()
+            endforeach()
+        else()
+            set(result ${tmp_list})
+            list(SORT result COMPARE NATURAL)
+        endif()
+
+        # Return result
+        set(${OUT_VAR} "${result}" PARENT_SCOPE)
+    endif()
+
 endfunction()

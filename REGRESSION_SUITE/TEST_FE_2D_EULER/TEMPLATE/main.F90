@@ -69,10 +69,8 @@ CONTAINS
     INTEGER :: n, code
 
     IF (setup_data%if_analytical_ref) THEN
-       CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
-       CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-       CALL ns_l1(mesh, rho_anal(euler%time,mesh%rr), norm_anal_loc)
-       CALL MPI_ALLREDUCE(norm_anal_loc,norm_anal,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
+       CALL ns_l1_PAR(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error, euler%communicator)
+       CALL ns_l1_PAR(mesh, rho_anal(euler%time,mesh%rr), norm_anal, euler%communicator)
        IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error density relative, L1-norm ', error/norm_anal
     END IF
 
@@ -80,13 +78,12 @@ CONTAINS
       ALLOCATE(tab_norm(size(un, 2)))
       DO n=1, SIZE(un,2)
         IF (setup_data%if_analytical_ref) THEN
-          CALL ns_l1(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error_loc)
-          CALL ns_l1(mesh, sol_anal(n, euler%time,mesh%rr), norm_loc)
-          norm_loc = error_loc/norm_loc
+          CALL ns_l1_PAR(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
+          CALL ns_l1_PAR(mesh, sol_anal(n, euler%time,mesh%rr), norm, euler%communicator)
+          norm = error/norm
         ELSE
-          CALL ns_l1(mesh, un(:,n), norm_loc)
+          CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
         END IF
-        CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
         tab_norm(n) = norm
       END DO
       CALL get_num_test(num_test)

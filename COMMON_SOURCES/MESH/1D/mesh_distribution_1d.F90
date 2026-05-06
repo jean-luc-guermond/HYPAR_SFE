@@ -123,6 +123,19 @@ CONTAINS
     DO n = 1, mesh_loc%me
        mesh_loc%jce(1, n) = me_start - 1 + n
     END DO
+!VB 06/05/2026 (neigh was not initialized before?)
+    mesh_loc%neigh(1, :) = [(m, m = 2, mesh_loc%me + 1)]
+    mesh_loc%neigh(2, :) = [(m, m = 0, mesh_loc%me - 1)]
+    !=== other procs before m=1 and m=mesh_loc%me
+    mesh_loc%neigh(:, 1) = -1
+    mesh_loc%neigh(:, mesh_loc%me) = -1
+    !=== special treatment for boundaries in the case of extremal ranks
+    IF (rank == 1) THEN
+       mesh_loc%neigh(2, 1) = 0
+    ELSE IF (rank == nb_procs) THEN
+       mesh_loc%neigh(1, mesh_loc%me) = 0
+    END IF
+!VB 06/05/2026
 
     IF (per_bool) THEN
        mesh_loc%loc_to_glob = mesh_loc%loc_to_glob - 1

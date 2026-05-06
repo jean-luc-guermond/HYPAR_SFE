@@ -1,13 +1,15 @@
 #!/bin/bash
 datatest=data
 
-nproc=4
+i_nproc=$((3 + $3 + 1))
+nproc=${!i_nproc}
 
 for ((i=1; i<=$3; i++)); do
     #=== define executable
     exe_index=$((3 + i))
     exe=${!exe_index}
     #=== run the test
+    echo "$1 $2$nproc ../EXECUTABLE/${exe} regression $i"
     $1 $2$nproc ../EXECUTABLE/${exe} regression $i
     #=== move the output
     mkdir output_$i
