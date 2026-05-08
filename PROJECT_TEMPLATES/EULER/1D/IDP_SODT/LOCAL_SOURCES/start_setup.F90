@@ -3,7 +3,7 @@ MODULE start_setup_MODULE
   USE petsc
   USE def_type_mesh
   USE euler_type_module
-  USE read_inputs_module, ONLY : clean_data_once, rec_length
+  USE read_inputs_module
   MPI_Comm        :: communicator
 
 
@@ -11,6 +11,7 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of iterations ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 
@@ -19,9 +20,9 @@ MODULE start_setup_MODULE
      LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
+     INTEGER        :: max_it              = 100000
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
-     INTEGER        :: rank
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
@@ -40,10 +41,11 @@ CONTAINS
   SUBROUTINE start_setup
     use periodic_data_module
     USE construct_mesh
-    USE st_matrix
+    USE st_matrix,          ONLY : st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
     PetscErrorCode :: ierr
+    !REAL(KIND = 8) :: init_time = 0.d0
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'Euler 1'
     INTEGER :: rank
@@ -53,7 +55,7 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
-    
+
     !===Clean data once
     CALL clean_data_once
 
@@ -65,11 +67,12 @@ CONTAINS
     
     !===Read
     CALL setup_data%init
-    
+
     !===Start Euler
     times(2) = setup_data%final_time
-    CALL euler%init(communicator, name, mesh, LA, mesh%per, pressure, impose_bc_euler, times)
+    CALL euler%init(communicator, name, mesh, LA, pressure, impose_bc_euler, times)
 
+    !===Read data setup
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)
@@ -78,15 +81,12 @@ CONTAINS
   END SUBROUTINE init_setup_data
 
   SUBROUTINE read_setup_data(this)
-    USE read_inputs_module
     IMPLICIT NONE
 
     CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
-
     CLASS(setup_data_type)             :: this
     TYPE(argument_setup_data_type)     :: argument_data
-
-    CHARACTER(LEN=rec_length)     :: string
+    CHARACTER(LEN=rec_length)          :: string
 
     !================
     !=== MANDATORY Reading all data file
@@ -103,8 +103,11 @@ CONTAINS
     !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
-    !===Checkpointing
+    !===Final time
     CALL read_data(argument_data%final_time, this%final_time)
+
+    !===Maximum number of iterations
+    CALL read_data(argument_data%max_it, this%max_it)
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)

@@ -5,7 +5,7 @@ MODULE my_util
       MODULE PROCEDURE to_str_int, to_str_real
   END INTERFACE to_str
 
-  PUBLIC :: user_time, error_Petsc, to_str, WRITE_rank_0
+  PUBLIC :: user_time, error_Petsc, to_str, write_rank_0, pack_opt
 CONTAINS
   !
   !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994
@@ -19,30 +19,52 @@ CONTAINS
     time = (1.d0*count)/count_rate
   END FUNCTION user_time
 
+   !========================================================================
+   !=========== write on rank 0 subs =======================================
+   !========================================================================
+
   SUBROUTINE error_Petsc(string)
 #include "petsc/finclude/petsc.h"
     USE petsc
     IMPLICIT NONE
-    CHARACTER(LEN=*),       INTENT(IN) :: string
-    INTEGER                            :: rank
+    CHARACTER(LEN=*),  INTENT(IN) :: string
     PetscErrorCode :: ierr
-    CALL MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr)
-    IF (rank==0) WRITE(*,*) string
+    CALL write_rank_0(string)
     CALL PetscFinalize(ierr)
     STOP
   END SUBROUTINE error_Petsc
 
-  SUBROUTINE WRITE_rank_0(string)
+  SUBROUTINE write_rank_0(string)
 #include "petsc/finclude/petsc.h"
     USE petsc
     IMPLICIT NONE
-    CHARACTER(LEN=*),       INTENT(IN) :: string
+    CHARACTER(LEN=*),  INTENT(IN) :: string
     INTEGER                            :: rank
     PetscErrorCode :: ierr
     CALL MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr)
     IF (rank==0) WRITE(*,*) string
-  END SUBROUTINE WRITE_rank_0
+  END SUBROUTINE write_rank_0
 
+   !========================================================================
+   !=========== to_str interfaces ==========================================
+   !========================================================================
+
+  SUBROUTINE pack_opt(val_out, val_default, opt_val_in)
+    IMPLICIT NONE
+    LOGICAL, INTENT(IN)  :: val_default
+    LOGICAL, INTENT(OUT) :: val_out
+    LOGICAL, OPTIONAL, INTENT(IN) :: opt_val_in
+
+    IF (PRESENT(opt_val_in)) THEN
+      val_out = opt_val_in
+    ELSE
+      val_out = val_default
+    END IF
+
+  END SUBROUTINE pack_opt
+
+   !========================================================================
+   !=========== to_str interfaces ==========================================
    !========================================================================
    
    FUNCTION to_str_int(i) RESULT (str)

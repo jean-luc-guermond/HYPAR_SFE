@@ -35,6 +35,7 @@ CONTAINS
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k, ierr
+      real(kind=8) :: norm
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 

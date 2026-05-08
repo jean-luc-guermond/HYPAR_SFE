@@ -29,7 +29,7 @@ function(add_regression_test)
     #===================================================
     # Loop over number of regex to generate executables
     #===================================================
-    set(MY_CMD /bin/bash job.sh)
+    set(MY_CMD /bin/bash "../../../job.sh")
     list(APPEND MY_CMD
         ${RUN_PRE_PROC}
         ${PROC_CALL}

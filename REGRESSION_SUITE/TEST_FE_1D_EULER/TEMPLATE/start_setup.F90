@@ -3,14 +3,19 @@ MODULE start_setup_MODULE
   USE petsc
   USE def_type_mesh
   USE euler_type_module
+  USE limiting_bounds_euler_module, ONLY: psi_rho_min, psi_rho_max,&
+                               zero_of_psi_rho_max, zero_of_psi_rho_min
+  USE cell_limiting_engine_parallel_module, ONLY: limiting_bounds_type
+
   USE read_inputs_module
-  MPI_Comm        :: communicator
-
-
+  USE setup,           ONLY: init_state_functions
+  USE euler_bc_arrays, ONLY: euler_bc_type
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+     CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of iterations ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 
@@ -18,7 +23,9 @@ MODULE start_setup_MODULE
      LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
+     INTEGER        :: verbose_freq        = 1000000
      REAL(KIND = 8) :: final_time          = 0.1d0
+     INTEGER        :: max_it              = 1000000
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
    CONTAINS
@@ -28,22 +35,23 @@ MODULE start_setup_MODULE
 
   TYPE(mesh_type),                   PUBLIC :: mesh
   TYPE(petsc_csr_LA),               PRIVATE :: LA
+  TYPE(euler_bc_type),                PRIVATE :: my_bc
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
+  TYPE(limiting_bounds_type),       PRIVATE :: limiting_bounds_euler
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
+  MPI_Comm :: communicator
   PUBLIC :: start_setup
   PRIVATE
 
 CONTAINS
 
   SUBROUTINE start_setup
-    use periodic_data_module
-    USE construct_mesh
-    USE st_matrix,          ONLY : st_aij_csr_glob_block_with_extra_layer
+    USE construct_mesh,     ONLY: get_mesh
+    USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
     PetscErrorCode :: ierr
-    !REAL(KIND = 8) :: init_time = 0.d0
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'Euler 1'
     INTEGER :: rank
@@ -68,9 +76,16 @@ CONTAINS
 
     !===Start Euler
     times(2) = setup_data%final_time
-    CALL euler%init(communicator, name, mesh, LA, pressure, impose_bc_euler, times)
+    CALL euler%init_euler(name, pressure, my_bc)
 
-    !===Read data setup
+    limiting_bounds_euler%psi_min => psi_rho_min
+    limiting_bounds_euler%psi_max => psi_rho_max
+    limiting_bounds_euler%zero_of_psi_min => zero_of_psi_rho_min
+    limiting_bounds_euler%zero_of_psi_max => zero_of_psi_rho_max
+
+    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, &
+                               opt_limiting_bounds=limiting_bounds_euler)
+    CALL init_state_functions(euler%bc)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)
@@ -101,8 +116,14 @@ CONTAINS
     !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
 
+    !===Verbose frequency
+    CALL read_data(argument_data%verbose_freq, this%verbose_freq)
+
     !===Final time
     CALL read_data(argument_data%final_time, this%final_time)
+
+    !===Maximum number of iterations
+    CALL read_data(argument_data%max_it, this%max_it)
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)

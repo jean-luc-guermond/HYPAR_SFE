@@ -7,6 +7,7 @@ MODULE cell_limiting_engine_parallel_module
 
    TYPE argument_limiting_type
       CHARACTER(LEN=rec_length) :: if_limiting       = '=== Apply cell-limiting (T/F) ? ==='
+      CHARACTER(LEN=rec_length) :: limit_max         = '=== How many limiting iterations? ==='
       CHARACTER(LEN=rec_length) :: if_relax_bounds   = '=== Apply bound relaxation for limiting (T/F) ? ==='
       CHARACTER(LEN=rec_length) :: relaxation_method = '=== Relaxation method (avg/minmod) ==='
    END TYPE argument_limiting_type
@@ -14,6 +15,7 @@ MODULE cell_limiting_engine_parallel_module
    TYPE limiting_type
       CHARACTER(100) :: name
       LOGICAL                   :: if_limiting       = .False.
+      INTEGER                   :: limit_max         = 2
       LOGICAL                   :: if_relax_bounds   = .False.
       CHARACTER(len=rec_length) :: relaxation_method ='minmod'
       INTEGER, DIMENSION(:,:), POINTER :: jj
@@ -27,6 +29,7 @@ MODULE cell_limiting_engine_parallel_module
       PROCEDURE, PUBLIC  :: init => init_limiting
       PROCEDURE, PUBLIC  :: read => read_limiting_data
       PROCEDURE, PUBLIC  :: iterative_cell_limiting_procedure
+      PROCEDURE, PRIVATE :: cell_averaging
    END TYPE limiting_type
 
    ABSTRACT INTERFACE
@@ -34,21 +37,22 @@ MODULE cell_limiting_engine_parallel_module
          IMPLICIT NONE
          REAL(KIND=8), DIMENSION(:), INTENT(IN) :: u0, P
          REAL(KIND=8), INTENT(IN)  :: psi_m
-         REAL(KIND=8), INTENT(OUT) :: v
+         REAL(KIND=8) :: v
       END FUNCTION template_zero_of_psi
 
       FUNCTION template_psi(x,psi_m) RESULT(v)
          IMPLICIT NONE
          REAL(KIND=8), DIMENSION(:), INTENT(IN) :: x
          REAL(KIND=8), INTENT(IN) :: psi_m
-         REAL(KIND=8), INTENT(OUT):: v
+         REAL(KIND=8) :: v
       END FUNCTION template_psi
    END INTERFACE
 
    TYPE :: limiting_bounds_type
-   CONTAINS
-      PROCEDURE(template_psi),         DEFERRED :: psi_min, psi_max
-      PROCEDURE(template_zero_of_psi), DEFERRED :: zero_of_psi_min, zero_of_psi_max
+      PROCEDURE(template_psi),         POINTER, NOPASS :: psi_min => NULL()
+      PROCEDURE(template_psi),         POINTER, NOPASS :: psi_max => NULL()
+      PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_min => NULL()
+      PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_max => NULL()
    END TYPE limiting_bounds_type
    
 CONTAINS
@@ -77,8 +81,8 @@ CONTAINS
       Mat :: mass
     
       !===Start reading limiting data
+      this%name = name
       CALL this%read("LIMITING PARAMETERS FOR "//TRIM(ADJUSTL(name)))
-      this%name = 'limiting_for_'//TRIM(ADJUSTL(name))
       this%jj => mesh%jj
       this%LA => LA
     
@@ -147,13 +151,20 @@ CONTAINS
       !=== We now find the relevant information for this specific limiting data
       !================
       !===if_limiting
-      CALL read_data(argument_data%if_limiting , this%if_limiting)
+      CALL read_data(argument_data%if_limiting , this%if_limiting, &
+      opt_name=this%name)
+
+      !===Number of limiting iterations
+      CALL read_data(argument_data%limit_max , this%limit_max, &
+      opt_name=this%name, opt_add=this%if_limiting)
 
       !===if_relax_bounds
-      CALL read_data(argument_data%if_relax_bounds, this%if_relax_bounds)
+      CALL read_data(argument_data%if_relax_bounds, this%if_relax_bounds, &
+      opt_name=this%name, opt_add=this%if_limiting)
 
       !===relaxation_method
-      CALL read_data(argument_data%relaxation_method, this%relaxation_method)
+      CALL read_data(argument_data%relaxation_method, this%relaxation_method, &
+      opt_name=this%name, opt_add=(this%if_limiting .AND. this%if_relax_bounds))
 
       !================
       !=== MANDATORY to close data for the current section and
@@ -162,19 +173,9 @@ CONTAINS
       CALL finalize_rewrite_data
    END SUBROUTINE read_limiting_data
 
-   SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, min_max, xx_out)  
-   ! SUBROUTINE iterative_cell_limiting_procedure(this,xx_in,loc_min,psi,zero_of_psi,xx_out)  
+   SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, minmax, xx_out)  
+      USE my_util, ONLY: error_petsc
       IMPLICIT NONE
-      ! INTERFACE
-      !    FUNCTION psi(x,psi_min) RESULT(v)
-      !       REAL(KIND=8), DIMENSION(:) :: x
-      !       REAL(KIND=8) :: psi_min, v
-      !    END FUNCTION psi
-      !    FUNCTION zero_of_psi(psi_min,u0,P) RESULT(v)
-      !       REAL(KIND=8), DIMENSION(:) :: u0, P
-      !       REAL(KIND=8) :: psi_min, v
-      !    END FUNCTION zero_of_psi
-      ! END INTERFACE
       CLASS(limiting_type),         INTENT(IN) :: this
       CLASS(limiting_bounds_type),  INTENT(IN) :: lim_bounds
       PROCEDURE(template_zero_of_psi), POINTER :: zero_of_psi
@@ -301,7 +302,7 @@ CONTAINS
 
    !===Now we average over the nodes=========
       DO comp = 1, syst_size
-         CALL cell_averaging(this,xx(:,:,comp), xx_out(:,comp))
+         CALL this%cell_averaging(xx(:,:,comp), xx_out(:,comp))
       END DO     
 
    END SUBROUTINE iterative_cell_limiting_procedure
@@ -310,9 +311,10 @@ CONTAINS
 #include "petsc/finclude/petsc.h"
       USE petsc 
       IMPLICIT NONE
-      CLASS(limiting_type), INTENT(INOUT) :: this
-      REAL(KIND=8), DIMENSION(SIZE(this%jj,1),SIZE(this%jj,2))    :: xx
-      REAL(KIND=8), DIMENSION(:)               :: xx_out
+      CLASS(limiting_type), INTENT(IN) :: this
+      REAL(KIND=8), DIMENSION(:,:), INTENT(INOUT) :: xx
+      ! REAL(KIND=8), DIMENSION(SIZE(this%jj,1),SIZE(this%jj,2)), INTENT(INOUT) :: xx
+      REAL(KIND=8), DIMENSION(:), INTENT(INOUT)  :: xx_out
       REAL(KIND=8), DIMENSION(SIZE(xx_out))    :: xx_inter
       REAL(KIND=8), DIMENSION(SIZE(this%jj,1)) :: v_loc
       INTEGER, DIMENSION(SIZE(this%jj,1))      :: idxm
@@ -334,14 +336,6 @@ CONTAINS
 
       CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, xx_inter, &
                                 'insert', opt_assemble=.TRUE.)
-
-      ! CALL VecAssemblyBegin(this%xvect, ierr)
-      ! CALL VecAssemblyEnd(this%xvect, ierr)
-
-      ! CALL VecGhostGetLocalForm(this%xvect, this%x_ghost, ierr)
-      ! CALL VecGhostUpdateBegin(this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL VecGhostUpdateEnd  (this%xvect, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      ! CALL extract(this%x_ghost, 1, 1, this%LA, xx_inter)
 
       !===Rescaling
       WHERE (this%lumped_mass .GT.this%mass_eps)

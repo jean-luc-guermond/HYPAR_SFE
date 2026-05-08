@@ -8,3 +8,8 @@ set(release_bounds "-O3")
 set(RUN_PRE_PROC "mpirun")
 set(PROC_CALL "-np ")
 set(RUN_POST_PROC "")
+# How many parallelization tests between 0 and 4?
+# level 0 => default: one run at n_proc fixed in advance
+# level 1 => one run with a random number of procs
+#  4 >= levels > 1 => increasing number of distinct runs, with distinct random number of procs 
+set(PARALLEL_TEST_LEVEL 0) 

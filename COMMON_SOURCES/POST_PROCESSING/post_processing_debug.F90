@@ -70,7 +70,7 @@ CONTAINS
       test_passed = .TRUE.
       !==== If regression reference file too small, skip test and write error
       IF (size_regression_ref < SIZE(absolute_error)) THEN
-         WRITE(*,*) "ERROR IN REGRESSION: size(reference)<size(absolute_error)", size_regression_ref, SIZE(absolute_error)
+         WRITE(*,*) "BUG IN REGRESSION: size(reference)<size(absolute_error)", size_regression_ref, SIZE(absolute_error)
          test_passed = .FALSE.
       !==== If regression reference large enough, perform regression test
       ELSE

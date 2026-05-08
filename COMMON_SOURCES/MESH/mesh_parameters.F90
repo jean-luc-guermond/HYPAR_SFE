@@ -26,7 +26,7 @@ MODULE mesh_data_module
       INTEGER                        :: type_fe           = 1
       INTEGER                        :: nb_refinement     = 0
       INTEGER                                  :: nb_bords      = 0
-      INTEGER, DIMENSION(:, :), POINTER        :: list_periodic
+      INTEGER,        DIMENSION(:, :), POINTER :: list_periodic
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
    CONTAINS
       PROCEDURE, PUBLIC              :: READ => read_mesh_data
@@ -69,10 +69,10 @@ CONTAINS
       CALL read_data(argument_data%if_read_partition, this%if_read_partition)
 
       !=== type of finite element
-      CALL read_data(argument_data%type_fe, this%type_fe)
+      CALL read_data(argument_data%type_fe, this%type_fe, opt_add=(k_dim==2))
 
       !=== number of refinement steps
-      CALL read_data(argument_data%nb_refinement, this%nb_refinement)
+      CALL read_data(argument_data%nb_refinement, this%nb_refinement, opt_add=(k_dim==2))
 
       !=== number of subdomains in the mesh
       CALL read_data(argument_data%nb_dom, this%nb_dom)

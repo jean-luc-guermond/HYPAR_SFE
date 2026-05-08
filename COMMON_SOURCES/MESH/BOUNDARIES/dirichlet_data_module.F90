@@ -4,8 +4,8 @@ MODULE dirichlet_type_module
 
    IMPLICIT NONE
    TYPE argument_dirichlet_bc
-      CHARACTER(rec_length) :: nb_sides
-      CHARACTER(rec_length) :: list_sides
+      CHARACTER(rec_length) :: nb_sides = '=== How many pieces of Dirichlet boundaries for bcs on ==='
+      CHARACTER(rec_length) :: list_sides = '=== List of Dirichlet boundaries for bcs on ==='
    END TYPE argument_dirichlet_bc
 
    TYPE dirichlet_bc
@@ -38,10 +38,6 @@ CONTAINS
       CLASS(dirichlet_bc), INTENT(INOUT)              :: this
       TYPE(argument_dirichlet_bc)                     :: argument_data
 
-      !===Initialize data arguments (depends on the name of the BC)
-      argument_data%nb_sides = '=== How many pieces of Dirichlet boundaries for bcs on ' // trim(adjustl(this%name)) // '? ==='
-      argument_data%list_sides = '=== List of Dirichlet boundaries for bcs on ' // trim(adjustl(this%name)) // ' ==='
-
 !================
 !=== MANDATORY Reading all data file
 !================
@@ -56,7 +52,7 @@ CONTAINS
 !================
 
     !=== number of sides where to impose the DIRICHLET BC 
-      CALL read_data(argument_data%nb_sides, this%nb_sides)
+      CALL read_data(argument_data%nb_sides, this%nb_sides, opt_name=this%name)
 
     !=== list of sides where to impose the DIRICHLET BC (special treatment if the list is empty)
       ALLOCATE(this%list_sides(this%nb_sides))
@@ -64,7 +60,8 @@ CONTAINS
       IF (this%nb_sides>0) THEN
          this%list_sides = 0
       END IF
-      CALL read_data(argument_data%list_sides, this%list_sides, opt_skip_data=this%nb_sides==0)
+      CALL read_data(argument_data%list_sides, this%list_sides,&
+                   opt_skip_data=this%nb_sides==0, opt_name=this%name, opt_add=this%nb_sides/=0)
    
 !================
 !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
@@ -181,7 +178,6 @@ CONTAINS
          ELSE  
             CALL this%read
          END IF
-         !  CALL this%read_dirichlet_data
       ELSE
          n = MINVAL(mesh%sides)
          p = MAXVAL(mesh%sides)

@@ -2,7 +2,7 @@
 !           MESH PARAMETERS
 =====================================
 === Name of directory for mesh file ===
-'../MESHES'
+'../../../MESHES'
 === Name of mesh file ===
 unit_sq_0.1.FEM
 === Is the mesh formatted? (True/False) ===
@@ -19,7 +19,9 @@ F
 1
 === How many pieces of periodic boundary? ===
 0
-=== How many pieces of Dirichlet boundaries for bcs on a? ===
+=== Indices of periodic boundaries and corresponding vectors===
+0 0 0.d0 0.d0
+=== How many pieces of Dirichlet boundaries for bcs on a ===
 4
 === List of Dirichlet boundaries for bcs on a ===
 1 2 3 4

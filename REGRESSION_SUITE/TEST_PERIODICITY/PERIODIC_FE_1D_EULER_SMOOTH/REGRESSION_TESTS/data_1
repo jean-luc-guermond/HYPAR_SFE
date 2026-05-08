@@ -1,0 +1,78 @@
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+.
+=== Name of mesh file ===
+mesh
+=== Is the mesh formatted? (True/False) ===
+T
+=== Do we read metis partition? (true/false) ===
+F
+=== Type of finite element ===
+1
+=== Number of refinement steps ===
+0
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+=== How many pieces of periodic boundary? ===
+1
+=== Indices of periodic boundaries and corresponding vectors===
+1 2 1.d0
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Restart (true/false) ===
+F
+=== Checkpointing frequency ===
+1.d20
+=== Frequency for run verbose ===
+1000000
+=== Final time ===
+1.
+=== Maximum number of iterations ===
+1000000
+=== Do we compare with analytical reference? (true/false) ===
+t
+========================================
+!           Euler 1 PARAMETERS
+========================================
+=== b_covolume? Euler 1 ===
+0.d0
+=== No iteration for lambda solver? (t/f) Euler 1 ===
+T
+=== Tolerance for lambda solver Euler 1 ===
+1.d-2
+=======================================================
+!           HYPERBOLIC PARAMETERS FOR Euler 1
+=======================================================
+=== CFL ? Euler 1 ===
+0.95
+=== ERK ? Euler 1 ===
+41
+=== Which method to solve Euler (viscous, high) ? Euler 1 ===
+viscous
+=========================================================
+!           DIRICHLET BC PARAMETERS FOR Euler 1
+=========================================================
+=== How many pieces of Dirichlet boundaries for bcs on density ===
+0
+=== List of Dirichlet boundaries for bcs on density ===
+0 0
+=== How many pieces of Dirichlet boundaries for bcs on ux ===
+0
+=== List of Dirichlet boundaries for bcs on ux ===
+0 0
+=====================================================
+!           LIMITING PARAMETERS FOR Euler 1
+=====================================================
+=== Apply cell-limiting (T/F) ? Euler 1 ===
+F
+=== How many limiting iterations? Euler 1 ===
+2
+=== Apply bound relaxation for limiting (T/F) ? Euler 1 ===
+F
+=== Relaxation method (avg/minmod) Euler 1 ===
+minmod

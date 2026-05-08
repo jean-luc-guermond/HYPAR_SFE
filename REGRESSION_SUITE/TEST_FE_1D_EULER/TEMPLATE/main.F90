@@ -17,7 +17,7 @@ PROGRAM prog
 
   CALL start_setup
   ALLOCATE(un(mesh%np, euler%syst_dim))
-  CALL init(un, 0.d0, euler%mesh%rr)
+  CALL euler%bc%initial_condition(un, 0.d0, euler%mesh%rr)
 
   WRITE(char, '(I5)') euler%mesh%rank
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'initrho'//TRIM(ADJUSTL(char))//'.plt')
@@ -29,9 +29,15 @@ PROGRAM prog
   tps = user_time()
   n = 0
   DO WHILE(euler%time < setup_data%final_time)
-     CALL euler%update(un)
-     n = n + 1
-     !IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
+    CALL euler%update(un)
+    n = n + 1
+    IF (MOD(n, setup_data%verbose_freq)==0) THEN
+        IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
+    END IF
+    IF (n == setup_data%max_it) THEN
+        IF (euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
+        EXIT
+    END IF
   END DO
   tps = user_time() - tps
 
@@ -64,39 +70,43 @@ CONTAINS
     IMPLICIT NONE
 
     REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
-    REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
+    REAL(KIND = 8), DIMENSION(size(un, 2)) :: tab_norm
     INTEGER :: n, code
 
-    IF (setup_data%if_analytical_ref) THEN
-      !  CALL ns_l1(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error_loc)
-      !  CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-      !  CALL ns_l1(mesh, rho_anal(euler%time,mesh%rr), norm_anal_loc)
-      !  CALL MPI_ALLREDUCE(norm_anal_loc,norm_anal,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-       CALL ns_l1_PAR(mesh, un(:,1)-rho_anal(euler%time,mesh%rr), error, euler%communicator)
-       CALL ns_l1_PAR(mesh, rho_anal(euler%time,mesh%rr), norm_anal, euler%communicator)
-       IF(euler%mesh%rank==0) WRITE(*, '(A,g12.3)') 'Error density relative, L1-norm ', error/norm_anal
-    END IF
+!==== Put final processing stuff here ====!
+    DO n=1, SIZE(un,2)
+      IF (setup_data%if_analytical_ref) THEN
+        CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
+        CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
+        norm = error/norm_anal
+        IF(euler%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+      ELSE
+        CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
+        IF(euler%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
+      END IF
+    END DO
 
+    
+!==== For regression tests ====!
     IF (setup_data%if_regression_test) THEN
-      ALLOCATE(tab_norm(size(un, 2)))
       DO n=1, SIZE(un,2)
         IF (setup_data%if_analytical_ref) THEN
-          ! CALL ns_l1(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error_loc)
-          ! CALL MPI_ALLREDUCE(error_loc,error,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-          ! CALL ns_l1(mesh, sol_anal(n, euler%time,mesh%rr), norm_loc)
-          ! CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
-          CALL ns_l1_PAR(mesh, un(:,n)-sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
-          CALL ns_l1_PAR(mesh, sol_anal(n, euler%time,mesh%rr), norm, euler%communicator)
-          norm = error/norm
+          CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
+          CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
+          IF (norm_anal<1d-13) THEN
+            norm = error
+          ELSE
+            norm = error/norm_anal
+          END IF
         ELSE
-          ! CALL ns_l1(mesh, un(:,n), norm_loc)
-          ! CALL MPI_ALLREDUCE(norm_loc,norm,1,MPI_DOUBLE_PRECISION,MPI_SUM,euler%communicator,code)
           CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
         END IF
         tab_norm(n) = norm
       END DO
+      write(*,*) 'tab_norm = ', tab_norm
       CALL get_num_test(num_test)
       CALL regression(tab_norm, opt_num_test=num_test)
     END IF
+
   END SUBROUTINE errors
 END PROGRAM prog

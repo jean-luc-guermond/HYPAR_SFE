@@ -1,10 +1,15 @@
 MODULE setup
    USE space_dim, ONLY : k_dim
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, pressure
+   USE euler_bc_arrays, ONLY: euler_bc_type, mt_anal_rho_times_vit, E_anal_ideal_gas
+
+   PUBLIC :: pressure, init_state_functions
+
    PRIVATE
+   REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
    REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
    REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
-   REAL(KIND=8) :: chi, beta
+   REAL(KIND=8), PARAMETER :: beta=beta0/(2*pi), chi=((gamma-1)/(2*gamma))*beta**2
+
    CONTAINS
    
 !==========================================================================
@@ -15,61 +20,32 @@ MODULE setup
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      REAL(KIND = 8) :: gamma
-      gamma = 7.0 / 5.0
       vv = rho * e * (gamma - 1)
    END FUNCTION pressure
    
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
-   
-   SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
-      USE euler_bc_arrays
-      USE def_type_mesh
-      IMPLICIT NONE
-      TYPE(mesh_type) :: mesh
-      TYPE(euler_bc_type) :: euler_bc
-      REAL(KIND = 8) :: time
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
-      INTEGER :: comp
-      DO comp = 1, euler_bc%syst_dim
-         SELECT CASE(comp)
-         CASE(1)
-            un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(2:k_dim + 1)
-            un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         CASE(k_dim + 2)
-            un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         END SELECT
-      END DO
-   END SUBROUTINE impose_bc_euler
-   
-   SUBROUTINE init(un, time, rr)
-      IMPLICIT NONE
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), k_dim + 2), INTENT(OUT) :: un
-      REAL(KIND = 8), INTENT(IN) :: time
-      INTEGER :: comp
-      REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
       
-      beta = beta0/(2*pi)
-      chi=((gamma-1)/(2*gamma))*beta**2
-      
-      DO comp = 1, k_dim+2
-         SELECT CASE(comp)
-         CASE(1)
-            un(:, comp) = rho_anal(time, rr)
-         CASE(2:k_dim + 1)
-            un(:, comp) = mt_anal(comp - 1, time, rr)
-         CASE(k_dim + 2)
-            un(:, comp) = E_anal(time, rr)
-         END SELECT
-      END DO
-   END SUBROUTINE init
-   
-   FUNCTION rho_anal(time,rr) RESULT(vv)
+
+   SUBROUTINE init_state_functions(bc)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: bc
+
+      bc%gamma = gamma
+
+      bc%mt_anal      => mt_anal_rho_times_vit
+      bc%E_anal       => E_anal_ideal_gas
+
+      bc%rho_anal     => rho_anal_isentropic
+      bc%vit_anal     => vit_anal_isentropic
+      bc%press_anal   => press_anal_isentropic
+
+   END SUBROUTINE init_state_functions
+
+   FUNCTION rho_anal_isentropic(this, time,rr) RESULT(vv)
+      IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND=8), DIMENSION(:,:),         INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND=8), DIMENSION(SIZE(rr,2))              :: vv, z
@@ -80,18 +56,20 @@ MODULE setup
          z(n) = exp(1-rsq/(r0**2))
       END DO
       vv = (1-chi*z)**(1.d0/(gamma-1.d0))
-   END FUNCTION rho_anal
+   END FUNCTION rho_anal_isentropic
    
-   FUNCTION press_anal(time,rr) RESULT(vv)
+   FUNCTION press_anal_isentropic(this, time,rr) RESULT(vv)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND=8), DIMENSION(:,:),        INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND=8), DIMENSION(SIZE(rr,2))             :: vv
-      vv = p_infty*(rho_anal(time,rr)/rho_infty)**gamma
-   END FUNCTION press_anal
+      vv = p_infty*(this%rho_anal(time,rr)/rho_infty)**gamma
+   END FUNCTION press_anal_isentropic
    
-   FUNCTION vit_anal(comp,time,rr) RESULT(vv)
+   FUNCTION vit_anal_isentropic(this, comp,time,rr) RESULT(vv)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       INTEGER,                             INTENT(IN) :: comp
       REAL(KIND = 8),                      INTENT(IN) :: time
       REAL(KIND=8), DIMENSION(:,:),        INTENT(IN) :: rr
@@ -109,43 +87,6 @@ MODULE setup
       ELSE
          vv = beta*z*(rr(1,:)-x0-u_infty*time)/r0
       END IF
-   END FUNCTION vit_anal
+   END FUNCTION vit_anal_isentropic
    
-   FUNCTION E_anal(time, rr) RESULT(vv)
-      IMPLICIT NONE
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = press_anal(time, rr) / (gamma - 1.d0) &
-      + rho_anal(time, rr) * (vit_anal(1, time, rr)**2) / 2
-   END FUNCTION E_anal
-   
-   FUNCTION mt_anal(comp, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
-   END FUNCTION mt_anal
-   
-   
-   FUNCTION sol_anal(comp, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      SELECT CASE(comp)
-      CASE(1)
-         vv = rho_anal(time, rr)
-      CASE(2:k_dim+1)
-         vv = mt_anal(comp-1, time, rr)
-      CASE(k_dim+2)
-         vv = E_anal(time, rr)
-      CASE DEFAULT
-         WRITE(*, *) ' BUG in sol_anal, comp=', comp, 'should be <=', k_dim+2
-         STOP
-      END SELECT
-   END FUNCTION sol_anal
 END MODULE setup

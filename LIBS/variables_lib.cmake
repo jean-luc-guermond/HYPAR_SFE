@@ -1,4 +1,4 @@
-# Variables for personal laptop
+# Variables depending on the cluster/computer/compiler
 #set(ENV{CC} "gcc")
 #set(ENV{CXX} "gcc")
 #set(ENV{FC} "gfortran")

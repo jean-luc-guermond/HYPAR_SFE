@@ -1,0 +1,8 @@
+CTEST currently failing:
+
+-limiting with several procs
+-periodic 2D with more than 14 procs
+-VDW: cases 1-3 do not converge, so we only test case 0
+-Isentropic vortex pass BUT manual tests => P1 convergence saturates at approx 1d-3
+-Pb with mesh partitioning => wind tunnel might fail for several procs on some clusters
+

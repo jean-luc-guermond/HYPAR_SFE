@@ -1,30 +1,20 @@
-MODULE hyperbolic_bc_arrays
-   ! USE dirichlet_type_module, ONLY : dirichlet_bc
-   ! USE def_type_mesh,         ONLY : mesh_type, petsc_csr_LA
-
-   TYPE, ABSTRACT :: hyperbolic_bc_type
-      INTEGER :: syst_dim
-      ! TYPE(dirichlet_bc) :: rho_bc, ux_bc, uy_bc, whole_bdy_bc, udotn_bc
-      ! REAL(KIND = 8), POINTER, DIMENSION(:, :) :: udotn_normal_vtx
-   CONTAINS
-      PROCEDURE, DEFERRED :: construct_bc
-      PROCEDURE, PUBLIC, NOPASS :: construct_udotn
-   END TYPE hyperbolic_bc_type
+MODULE hyperbolic_bc_tools
 
 CONTAINS
 
    SUBROUTINE construct_udotn(mesh, LA, udotn_bc, udotn_normal_vtx)
-      IMPLICIT NONE
       USE petsc
 #include "petsc/finclude/petsc.h"
       !  USE sub_plot
+      USE dirichlet_type_module, ONLY : dirichlet_bc
       USE space_dim
+      USE def_type_mesh, ONLY: mesh_type, petsc_csr_LA
       USE hyperbolic_matrices_module, ONLY : x1vec, x2vec, x2_ghost
       USE st_matrix,                  ONLY : extract_through_ghost
       IMPLICIT NONE
-      TYPE(mesh_type),                              INTENT(IN) :: mesh
-      TYPE(petsc_csr_LA),                           INTENT(IN) :: LA
-      TYPE(dirichlet_bc),                           INTENT(OUT):: udotn_bc
+      TYPE(mesh_type),                 INTENT(IN) :: mesh
+      TYPE(petsc_csr_LA),              INTENT(IN) :: LA
+      TYPE(dirichlet_bc),                           INTENT(INOUT):: udotn_bc
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT):: udotn_normal_vtx
       LOGICAL,        DIMENSION(mesh%nps)        :: virgin
       REAL(KIND = 8), DIMENSION(mesh%nps, k_dim) :: normal_vtx
@@ -33,16 +23,6 @@ CONTAINS
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
       REAL(KIND = 8) :: norm
       INTEGER :: ms, ns, js, n, ierr
-
-      ! CALL this%rho_bc%set(mesh, "density", "DIRICHLET BC PARAMETERS")
-
-      ! CALL this%ux_bc%set(mesh, "ux")
-      
-      ! IF (k_dim>1) THEN
-      !    CALL this%uy_bc%set(mesh, "uy")
-      !    CALL this%whole_bdy_bc%set(mesh, "whole boundary")
-      !    CALL this%udotn_bc%set(mesh, "u.n=0")
-      ! END IF
 
       !===Normal at vertices
       SELECT CASE(k_dim)
@@ -55,7 +35,7 @@ CONTAINS
          n = 0
          DO ms = 1, mesh%mes
 
-            IF (MINVAL(ABS(mesh%sides(ms) - udotn_bc%list_sides)).NE.0) CYCLE
+            IF (.NOT. ANY(mesh%sides(ms)==udotn_bc%list_sides)) CYCLE
             DO ns = 1, mesh%gauss%n_ws
                js = mesh%iis(ns,ms)
                IF (virgin(js)) THEN
@@ -113,4 +93,4 @@ CONTAINS
 
    END SUBROUTINE construct_udotn
    
-END MODULE hyperbolic_bc_arrays
+END MODULE hyperbolic_bc_tools
