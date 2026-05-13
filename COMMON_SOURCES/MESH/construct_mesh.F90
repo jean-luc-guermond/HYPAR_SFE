@@ -69,7 +69,7 @@ CONTAINS
           END IF
        END IF
 
-       CALL extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh)
+       CALL extract_mesh(communicator, mesh_glob, part, list_dom, mesh)
        CALL free_mesh(mesh_glob)
        DEALLOCATE(part)
        !===mesh refinements

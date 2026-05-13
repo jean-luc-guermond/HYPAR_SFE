@@ -4,7 +4,7 @@ MODULE fem_rhs
  CONTAINS
 
    SUBROUTINE qs_00 (mesh, LA, ff, vect)
-      !> transfer of  vect(PETSc) <== ff(HYPAR)
+      !> transfer of  vect(PETSc projected on test functions) <== ff(HYPAR)
       !! mesh(hypar)
       !! LA(petsc_csr_MLA)
       !=================================

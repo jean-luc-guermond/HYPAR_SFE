@@ -446,10 +446,12 @@ CONTAINS
       LOGICAL, DIMENSION(mesh%me) :: virgin
       INTEGER :: m, mop, nw, me, n, n1, n2, nmin, nmax, edge, nt, nws, f_dof, nop
       LOGICAL :: test
+      LOGICAL, DIMENSION(:), ALLOCATABLE :: arr_test
       nw = SIZE(mesh%jj, 1)
       nws = SIZE(mesh%jjs, 1)
       me = mesh%me
 
+!== Prelim checks
       IF (SIZE(mesh%rr, 1)==2) THEN
          nt = 3
          f_dof = nws - 2
@@ -462,6 +464,8 @@ CONTAINS
          WRITE(*, *) ' BUG in prep_jce_jev, nw.NE.nt'
          STOP
       END IF
+
+!== Check medges
       virgin = .TRUE.
       edge = 0
       DO m = 1, me
@@ -487,36 +491,29 @@ CONTAINS
       !ALLOCATE(mesh%jev(nt - 1, mesh%medge))
       ALLOCATE(mesh%jce(nt, mesh%me))
 
+!== Construct jce (edges connectivity array)
       edge = 0
       virgin = .TRUE.
+      ALLOCATE(arr_test(nw))
       DO m = 1, me
          virgin(m) = .FALSE.
          DO n = 1, nt
             mop = mesh%neigh(n, m)
+            n1 = MODULO(n, nt) + 1
+            n2 = MODULO(n + 1, nt) + 1 ! Works in 2D only
             IF (mop>0) THEN
                IF (.NOT.virgin(mop)) THEN
-                  n1 = MODULO(n, nt) + 1
-                  n2 = MODULO(n + 1, nt) + 1
-                  test = .false.
-                  DO nop = 1, nw
-                     IF (MIN(ABS(mesh%jj(nop, mop) - mesh%jj(n1, m)), ABS(mesh%jj(nop, mop) - mesh%jj(n2, m)))==0) THEN
-                        CYCLE
-                     ELSE
-                        test = .true.
-                        EXIT
-                     END IF
-                  END DO
-                  IF (.NOT.test) THEN
-                     WRITE(*, *) ' BUG in prep_jce_jev'
+                  arr_test = ((mesh%jj(:, mop)/=mesh%jj(n1, m))) .AND. (mesh%jj(:, mop)/=mesh%jj(n2, m))
+                  IF (.NOT. ANY(arr_test)) THEN
+                     WRITE(*, *) ' BUG in prep_jce_jev: could not find the edge from mop corresponding to m ??'
                      STOP
                   END IF
+                  nop = FINDLOC(arr_test, .TRUE., DIM=1)
                   mesh%jce(n, m) = mesh%jce(nop, mop)
                   CYCLE !Edge already done
                END IF
             END IF
             edge = edge + 1 !New edge
-            n1 = MODULO(n, nt) + 1
-            n2 = MODULO(n + 1, nt) + 1 ! Works in 2D only
             nmin = MIN(n1, n2)
             nmax = MAX(n1, n2)
             !mesh%jev(1, edge) = mesh%jj(nmin, m)

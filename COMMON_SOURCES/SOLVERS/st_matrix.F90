@@ -132,12 +132,9 @@ CONTAINS
       DO n = 1, nb_procs
          disp(n + 1) = disp(n) + dom_np(n)
       END DO
-      IF (ASSOCIATED(mesh%disp)) THEN
-         NULLIFY(mesh%disp)
-      END IF
-      IF (ASSOCIATED(mesh%domnp)) THEN
-         NULLIFY(mesh%domnp)
-      END IF
+      IF (ALLOCATED(mesh%disp)) DEALLOCATE(mesh%disp)
+      IF (ALLOCATED(mesh%domnp)) DEALLOCATE(mesh%domnp)
+
       ALLOCATE(mesh%disp(nb_procs + 1))
       ALLOCATE(mesh%domnp(nb_procs))
       mesh%disp = disp

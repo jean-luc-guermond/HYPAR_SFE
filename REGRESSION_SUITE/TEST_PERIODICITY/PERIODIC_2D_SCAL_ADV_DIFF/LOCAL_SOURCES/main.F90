@@ -84,7 +84,7 @@ PROGRAM test_matrix
   CALL VecGhostUpdateBegin(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
   CALL VecGhostUpdateEnd(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
   ALLOCATE(un(mesh%np))
-  CALL extract(ghost_sol, 1, 1, LA, un)
+  CALL extract(sol, 1, 1, LA, un)
 
   !===post processing =================================================
   WRITE(char, '(I5)') mesh%rank

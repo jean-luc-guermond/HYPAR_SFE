@@ -534,7 +534,7 @@ CONTAINS
 
    END SUBROUTINE part_mesh
 
-   SUBROUTINE extract_mesh(communicator, nb_proc, mesh_glob, part, list_dom, mesh_loc)
+   SUBROUTINE extract_mesh(communicator, mesh_glob, part, list_dom, mesh_loc)
       USE def_type_mesh
       USE my_util
       IMPLICIT NONE
@@ -544,7 +544,7 @@ CONTAINS
       INTEGER, DIMENSION(mesh_glob%np) :: i_old_to_new
       INTEGER, DIMENSION(mesh_glob%medge) :: old_edge_to_new
       INTEGER, DIMENSION(mesh_glob%mes) :: parts
-      INTEGER, DIMENSION(nb_proc) :: nblmt_per_proc, start, displ
+      INTEGER, DIMENSION(:), ALLOCATABLE :: nblmt_per_proc, start, displ
       INTEGER, DIMENSION(2) :: np_loc, me_loc, mes_loc
       INTEGER, DIMENSION(:), ALLOCATABLE :: list_m, tab, tabs
       INTEGER :: nb_proc, ms, i, index, m, mop, n, j
@@ -552,10 +552,9 @@ CONTAINS
       PetscMPIInt    :: rank
       MPI_Comm       :: communicator
       CALL MPI_Comm_rank(communicator, rank, ierr)
-
-      ALLOCATE(mesh_loc%disp(nb_proc + 1), mesh_loc%domnp(nb_proc))
-      ALLOCATE(mesh_loc%discell(nb_proc + 1), mesh_loc%domcell(nb_proc))
-      ALLOCATE(mesh_loc%disedge(nb_proc + 1), mesh_loc%domedge(nb_proc))
+      CALL mesh_loc%create_comm(communicator)
+      nb_proc = mesh_loc%nb_proc
+      ALLOCATE(nblmt_per_proc(nb_proc), start(nb_proc), displ(nb_proc))
 
       ! Create parts
       parts = part(mesh_glob%neighs)
@@ -773,32 +772,28 @@ CONTAINS
       mesh%nis = 0
       ALLOCATE(mesh%isolated_jjs(0), mesh%isolated_interfaces(0, 2))
 
-      ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-      ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-      ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-      !mesh%disp = (/ 1, mesh%np + 1 /)
-      !mesh%domnp = (/ mesh%np /)
-      !mesh%discell = (/ 1, mesh%me + 1 /)
-      !mesh%domcell = (/ mesh%me /)
-      !mesh%disedge = (/ 1, mesh%medge + 1 /)
-      !mesh%domedge = (/ mesh%medge /)
-      mesh%disp(1) = 1
-      mesh%disp(2) = mesh%np + 1
-      mesh%domnp(1) = mesh%np
-      mesh%discell(1) = 1
-      mesh%discell(2) = mesh%me + 1
-      mesh%domcell(1) = mesh%me
-      mesh%disedge(1) = 1
-      mesh%disedge(2) = mesh%medge + 1
-      mesh%domedge(1) = mesh%medge
-      CALL create_local_mesh_with_extra_layer(communicator, mesh, mesh_loc, me_loc, mes_loc, np_loc)
+      ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+      ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+      ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+
+      ! mesh%disp(1) = 1
+      ! mesh%disp(2) = mesh%np + 1
+      ! mesh%domnp(1) = mesh%np
+      ! mesh%discell(1) = 1
+      ! mesh%discell(2) = mesh%me + 1
+      ! mesh%domcell(1) = mesh%me
+      ! mesh%disedge(1) = 1
+      ! mesh%disedge(2) = mesh%medge + 1
+      ! mesh%domedge(1) = mesh%medge
+      CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
       CALL free_mesh(mesh)
       DEALLOCATE(list_m, tab, tabs)
+
 
    END SUBROUTINE extract_mesh
 
 
-   SUBROUTINE create_local_mesh_with_extra_layer(communicator, mesh, mesh_loc, me_loc, mes_loc, np_loc)
+   SUBROUTINE create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
       USE def_type_mesh
       USE my_util
       USE sub_plot
@@ -816,13 +811,12 @@ CONTAINS
       LOGICAL :: test
       INTEGER :: dim, nws, nw, m, ms, mop, ns, msup, minf, dof, proc, m2, &
            dom_me, nwc, dom_mes, dom_np, n, i, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
-      MPI_Comm :: communicator
 
       dim = SIZE(mesh%rr, 1)
       nws = SIZE(mesh%jjs, 1)
       nw = SIZE(mesh%jj, 1)
       nwc = SIZE(mesh%neigh, 1)
-      nb_proc = SIZE(mesh_loc%domnp)
+      nb_proc = mesh_loc%nb_proc!SIZE(mesh_loc%domnp)
 
       !==Test if one proc only
       IF (me_loc(2) - me_loc(1) + 1==mesh%me) THEN
@@ -885,12 +879,10 @@ CONTAINS
          !ALLOCATE(mesh_loc%jev(SIZE(mesh%jev, 1), mesh%medge))
          !mesh_loc%jev = mesh%jev
 
-         mesh_loc%disp = (/ 1, mesh%np + 1 /)
-         mesh_loc%domnp = (/ mesh%np /)
-         mesh_loc%discell = (/ 1, mesh%me + 1 /)
-         mesh_loc%domcell = (/ mesh%me /)
-         mesh_loc%disedge = (/ 1, mesh%medge + 1 /)
-         mesh_loc%domedge = (/ mesh%medge /)
+         CALL mesh_loc%gather_dom_np
+         CALL mesh_loc%gather_me
+
+         CALL mesh_loc%gather_medge
          RETURN
       END IF
       !==End test if one proc only
@@ -905,24 +897,14 @@ CONTAINS
       mesh_loc%dom_np = dom_np
       mesh_loc%dom_mes = dom_mes
       CALL MPI_ALLREDUCE(dom_np, dom_np_glob, 1, MPI_INTEGER, &
-           MPI_MIN, communicator, ierr)
+           MPI_MIN, mesh_loc%comm, ierr)
       IF (dom_np_glob.LE.0) THEN
          CALL error_petsc('Pb in create_local_mesh, not enough cells per processors')
       END IF
 
-      CALL MPI_ALLGATHER(mesh_loc%dom_np, 1, MPI_INTEGER, mesh_loc%domnp, 1, &
-           MPI_INTEGER, communicator, ierr)
-      mesh_loc%disp(1) = 1
-      DO n = 1, nb_proc
-         mesh_loc%disp(n + 1) = mesh_loc%disp(n) + mesh_loc%domnp(n)
-      END DO
+      CALL mesh_loc%gather_dom_np
+      CALL mesh_loc%gather_me
 
-      CALL MPI_ALLGATHER(mesh_loc%me, 1, MPI_INTEGER, mesh_loc%domcell, 1, &
-           MPI_INTEGER, communicator, ierr)
-      mesh_loc%discell(1) = 1
-      DO n = 1, nb_proc
-         mesh_loc%discell(n + 1) = mesh_loc%discell(n) + mesh_loc%domcell(n)
-      END DO
 
       !==Re-order jj
       virgin = .TRUE.
@@ -1148,12 +1130,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL MPI_ALLGATHER(mesh_loc%medge, 1, MPI_INTEGER, mesh_loc%domedge, 1, &
-           MPI_INTEGER, communicator, ierr)
-      mesh_loc%disedge(1) = 1
-      DO n = 1, nb_proc
-         mesh_loc%disedge(n + 1) = mesh_loc%disedge(n) + mesh_loc%domedge(n)
-      END DO
+      CALL mesh_loc%gather_medge
 
       !==Re-order jev
       !ALLOCATE(mesh_loc%jev(SIZE(mesh%jev, 1), mesh_loc%medge))
@@ -1163,9 +1140,8 @@ CONTAINS
 
       !==Building extra cells
       virginss = .TRUE.
-      DO proc = 1, nb_proc
-         IF (mesh_loc%loc_to_glob(1) <= mesh_loc%disp(proc))    EXIT
-      END DO
+      proc = mesh_loc%proc
+
       nb_extra = 0
       DO m = 1, mesh%me
          jglob = mesh%jj(:, m)

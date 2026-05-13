@@ -89,15 +89,20 @@ CONTAINS
          mesh%dom_me = mesh_p1%dom_me
          mesh%dom_np = mesh_p1%dom_np
          mesh%dom_mes = mesh_p1%dom_mes
-         ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-         mesh%domnp = mesh_p1%domnp
-         mesh%disp = mesh_p1%disp
-         ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-         mesh%domcell = mesh_p1%domcell
-         mesh%discell = mesh_p1%discell
-         ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-         mesh%domedge = mesh_p1%domedge
-         mesh%disedge = mesh_p1%disedge
+
+         CALL mesh%create_comm(mesh_p1%comm)
+         CALL mesh%gather_dom_np
+         CALL mesh%gather_me
+         CALL mesh%gather_medge
+         ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+         ! mesh%domnp = mesh_p1%domnp
+         ! mesh%disp = mesh_p1%disp
+         ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+         ! mesh%domcell = mesh_p1%domcell
+         ! mesh%discell = mesh_p1%discell
+         ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+         ! mesh%domedge = mesh_p1%domedge
+         ! mesh%disedge = mesh_p1%disedge
          mesh%nis = mesh_p1%nis
          ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
          mesh%isolated_interfaces = mesh_p1%isolated_interfaces
@@ -151,15 +156,20 @@ CONTAINS
          mesh%dom_me = mesh_p1%dom_me
          mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
          mesh%dom_mes = mesh_p1%dom_mes
-         ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-         mesh%domnp = mesh_p1%domnp + mesh_p1%domedge
-         mesh%disp = mesh_p1%disp + mesh_p1%disedge - 1
-         ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-         mesh%domcell = mesh_p1%domcell
-         mesh%discell = mesh_p1%discell
-         ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-         mesh%domedge = mesh_p1%domedge
-         mesh%disedge = mesh_p1%disedge
+
+         CALL mesh%create_comm(mesh_p1%comm)
+         CALL mesh%gather_dom_np
+         CALL mesh%gather_me
+         CALL mesh%gather_medge
+         ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+         ! mesh%domnp = mesh_p1%domnp + mesh_p1%domedge
+         ! mesh%disp = mesh_p1%disp + mesh_p1%disedge - 1
+         ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+         ! mesh%domcell = mesh_p1%domcell
+         ! mesh%discell = mesh_p1%discell
+         ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+         ! mesh%domedge = mesh_p1%domedge
+         ! mesh%disedge = mesh_p1%disedge
 
          mesh%nis = mesh_p1%nis
          ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
@@ -213,15 +223,20 @@ CONTAINS
          mesh%dom_me = mesh_p1%dom_me
          mesh%dom_np = mesh_p1%dom_np + 2 * mesh_p1%medge + mesh_p1%me
          mesh%dom_mes = mesh_p1%dom_mes
-         ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-         mesh%domnp = mesh_p1%domnp + mesh_p1%domedge * 2 + mesh_p1%domcell
-         mesh%disp = mesh_p1%disp + mesh_p1%disedge * 2 + mesh_p1%discell - 3
-         ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-         mesh%domcell = mesh_p1%domcell
-         mesh%discell = mesh_p1%discell
-         ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-         mesh%domedge = mesh_p1%domedge
-         mesh%disedge = mesh_p1%disedge
+
+         CALL mesh%create_comm(mesh_p1%comm)
+         CALL mesh%gather_dom_np
+         CALL mesh%gather_me
+         CALL mesh%gather_medge
+         ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+         ! mesh%domnp = mesh_p1%domnp + mesh_p1%domedge * 2 + mesh_p1%domcell
+         ! mesh%disp = mesh_p1%disp + mesh_p1%disedge * 2 + mesh_p1%discell - 3
+         ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+         ! mesh%domcell = mesh_p1%domcell
+         ! mesh%discell = mesh_p1%discell
+         ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+         ! mesh%domedge = mesh_p1%domedge
+         ! mesh%disedge = mesh_p1%disedge
 
          mesh%nis = mesh_p1%nis
          ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
@@ -609,15 +624,19 @@ CONTAINS
       mesh%dom_me = 4 * mesh_p1%dom_me
       mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
       mesh%dom_mes = 2 * mesh_p1%dom_mes
-      ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-      mesh%domnp = mesh_p1%domnp + mesh_p1%domedge
-      mesh%disp = mesh_p1%disp + mesh_p1%disedge - 1
-      ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-      mesh%domcell = 4 * mesh_p1%domcell
-      mesh%discell = 4 * mesh_p1%discell - 3
-      ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-      mesh%domedge = 2 * mesh_p1%domedge + 3 * mesh_p1%domcell
-      mesh%disedge = 2 * mesh_p1%disedge + 3 * mesh_p1%discell - 4
+      CALL mesh%create_comm(mesh_p1%comm)
+      CALL mesh%gather_dom_np
+      CALL mesh%gather_me
+      CALL mesh%gather_medge
+      ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
+      ! mesh%domnp = mesh_p1%domnp + mesh_p1%domedge
+      ! mesh%disp = mesh_p1%disp + mesh_p1%disedge - 1
+      ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
+      ! mesh%domcell = 4 * mesh_p1%domcell
+      ! mesh%discell = 4 * mesh_p1%discell - 3
+      ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
+      ! mesh%domedge = 2 * mesh_p1%domedge + 3 * mesh_p1%domcell
+      ! mesh%disedge = 2 * mesh_p1%disedge + 3 * mesh_p1%discell - 4
 
       mesh%nis = mesh_p1%nis
       ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))

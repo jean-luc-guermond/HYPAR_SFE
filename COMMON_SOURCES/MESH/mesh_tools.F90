@@ -66,18 +66,22 @@ CONTAINS
       ALLOCATE(mesh2%jecs(SIZE(mesh1%jecs)))
       mesh2%jecs = mesh1%jecs
 
-      ALLOCATE(mesh2%disp(SIZE(mesh1%disp)))
-      mesh2%disp = mesh1%disp
-      ALLOCATE(mesh2%domnp(SIZE(mesh1%domnp)))
-      mesh2%domnp = mesh1%domnp
-      ALLOCATE(mesh2%discell(SIZE(mesh1%disp)))
-      mesh2%discell = mesh1%discell
-      ALLOCATE(mesh2%domcell(SIZE(mesh1%domnp)))
-      mesh2%domcell = mesh1%domcell
-      ALLOCATE(mesh2%disedge(SIZE(mesh1%disp)))
-      mesh2%disedge = mesh1%disedge
-      ALLOCATE(mesh2%domedge(SIZE(mesh1%domnp)))
-      mesh2%domedge = mesh1%domedge
+      CALL mesh2%create_comm(mesh1%comm)
+      CALL mesh2%gather_dom_np
+      CALL mesh2%gather_me
+      CALL mesh2%gather_medge
+      ! ALLOCATE(mesh2%disp(SIZE(mesh1%disp)))
+      ! mesh2%disp = mesh1%disp
+      ! ALLOCATE(mesh2%domnp(SIZE(mesh1%domnp)))
+      ! mesh2%domnp = mesh1%domnp
+      ! ALLOCATE(mesh2%discell(SIZE(mesh1%disp)))
+      ! mesh2%discell = mesh1%discell
+      ! ALLOCATE(mesh2%domcell(SIZE(mesh1%domnp)))
+      ! mesh2%domcell = mesh1%domcell
+      ! ALLOCATE(mesh2%disedge(SIZE(mesh1%disp)))
+      ! mesh2%disedge = mesh1%disedge
+      ! ALLOCATE(mesh2%domedge(SIZE(mesh1%domnp)))
+      ! mesh2%domedge = mesh1%domedge
 
       ALLOCATE(mesh2%jj_extra(SIZE(mesh1%jj_extra, 1), SIZE(mesh1%jj_extra, 2)))
       mesh2%jj_extra = mesh1%jj_extra
@@ -106,7 +110,13 @@ CONTAINS
       DEALLOCATE(mesh%jj, mesh%i_d, mesh%loc_to_glob, mesh%rr, mesh%neigh)
       DEALLOCATE(mesh%jjs, mesh%sides, mesh%neighs)
       DEALLOCATE(mesh%jjs_int, mesh%sides_int, mesh%neighs_int)
-      DEALLOCATE(mesh%disp, mesh%domnp, mesh%disedge, mesh%domedge, mesh%discell, mesh%domcell)
+      IF (ALLOCATED(mesh%disp)) DEALLOCATE(mesh%disp)
+      IF (ALLOCATED(mesh%domnp)) DEALLOCATE(mesh%domnp)
+      IF (ALLOCATED(mesh%disedge)) DEALLOCATE(mesh%disedge)
+      IF (ALLOCATED(mesh%domedge)) DEALLOCATE(mesh%domedge)
+      IF (ALLOCATED(mesh%discell)) DEALLOCATE(mesh%discell)
+      IF (ALLOCATED(mesh%domcell)) DEALLOCATE(mesh%domcell)
+
       DEALLOCATE(mesh%jce, mesh%jees, mesh%jecs)
 
       DEALLOCATE(mesh%jj_extra, mesh%jce_extra, mesh%jjs_extra, mesh%jcc_extra, mesh%rrs_extra)

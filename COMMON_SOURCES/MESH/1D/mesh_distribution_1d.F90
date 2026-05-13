@@ -18,7 +18,7 @@ CONTAINS
     CALL MPI_Comm_rank(communicator, rank, ierr)
     CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
     rank = rank + 1
-
+    CALL mesh_glob%create_comm(communicator)
     per_bool = .FALSE.
     IF (mesh_data_info%nb_bords/=0) THEN
        !DO n = 1, SIZE(opt_pers)

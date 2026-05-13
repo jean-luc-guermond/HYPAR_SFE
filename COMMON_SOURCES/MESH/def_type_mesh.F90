@@ -5,6 +5,8 @@ MODULE def_type_mesh
    USE dyn_line_type
    USE space_dim
    USE periodic_data_module
+#include "petsc/finclude/petsc.h"
+   USE petsc
    IMPLICIT NONE
 
    TYPE aij_type
@@ -65,6 +67,7 @@ MODULE def_type_mesh
       INTEGER, POINTER, DIMENSION(:, :) :: jj_extra, jce_extra, jjs_extra !(extra layer of cells not own by proc but with dofs own by proc)
       INTEGER, POINTER, DIMENSION(:, :) :: jjs_int
       INTEGER, POINTER, DIMENSION(:) :: jcc_extra
+      !=== SIZE(nt, mesh%me) => !!!GLOBAL!!! numbering of edges (use jce_loc to get local numbering)
       INTEGER, POINTER, DIMENSION(:, :) :: jce! cell-> edge (JLG+MC Sept 2022)
       INTEGER, POINTER, DIMENSION(:) :: jees, jecs !edges belonging to another proc (MC Sept 2022)
       INTEGER, POINTER, DIMENSION(:, :, :) :: jji  ! (JLG April 2009)
@@ -79,9 +82,12 @@ MODULE def_type_mesh
       INTEGER, POINTER, DIMENSION(:, :) :: neighs_int
       INTEGER, POINTER, DIMENSION(:) :: i_d
       !==Parallel structure
+      !=== SIZE(mesh%np)
       INTEGER, POINTER, DIMENSION(:) :: loc_to_glob ! (JLG+FL, January 2011)
-      INTEGER, POINTER, DIMENSION(:) :: disp, domnp ! (JLG+FL, January 2011)
-      INTEGER, POINTER, DIMENSION(:) :: disedge, domedge, discell, domcell ! (MC, Sept 2022)
+      !=== SIZE(nb_proc), SIZE(nb_proc + 1)
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: domnp, disp ! (JLG+FL, January 2011) resp. ALLGATHER(mesh%dom_np) and cumsum starting from 1
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: domcell, discell ! (MC, Sept 2022) resp. ALLGATHER(mesh%me) and cumsum starting from 1
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: disedge, domedge ! (MC, Sept 2022) resp. ALLGATHER(mesh%medge) and cumsum starting from 1
       INTEGER :: dom_me, dom_np, dom_mes ! (JLG+FL, January 2011)
       !==Isolated nodes at interfaces
       INTEGER, POINTER, DIMENSION(:) :: isolated_jjs !give glob index of isolated point
@@ -90,7 +96,7 @@ MODULE def_type_mesh
       ! dom_me and dom_mes are obsolete structures.
       ! dom_np is the number of nodes owned by the processor: dom_np .LE. mesh%np
       !==End parallel structure
-      INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int, rank
+      INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int
       LOGICAL :: edge_stab ! edge stab, yes/no, (JLG April 2009)
       TYPE(gauss_type) :: gauss
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hloc ! local mesh size (JLG+LC January, 21, 2015)
@@ -98,11 +104,14 @@ MODULE def_type_mesh
       REAL(KIND = 8) :: global_diameter !diameter of domain (LC 2017/01/27)
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hm !local meshsize in azimuth (JLG April 7, 2017)
       TYPE(periodic_type) :: per !<==Periodic structure is attached to the mesh
+      INTEGER :: rank, proc, nb_proc !VB 11/05/2026
+      MPI_Comm, POINTER :: comm !VB 11/05/2026
    CONTAINS
       PROCEDURE :: jj_glob
       PROCEDURE :: jce_loc
       PROCEDURE :: attr_e
       PROCEDURE :: side_edge
+      PROCEDURE :: create_comm, gather_dom_np, gather_me, gather_medge
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -170,5 +179,60 @@ CONTAINS
       LOGICAL :: out
       out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(this%rank + 2)
    END FUNCTION attr_e
+! communication subroutines VB 11/05/2026
+   SUBROUTINE create_comm(this, communicator)
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER          :: ierr
+      MPI_Comm, TARGET :: communicator
+
+      this%comm => communicator
+      CALL MPI_Comm_rank(this%comm, this%rank, ierr)
+      this%proc = this%rank + 1
+      CALL MPI_Comm_Size(this%comm, this%nb_proc, ierr)
+   END SUBROUTINE create_comm
+
+   SUBROUTINE gather_dom_np(this)
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER          :: n, ierr
+
+      ALLOCATE(this%disp(this%nb_proc + 1), this%domnp(this%nb_proc))
+      CALL MPI_ALLGATHER(this%dom_np, 1, MPI_INTEGER, this%domnp, 1, &
+           MPI_INTEGER, this%comm, ierr)
+      this%disp(1) = 1
+      DO n = 1, this%nb_proc
+         this%disp(n + 1) = this%disp(n) + this%domnp(n)
+      END DO
+   END SUBROUTINE gather_dom_np
+
+   SUBROUTINE gather_me(this)
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER          :: n, ierr
+
+      ALLOCATE(this%discell(this%nb_proc + 1), this%domcell(this%nb_proc))
+      CALL MPI_ALLGATHER(this%me, 1, MPI_INTEGER, this%domcell, 1, &
+           MPI_INTEGER, this%comm, ierr)
+      this%discell(1) = 1
+      DO n = 1, this%nb_proc
+         this%discell(n + 1) = this%discell(n) + this%domcell(n)
+      END DO
+   END SUBROUTINE gather_me
+
+   SUBROUTINE gather_medge(this)
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER          :: n, ierr
+
+      ALLOCATE(this%disedge(this%nb_proc + 1), this%domedge(this%nb_proc))
+      CALL MPI_ALLGATHER(this%medge, 1, MPI_INTEGER, this%domedge, 1, &
+           MPI_INTEGER, this%comm, ierr)
+      this%disedge(1) = 1
+      DO n = 1, this%nb_proc
+         this%disedge(n + 1) = this%disedge(n) + this%domedge(n)
+      END DO
+
+   END SUBROUTINE gather_medge
 
 END MODULE def_type_mesh
