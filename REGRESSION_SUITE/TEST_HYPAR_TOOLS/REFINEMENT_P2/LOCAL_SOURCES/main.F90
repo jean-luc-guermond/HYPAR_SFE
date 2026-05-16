@@ -24,13 +24,14 @@ PROGRAM test_matrix
   !TYPE(periodic_type), DIMENSION(1) :: per
   !INTEGER, POINTER, DIMENSION(:) :: js_d_loc
   INTEGER, POINTER, DIMENSION(:) :: ifrom
-  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un, tab_norm
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un
   REAL(KIND=8) :: error, norm
   INTEGER :: rank
   CHARACTER(5) :: char
 ! for regression test
-  INTEGER :: num_test
   CHARACTER(100) :: string
+  INTEGER :: num_test
+  REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
 ! for regression test
   Mat :: mass
   Vec :: rhs, sol, ghost_sol
@@ -54,7 +55,7 @@ PROGRAM test_matrix
   !===read mesh data =================================================
   CALL clean_data_once
   CALL get_mesh(communicator, mesh)
-  
+
   CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
   CALL dir%set(mesh, "a")
 
@@ -65,16 +66,15 @@ PROGRAM test_matrix
   CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
 
 
-  CALL create_my_ghost(mesh, LA, ifrom) !=== creating ghost structures
+  CALL create_my_ghost(mesh, LA, ifrom)
   CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, sol, ierr)
   CALL VecDuplicate(sol, rhs, ierr)
-  CALL VecGhostGetLocalForm(sol, ghost_sol, ierr) !=== creating pointer ghost_sol => sol used after solving lin syst
+  CALL VecGhostGetLocalForm(sol, ghost_sol, ierr)
 
   !===set PBC + rhs ==================================================
-  CALL qs_00 (mesh, LA, source(mesh%rr), rhs) !=== create rhs with a scalar source term
-  CALL periodic_rhs_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, rhs, LA) !=== give periodic structure to rhs
+  CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
+  CALL periodic_rhs_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, rhs, LA)
   ! write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
-  !=== setting rhs: LA%... - 1 ==> global indexing starts at 0); ex_sol... => associated values
   CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
 
   !===solving linear system ==========================================
@@ -84,30 +84,20 @@ PROGRAM test_matrix
   CALL VecGhostUpdateBegin(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
   CALL VecGhostUpdateEnd(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
   ALLOCATE(un(mesh%np))
-  CALL extract(ghost_sol, 1, 1, LA, un) !=== extracting solution from pointer ghost_sol
+  CALL extract(ghost_sol, 1, 1, LA, un)
 
   !===post processing =================================================
   WRITE(char, '(I5)') mesh%rank
   CALL plot_scalar_field(mesh%jj, mesh%rr, un, 'SOL' // trim(adjustl(char)) // '.plt')
   CALL plot_scalar_field(mesh%jj, mesh%rr, un-ex_sol(mesh%rr), 'error' // trim(adjustl(char)) // '.plt')
 
-  CALL array_to_petsc_vec(ex_sol(mesh%rr), rhs, mesh, LA, 'insert') !=== HYPAR subroutine
+  CALL array_to_petsc_vec(ex_sol(mesh%rr), rhs, mesh, LA, 'insert')
   CALL VecAssemblyBegin(rhs, ierr)
   CALL VecAssemblyEnd(rhs, ierr)
   CALL VecNorm(rhs, NORM_1, norm, ierr)
   CALL VecAXPY(rhs, -1.d0, sol, ierr)
   CALL VecNorm(rhs, NORM_1, error, ierr)
-  IF (rank==0) WRITE(*, '(A,g12.3)') 'L1 NORM error ', error / norm
-
-  ! !===regression test =================================================
-  ! CALL getarg(1, string)
-  ! IF (trim(adjustl(string))=='regression') THEN
-  !   IF (error / norm < 5.d-4) THEN
-  !     IF (rank == 0) WRITE(*, '(A,A)') 'Regression test passed', '1234567891'
-  !   ELSE
-  !     IF (rank == 0) WRITE(*, '(A)') 'Regression test failed'
-  !   END IF
-  ! END IF
+  if(rank==0) WRITE(*, '(A,g12.3)') 'L1 NORM error ', error / norm
 
   !===regression test =================================================
   CALL getarg(1, string)
@@ -118,8 +108,6 @@ PROGRAM test_matrix
        CALL regression(tab_norm, opt_num_test=num_test)
   END IF
 
-
-  CALL error_petsc('End of test')
   CALL PetscFinalize(ierr)
 
 CONTAINS
@@ -128,14 +116,14 @@ CONTAINS
     IMPLICIT NONE
     REAL(KIND = 8), DIMENSION(:, :) :: rr
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
-    REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
-    uu = (1+kmax**2)*COS(kmax * rr(1, :) +  .7d0)
+    REAL(KIND = 8) :: kxmax=ACOS(-1.d0), kymax=3*ACOS(-1.d0)
+    uu = (1+kxmax**2+kymax**2)*SIN(kxmax * rr(1, :))*SIN(kymax * rr(2, :) + .1d0)
   END FUNCTION source
   FUNCTION ex_sol(rr) RESULT(uu)
     IMPLICIT NONE
     REAL(KIND = 8), DIMENSION(:, :) :: rr
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
-    REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
-    uu = COS(kmax * rr(1, :) +  .7d0 )
+    REAL(KIND = 8) :: kxmax=ACOS(-1.d0), kymax=3*ACOS(-1.d0)
+    uu = SIN(kxmax * rr(1, :))*SIN(kymax * rr(2, :) + .1d0)
   END FUNCTION ex_sol
 END PROGRAM test_matrix

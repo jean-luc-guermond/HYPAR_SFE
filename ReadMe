@@ -1,8 +1,62 @@
 CTEST currently failing:
 
--limiting with several procs
--periodic 2D with more than 14 procs
--VDW: cases 1-3 do not converge, so we only test case 0
--Isentropic vortex pass BUT manual tests => P1 convergence saturates at approx 1d-3
--Pb with mesh partitioning => wind tunnel might fail for several procs on some clusters
+- Limiting on FE: MINVAL and MAXVAL not inaccurate over processes
 
+List of tested things:
+
+FE_1D_EULER:
+    FE_1D_SMOOTH                          => 1D, P1, hyperbolic/Euler, viscous method, ideal gas, analytical solution
+    FE_1D_SODT                            => 1D, P1, hyperbolic/Euler, viscous method, ideal gas, analytical solution
+    FE_1D_VANDERWALLS                     => 1D, P1, hyperbolic/Euler, viscous method, vdw gas, stationnary solution, analytical solution
+            analytical solutions of cases 1--3 do not converge => only testing case 0
+    FE_1D_SODT_HIGH_ORDER                 => 1D, P1, hyperbolic/Euler, high method, ideal gas, analytical solution
+            work to do before converging high order
+    FE_1D_SODT_HIGH_ORDER_LIMITING        => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
+            work to do before converging high order
+            fails with more than 1 proc 
+    FE_1D_SODT_HIGH_ORDER_LIMITING_MINMOD => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, minmod relaxation, analytical solution
+            work to do before converging high order
+            relaxation not included in the hyperbolic%update
+            fails with more than 1 proc 
+
+FE_2D_EULER:
+    FE_2D_WIND_TUNNEL                           => 2D, P1, hyperbolic/Euler, viscous method, ideal gas, u.n/ux/uy BC, 
+            Might fail for many procs on some clusters
+    FE_2D_ISENTROPIC_VORTEX                     => 2D, P1, hyperbolic/Euler, viscous method, ideal gas, analytical solution
+            convergence towards analytical solution VS refinements => saturates at approx 1d-3
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER          => 2D, P1, hyperbolic/Euler, high method, ideal gas, analytical solution
+            work to do before converging high order
+            convergence towards analytical solution VS refinements => saturates at approx 1d-3
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
+            work to do before converging high order
+            convergence towards analytical solution VS refinements => saturates at approx 1d-3
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, avg relaxation, ideal gas, analytical solution
+            work to do before converging high order
+            convergence towards analytical solution VS refinements => saturates at approx 1d-3
+            relaxation not included in the hyperbolic%update
+
+TEST_FFT:
+    FFT_1D      => fourier_to_real, real_to_fourier, real_derivative
+            todo: add fourier_product?
+            no parallelization
+    FFT_1D_plan => fourier_to_real_plan, real_to_fourier_plan, real_derivative_plan
+            no parallelization
+
+TEST_FOURIER_1D_SCALAR:
+    FOURIER_1D_BURGERS          => scalar conservation equation, Fourier decomposition, viscous method, analytical solution, two IC
+    FOURIER_1D_LINEAR_TRANSPORT => scalar conservation equation, Fourier decomposition, high method, no limiting, limiting with avg relaxation, analytical solution
+    FOURIER_1D_NON_CONVEX       => scalar conservation equation, Fourier decomposition, high method, limiting with minmod relaxation, analytical solution
+
+
+TEST_HYPAR_TOOLS:
+    REFINEMENT_P1   => 2D, Laplace equation, P1, 3 refinements, Full Dirichlet BC, analytical solution
+    REFINEMENT_P2   => 2D, Laplace equation, P2, 2 refinements, Full Dirichlet BC, analytical solution
+    1D_P2_DIRICHLET => 1D, Laplace equation, P2, manual mesh refinements, Full Dirichlet BC, analytical solution
+    1D_P3_DIRICHLET => 1D, Laplace equation, P3, manual mesh refinements, Full Dirichlet BC, analytical solution
+
+
+TEST_PERIODICITY:
+    PERIODICITY_1D_SCAL_ADV_DIFF => 1D, Laplace equation, P1, P2, P3, Periodic BC, analytical solution
+    PERIODICITY_2D_SCAL_ADV_DIFF => 2D, Laplace equation, P2 & Dirichlet, P3 & Dirichlet & PBC, P2 & full PBC, analytical solution
+            Whistler: fails for more than approx 13 procs
+    PERIODICITY_FE_1D_EULER_SMOOTH => 1D, P1, hyperbolic/Euler, viscous method, ideal gas, PBC, analytical solution

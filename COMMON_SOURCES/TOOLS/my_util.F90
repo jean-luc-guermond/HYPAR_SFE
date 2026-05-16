@@ -5,6 +5,10 @@ MODULE my_util
       MODULE PROCEDURE to_str_int, to_str_real
   END INTERFACE to_str
 
+  INTERFACE pack_opt
+      MODULE PROCEDURE pack_opt_logical, pack_opt_real
+  END INTERFACE pack_opt
+
   PUBLIC :: user_time, error_Petsc, to_str, write_rank_0, pack_opt
 CONTAINS
   !
@@ -45,11 +49,11 @@ CONTAINS
     IF (rank==0) WRITE(*,*) string
   END SUBROUTINE write_rank_0
 
-   !========================================================================
-   !=========== to_str interfaces ==========================================
-   !========================================================================
+   !============================================================================
+   !=========== pack_opt interfaces (handle optionals in a more compact way) ===
+   !============================================================================
 
-  SUBROUTINE pack_opt(val_out, val_default, opt_val_in)
+  SUBROUTINE pack_opt_logical(val_out, val_default, opt_val_in)
     IMPLICIT NONE
     LOGICAL, INTENT(IN)  :: val_default
     LOGICAL, INTENT(OUT) :: val_out
@@ -61,7 +65,21 @@ CONTAINS
       val_out = val_default
     END IF
 
-  END SUBROUTINE pack_opt
+  END SUBROUTINE pack_opt_logical
+
+  SUBROUTINE pack_opt_real(val_out, val_default, opt_val_in)
+    IMPLICIT NONE
+    REAL(KIND=8), INTENT(IN)  :: val_default
+    REAL(KIND=8), INTENT(OUT) :: val_out
+    REAL(KIND=8), OPTIONAL, INTENT(IN) :: opt_val_in
+
+    IF (PRESENT(opt_val_in)) THEN
+      val_out = opt_val_in
+    ELSE
+      val_out = val_default
+    END IF
+
+  END SUBROUTINE pack_opt_real
 
    !========================================================================
    !=========== to_str interfaces ==========================================

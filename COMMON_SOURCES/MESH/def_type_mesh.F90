@@ -104,6 +104,9 @@ MODULE def_type_mesh
       REAL(KIND = 8) :: global_diameter !diameter of domain (LC 2017/01/27)
       REAL(KIND = 8), POINTER, DIMENSION(:) :: hm !local meshsize in azimuth (JLG April 7, 2017)
       TYPE(periodic_type) :: per !<==Periodic structure is attached to the mesh
+
+      ! !VB 14/05/2026 => array o size np - dom_np which value is the proc to which the node belongs
+      INTEGER, DIMENSION(:,:), ALLOCATABLE :: proc_np_loc 
       INTEGER :: rank, proc, nb_proc !VB 11/05/2026
       MPI_Comm, POINTER :: comm !VB 11/05/2026
    CONTAINS
@@ -112,6 +115,7 @@ MODULE def_type_mesh
       PROCEDURE :: attr_e
       PROCEDURE :: side_edge
       PROCEDURE :: create_comm, gather_dom_np, gather_me, gather_medge
+      PROCEDURE :: get_proc, global_numbering, build_loc_to_glob
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -179,7 +183,11 @@ CONTAINS
       LOGICAL :: out
       out = this%disedge(this%rank + 1) <= e .AND. e < this%disedge(this%rank + 2)
    END FUNCTION attr_e
-! communication subroutines VB 11/05/2026
+
+!==========================================
+!=== communication subroutines VB 11/05/2026
+!==========================================
+
    SUBROUTINE create_comm(this, communicator)
       IMPLICIT NONE
       CLASS(mesh_type) :: this
@@ -235,4 +243,105 @@ CONTAINS
 
    END SUBROUTINE gather_medge
 
+!==========================================
+!=== functions to get proc number VB 14/05/2026
+!==========================================
+
+   FUNCTION get_proc(this, val_glob, char_in) RESULT(p)
+      !> function to get the proc owning node/element/edge val_glob
+      !! char_in: np, me, or medge 
+
+      !! np necessarily comes from this%loc_to_glob, this%jj_extra, this%jjs_extra
+      !! me necessarily comes from this%jcc_extra
+      !! medge necessarily comes from this%jees, this%jce_extra, this%jce 
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER,          INTENT(IN) :: val_glob
+      CHARACTER(LEN=*), INTENT(IN) :: char_in
+      INTEGER, DIMENSION(:), ALLOCATABLE :: cumul_over_procs
+      INTEGER :: p
+
+      SELECT CASE(char_in)
+      CASE('np')
+         cumul_over_procs = this%disp
+      CASE('me')
+         cumul_over_procs = this%discell
+      CASE('medge')
+         cumul_over_procs = this%disedge
+      CASE DEFAULT
+         CALL error_petsc("BUG in get_proc => wrong char_in "//char_in//".&
+         Should be in 'np; me; medge'")
+      END SELECT
+
+      DO p = 1, this%nb_proc
+         IF (val_glob < cumul_over_procs(p + 1)) RETURN
+      END DO
+
+   END FUNCTION get_proc
+
+!=================================================================================
+!   Subroutine to create loc_to_glob, KNOWING jj and the cumulative quantities
+!=================================================================================
+
+   FUNCTION global_numbering(this, p, n_loc) RESULT(n_glob)
+      IMPLICIT NONE
+      CLASS(mesh_type)    :: this
+      INTEGER, INTENT(IN) :: p, n_loc
+      INTEGER             :: n_glob
+
+      n_glob = n_loc + this%disp(p) - 1
+   END FUNCTION global_numbering
+
+   SUBROUTINE build_loc_to_glob(this)
+      !> subroutine building the loc_to_glob array, provided the construction of:
+      !! this%jj, this%proc_np_loc, this%proc, this%np, this%dom_np, cumulative quantities
+      IMPLICIT NONE
+      CLASS(mesh_type)    :: this
+      LOGICAL, DIMENSION(:), ALLOCATABLE :: virgin
+      INTEGER :: m, n, n_loc, p
+
+      !=== Create loc_to_glob
+      IF (.NOT. ASSOCIATED(this%loc_to_glob)) ALLOCATE(this%loc_to_glob(this%np), source=-1)
+
+      != nodes owned by proc
+      ALLOCATE(virgin(this%dom_np), source=.TRUE.)
+      DO m=1, this%me
+         DO n=1, SIZE(this%jj,1)
+            n_loc = this%jj(n, m)
+            IF (n_loc > this%dom_np) CYCLE
+            this%loc_to_glob(n_loc) = this%global_numbering(this%proc, n_loc)
+            virgin(n_loc) = .FALSE.
+         END DO
+      END DO
+      IF (ANY(virgin)) THEN
+         DO n=1, this%dom_np
+            IF (virgin(n)) WRITE(*,*) n, 'is virgin (out of) ', this%dom_np, this%np
+         END DO
+         WRITE(*,*) 'BUG in def loc_to_glob: how can jj not have all values between 1 and dom_np??'
+         STOP
+      END IF
+
+      != nodes owned by other proc
+      DEALLOCATE(virgin)
+      ALLOCATE(virgin(this%np-this%dom_np), source=.TRUE.)
+      IF (SIZE(this%proc_np_loc,2)+this%dom_np /= this%np) THEN
+         WRITE(*,*) 'sizes mismatch in proc_np_loc ',SIZE(this%proc_np_loc,2)+this%dom_np , this%np
+         STOP
+      END IF
+      DO n=1, SIZE(this%proc_np_loc,2)
+         p = this%proc_np_loc(1, n)
+         n_loc = this%proc_np_loc(2, n)
+         this%loc_to_glob(n+this%dom_np) = this%global_numbering(p, n_loc)
+         virgin(n) = .FALSE.
+      END DO
+
+      IF (ANY(virgin)) THEN
+         DO n=1, this%np-this%dom_np
+            IF (virgin(n)) WRITE(*,*) n, ' is virgin (out of) ', this%dom_np, this%np
+         END DO
+         WRITE(*,*) 'BUG in def loc_to_glob: proc_np_loc does not seem to contain all ghost points for proc ', this%proc
+         STOP
+      END IF
+   END SUBROUTINE build_loc_to_glob
 END MODULE def_type_mesh

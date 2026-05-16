@@ -20,16 +20,20 @@ CONTAINS
       END IF
   END SUBROUTINE get_num_test
 
-  SUBROUTINE regression(absolute_error, opt_num_test)
+  SUBROUTINE regression(absolute_error, opt_num_test, opt_tol)
+      USE my_util, ONLY: pack_opt
       INTEGER, OPTIONAL                      :: opt_num_test
       REAL(KIND=8), DIMENSION(:), INTENT(IN) :: absolute_error
       REAL(KIND=8), DIMENSION(SIZE(absolute_error)) :: regression_ref, relative_error
-      REAL(KIND=8)                           :: tol=1.d-7
+      REAL(KIND=8)                           :: raw_tol=1.d-7, tol
+      REAL(KIND=8), OPTIONAL,     INTENT(IN) :: opt_tol
       INTEGER, PARAMETER                     :: in_unit=21, out_unit=22
       INTEGER                                :: n, num_test, size_regression_ref
       CHARACTER(LEN=1)                       :: str_num_test
       CHARACTER(LEN=10)                      :: regex
       LOGICAL                                :: test_passed=.TRUE.
+
+      CALL pack_opt(tol, raw_tol, opt_tol)
 
 !==== Defining regression test number
       IF (PRESENT(opt_num_test)) THEN
@@ -81,7 +85,7 @@ CONTAINS
                WRITE(*,*) "Relative error ", relative_error(n)
              ELSE
                WRITE(*,*) "Regression test component", n, "failed"
-               WRITE(*,*) "Relative error ", relative_error(n)
+               WRITE(*,*) "Relative error ", relative_error(n), " for tol = ", tol
                test_passed = .FALSE.
              END IF
          END DO

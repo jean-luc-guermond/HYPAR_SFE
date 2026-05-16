@@ -47,7 +47,7 @@ MODULE fem_rhs
     END SUBROUTINE qs_00
 
     SUBROUTINE qs_11 (mesh, LA, ff, vect)
-      !> transfer of vect(PETSc) <== grad(ff)(HYPAR)
+      !> transfer of vect(PETSc projected on test functions) <== grad(ff)(HYPAR)
       !! mesh(hypar)
       !! LA(petsc_csr_MLA)
       !=================================

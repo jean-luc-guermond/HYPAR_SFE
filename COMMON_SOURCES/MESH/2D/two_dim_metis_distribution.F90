@@ -766,9 +766,8 @@ CONTAINS
       ALLOCATE(mesh%jjs_extra(2, 0))
       ALLOCATE(mesh%rrs_extra(2, 3, 0))
       ALLOCATE(mesh%loc_to_glob(mesh%np))
-      DO n = 1, mesh%np
-         mesh%loc_to_glob(n) = n
-      END DO
+      mesh%loc_to_glob(1:mesh%np) = [(n, n=1, mesh%np)]
+
       mesh%nis = 0
       ALLOCATE(mesh%isolated_jjs(0), mesh%isolated_interfaces(0, 2))
 
@@ -840,9 +839,8 @@ CONTAINS
          ALLOCATE(mesh_loc%jj(nw, mesh%me))
          mesh_loc%jj = mesh%jj
          ALLOCATE(mesh_loc%loc_to_glob(mesh%np))
-         DO n = 1, mesh%np
-            mesh_loc%loc_to_glob(n) = n
-         END DO
+         mesh_loc%loc_to_glob(1:mesh%np) = [(n, n=1, mesh%np)]
+
          ALLOCATE(mesh_loc%rr(dim, mesh%np))
          mesh_loc%rr = mesh%rr
          ALLOCATE(mesh_loc%neigh(nwc, mesh%me))
@@ -1002,6 +1000,13 @@ CONTAINS
       DO  n = 1, mesh_loc%np
          mesh_loc%rr(:, n) = mesh%rr(:, mesh_loc%loc_to_glob(n))
       END DO
+
+      ALLOCATE(mesh_loc%proc_np_loc(2, mesh_loc%np-mesh_loc%dom_np))
+      DO n = mesh_loc%dom_np+1, mesh_loc%np
+         j = mesh_loc%get_proc(mesh_loc%loc_to_glob(n), 'np')
+         mesh_loc%proc_np_loc(1,n-mesh_loc%dom_np) = j
+         mesh_loc%proc_np_loc(2,n-mesh_loc%dom_np) = mesh_loc%loc_to_glob(n) - mesh_loc%disp(j) + 1
+      END DO
       !==End re-order rr
 
       !==Re-order neigh
@@ -1147,10 +1152,8 @@ CONTAINS
          jglob = mesh%jj(:, m)
          eglob = mesh%jce(:, m)
          DO n = 1, 3
-            IF (jglob(n) < mesh_loc%loc_to_glob(1)) jglob(n) = -1
-            IF (jglob(n) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) jglob(n) = -1
-            IF (eglob(n) < mesh_loc%disedge(proc)) eglob(n) = -1
-            IF (eglob(n) >= mesh_loc%disedge(proc + 1)) eglob(n) = -1
+            IF (mesh_loc%get_proc(jglob(n), 'np') /= mesh_loc%proc) jglob(n) = -1
+            IF (mesh_loc%get_proc(eglob(n), 'medge') /= mesh_loc%proc) eglob(n) = -1
          END DO
          IF (MAXVAL(jglob) < 0 .AND. MAXVAL(eglob) < 0) CYCLE
          IF (m<me_loc(1)) THEN
@@ -1169,11 +1172,9 @@ CONTAINS
                   END IF
                END IF
                DO i = 1, 2
-                  IF (is1(i) < mesh_loc%loc_to_glob(1) .OR. is1(i) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) THEN
-                     CYCLE
-                  END IF
+                  IF (mesh_loc%get_proc(is1(i), 'np') /= mesh_loc%proc) CYCLE
                   DO m2 = 1, mesh%me
-                     IF (MINVAL(ABS(mesh%jj(:, m2) - is2(i))) == 0) THEN
+                     IF (ANY(mesh%jj(:, m2)==is2(i))) THEN
                         IF (m2 > me_loc(2)) THEN
                            IF (virginss(m2)) THEN
                               nb_extra = nb_extra + 1
@@ -1196,10 +1197,8 @@ CONTAINS
          jglob = mesh%jj(:, m)
          eglob = mesh%jce(:, m)
          DO n = 1, 3
-            IF (jglob(n) < mesh_loc%loc_to_glob(1)) jglob(n) = -1
-            IF (jglob(n) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) jglob(n) = -1
-            IF (eglob(n) < mesh_loc%disedge(proc)) eglob(n) = -1
-            IF (eglob(n) >= mesh_loc%disedge(proc + 1)) eglob(n) = -1
+            IF (mesh_loc%get_proc(jglob(n), 'np') /= mesh_loc%proc) jglob(n) = -1
+            IF (mesh_loc%get_proc(eglob(n), 'medge') /= mesh_loc%proc) eglob(n) = -1
          END DO
          IF (MAXVAL(jglob) < 0  .AND. MAXVAL(eglob) < 0) CYCLE
          IF (me_loc(2)<m) THEN
@@ -1208,7 +1207,7 @@ CONTAINS
             mesh_loc%jce_extra(:, nb_extra) = mesh%jce(:, m)
             mesh_loc%jcc_extra(nb_extra) = m
             virginss(m) = .FALSE.
-            IF (MINVAL(ABS(mesh%neighs - m)) == 0) THEN
+            IF (ANY(mesh%neighs == m)) THEN
                is1 = 0
                is2 = 0
                CALL find_cell_interface(mesh, m, m2, is1, is2)
@@ -1222,11 +1221,9 @@ CONTAINS
                   END IF
                END IF
                DO i = 1, 2
-                  IF (is1(i) < mesh_loc%loc_to_glob(1) .OR. is1(i) > mesh_loc%loc_to_glob(1) + mesh_loc%dom_np - 1) THEN
-                     CYCLE
-                  END IF
+                  IF (mesh_loc%get_proc(is1(i), 'np') /= mesh_loc%proc) CYCLE
                   DO m2 = 1, mesh%me
-                     IF (MINVAL(ABS(mesh%jj(:, m2) - is2(i))) == 0) THEN
+                     IF (ANY(mesh%jj(:, m2) == is2(i))) THEN
                         IF (m2 > me_loc(2)) THEN
                            IF (virginss(m2)) THEN
                               nb_extra = nb_extra + 1

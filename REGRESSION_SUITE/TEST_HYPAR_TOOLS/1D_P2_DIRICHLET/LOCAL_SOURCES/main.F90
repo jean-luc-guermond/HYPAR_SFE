@@ -26,10 +26,9 @@ PROGRAM test_matrix
   INTEGER, POINTER, DIMENSION(:) :: ifrom
   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un, tab_norm
   REAL(KIND=8) :: error, norm
-  INTEGER :: rank
+  INTEGER :: rank, num_test
   CHARACTER(5) :: char
 ! for regression test
-  INTEGER :: num_test
   CHARACTER(100) :: string
 ! for regression test
   Mat :: mass

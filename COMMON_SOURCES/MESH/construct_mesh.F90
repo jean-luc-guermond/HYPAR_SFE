@@ -5,6 +5,7 @@ MODULE construct_mesh
   USE petsc
   USE mesh_data_module
   USE mesh_tools
+  use gauss_points_1d, ONLY: create_gauss_points_1d
   PUBLIC :: get_mesh
   PRIVATE
 CONTAINS
@@ -110,8 +111,17 @@ CONTAINS
        CALL extract_mesh_1d(communicator, mesh_glob, mesh)
        CALL free_mesh(mesh_glob)
        mesh%edge_stab = .false.
-       CALL GAUSS_POINT_1d(mesh)
        mesh%rank = rank
+
+       != new ==> create Pk mesh
+       CALL create_Pk_mesh_1D(communicator, mesh, mesh_r, mesh_data_info%type_fe)
+       CALL free_mesh(mesh)
+       CALL copy_mesh(mesh_r, mesh)
+       CALL free_mesh(mesh_r)
+
+       != new ==> create Pk mesh
+       CALL create_gauss_points_1d(mesh, mesh_data_info%type_fe)
+
        
     CASE DEFAULT
        CALL error_petsc("BUG in construct_mesh, incorrect k_dim="//to_str(k_dim)//&

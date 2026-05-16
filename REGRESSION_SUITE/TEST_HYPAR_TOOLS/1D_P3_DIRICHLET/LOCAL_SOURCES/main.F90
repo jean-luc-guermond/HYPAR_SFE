@@ -26,10 +26,9 @@ PROGRAM test_matrix
   INTEGER, POINTER, DIMENSION(:) :: ifrom
   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un, tab_norm
   REAL(KIND=8) :: error, norm
-  INTEGER :: rank
+  INTEGER :: rank, num_test
   CHARACTER(5) :: char
 ! for regression test
-  INTEGER :: num_test
   CHARACTER(100) :: string
 ! for regression test
   Mat :: mass
@@ -115,7 +114,7 @@ PROGRAM test_matrix
        ALLOCATE(tab_norm(1))
        tab_norm(1) = error / norm
        CALL get_num_test(num_test)
-       CALL regression(tab_norm, opt_num_test=num_test)
+       CALL regression(tab_norm, opt_num_test=num_test, opt_tol = 1d-5)
   END IF
 
 

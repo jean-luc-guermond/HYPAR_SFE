@@ -89,7 +89,6 @@ CONTAINS
             ELSE
                CALL this%read
             END IF
-         !  CALL this%read_dirichlet_data
       ELSE
          n = MINVAL(mesh%sides)
          p = MAXVAL(mesh%sides)

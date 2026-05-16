@@ -12,10 +12,8 @@ CONTAINS
 
       mesh2%me = mesh1%me
       mesh2%mes = mesh1%mes
-!VB CORRECTION
       mesh2%mes_int = mesh1%mes_int
-      ! mesh2%mes_int = mesh1%mes
-!VB CORRECTION
+
       mesh2%np = mesh1%np
       mesh2%nps = mesh1%nps
       mesh2%mi = mesh1%mi
@@ -66,10 +64,12 @@ CONTAINS
       ALLOCATE(mesh2%jecs(SIZE(mesh1%jecs)))
       mesh2%jecs = mesh1%jecs
 
-      CALL mesh2%create_comm(mesh1%comm)
-      CALL mesh2%gather_dom_np
-      CALL mesh2%gather_me
-      CALL mesh2%gather_medge
+      IF (ASSOCIATED(mesh1%comm)) THEN
+         CALL mesh2%create_comm(mesh1%comm)
+         CALL mesh2%gather_dom_np
+         CALL mesh2%gather_me
+         CALL mesh2%gather_medge
+      END IF
       ! ALLOCATE(mesh2%disp(SIZE(mesh1%disp)))
       ! mesh2%disp = mesh1%disp
       ! ALLOCATE(mesh2%domnp(SIZE(mesh1%domnp)))
@@ -82,6 +82,11 @@ CONTAINS
       ! mesh2%disedge = mesh1%disedge
       ! ALLOCATE(mesh2%domedge(SIZE(mesh1%domnp)))
       ! mesh2%domedge = mesh1%domedge
+
+      IF (ALLOCATED(mesh1%proc_np_loc)) THEN !<== fixme (i.e if test should eventually be removed)
+         mesh2%proc_np_loc = mesh1%proc_np_loc
+      END IF
+
 
       ALLOCATE(mesh2%jj_extra(SIZE(mesh1%jj_extra, 1), SIZE(mesh1%jj_extra, 2)))
       mesh2%jj_extra = mesh1%jj_extra
@@ -116,7 +121,8 @@ CONTAINS
       IF (ALLOCATED(mesh%domedge)) DEALLOCATE(mesh%domedge)
       IF (ALLOCATED(mesh%discell)) DEALLOCATE(mesh%discell)
       IF (ALLOCATED(mesh%domcell)) DEALLOCATE(mesh%domcell)
-
+      IF (ALLOCATED(mesh%proc_np_loc)) DEALLOCATE(mesh%proc_np_loc)
+      
       DEALLOCATE(mesh%jce, mesh%jees, mesh%jecs)
 
       DEALLOCATE(mesh%jj_extra, mesh%jce_extra, mesh%jjs_extra, mesh%jcc_extra, mesh%rrs_extra)

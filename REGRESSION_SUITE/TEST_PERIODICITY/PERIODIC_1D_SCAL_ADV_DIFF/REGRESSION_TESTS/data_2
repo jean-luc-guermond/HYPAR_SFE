@@ -4,15 +4,13 @@
 === Name of directory for mesh file ===
 .
 === Name of mesh file ===
-mesh
+mesh_2
 === Is the mesh formatted? (True/False) ===
 T
 === Do we read metis partition? (true/false) ===
 F
 === Type of finite element ===
-1
-=== FE Space dimension ===
-1
+2
 === Number of refinement steps ===
 0
 === Number of subdomains in the mesh ===
@@ -23,5 +21,7 @@ F
 1
 === Indices of periodic boundaries and corresponding vectors===
 1 2 1.d0
-=== How many pieces of boundaries for bcs on a? ===
+=== How many pieces of Dirichlet boundaries for bcs on a ===
 0
+=== List of Dirichlet boundaries for bcs on a ===
+0 0

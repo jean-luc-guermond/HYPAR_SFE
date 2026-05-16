@@ -189,9 +189,9 @@ CONTAINS
     REAL(KIND=8) :: zero = 0,  one = 1,  two = 2,  three = 3,  &
          five = 5, eight= 8,   nine = 9
     REAL(KIND=8) :: f1, f2, f3, df1, df2, df3, x
-    f1(x) = (x - one)*x/two
-    f2(x) = (x + one)*x/two
-    f3(x) = (x + one)*(one - x)
+    f1(x) = (x - one)*x/two ! f1(-1) = 1
+    f2(x) = (x + one)*x/two ! f2(+1) = 1
+    f3(x) = (x + one)*(one - x) ! f3(0) = 1
     df1(x) = (two*x - one)/two
     df2(x) = (two*x + one)/two
     df3(x) = -two*x

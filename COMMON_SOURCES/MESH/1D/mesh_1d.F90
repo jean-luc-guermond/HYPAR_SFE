@@ -12,7 +12,7 @@ CONTAINS
       TYPE(mesh_type) :: mesh
       CHARACTER(*) :: directory, file_name
       INTEGER, PARAMETER :: in_unit = 30
-      INTEGER :: type_fe
+      ! INTEGER :: type_fe
       INTEGER :: i, n, m, nb_procs
       REAL(KIND = 8) :: x0, x1, dx
       LOGICAL :: if_mesh_formatted
@@ -24,17 +24,20 @@ CONTAINS
       END IF
       READ(in_unit, *) mesh%me
       READ(in_unit, *) x0, x1
-      type_fe = mesh_data_info%type_fe
-      ALLOCATE(mesh%jj(type_fe + 1, mesh%me))
+      ! type_fe = mesh_data_info%type_fe
+      ALLOCATE(mesh%jj(2, mesh%me))
+      ! ALLOCATE(mesh%jj(type_fe + 1, mesh%me))
       ALLOCATE(mesh%neigh(2, mesh%me))
       DO m = 1, mesh%me
-         DO n = 1, type_fe + 1
-            mesh%jj(n, m) = type_fe * (m - 1) + n
-         END DO
+         ! DO n = 1, type_fe + 1
+         !    mesh%jj(n, m) = type_fe * (m - 1) + n
+         ! END DO
+         mesh%jj(:, m) = (m - 1) + [(n, n=1, 2)]
          mesh%neigh(1, m) = m + 1
          mesh%neigh(2, m) = m - 1
       END DO
-      mesh%np = type_fe * mesh%me + 1
+      mesh%np = mesh%me + 1
+      ! mesh%np = type_fe * mesh%me + 1
 
       mesh%neigh(2, 1) = 0
       mesh%neigh(1, mesh%me) = 0
@@ -54,7 +57,7 @@ CONTAINS
       mesh%jjs(1, mesh%mes) = mesh%np
       ALLOCATE(mesh%neighs(mesh%mes))
       mesh%neighs(1) = 1
-      mesh%neighs(2) = mesh%np - 1
+      mesh%neighs(2) = mesh%me!mesh%np - 1 !VB wrong before?
       ALLOCATE(mesh%sides(mesh%mes))
       READ(in_unit, *) mesh%sides
 
@@ -110,12 +113,14 @@ CONTAINS
          CALL error_petsc(' BUG load_mesh_1d: refinements '//to_str(mesh_data_info%nb_refinement)//' &
          not programmed yet, only "0" available')
       END IF
-      IF (type_fe==1) THEN
-         CALL GAUSS_POINT_1d(mesh)
-      ELSE
-         CALL error_petsc(' BUG load_mesh_1d: FE '//to_str(type_fe)//' &
-         not programmed yet, only "1" available')
-      END IF
+      ! IF (type_fe==1) THEN
+      !    CALL GAUSS_POINT_1d(mesh)
+      ! ELSE
+      !    CALL error_petsc(' BUG load_mesh_1d: FE '//to_str(type_fe)//' &
+      !    not programmed yet, "1,2,3" available')
+      ! END IF
+      ALLOCATE(mesh%proc_np_loc(2, 0))
+
 
    END SUBROUTINE load_mesh_1d
 
