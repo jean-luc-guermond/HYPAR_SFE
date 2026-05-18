@@ -19,7 +19,7 @@ F
 1
 === How many pieces of periodic boundary? ===
 0
-=== Indices of periodic boundaries and corresponding vectors===
+=== Indices of periodic boundaries and corresponding vectors ===
 0 0 0.d0 0.d0
 === How many pieces of Dirichlet boundaries for bcs on a ===
 4

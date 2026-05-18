@@ -5,6 +5,7 @@ MODULE def_type_mesh
    USE dyn_line_type
    USE space_dim
    USE periodic_data_module
+   USE mesh_data_module, ONLY: mesh_info_type
 #include "petsc/finclude/petsc.h"
    USE petsc
    IMPLICIT NONE
@@ -107,8 +108,10 @@ MODULE def_type_mesh
 
       ! !VB 14/05/2026 => array o size np - dom_np which value is the proc to which the node belongs
       INTEGER, DIMENSION(:,:), ALLOCATABLE :: proc_np_loc 
-      INTEGER :: rank, proc, nb_proc !VB 11/05/2026
-      MPI_Comm, POINTER :: comm !VB 11/05/2026
+      INTEGER                       :: rank, proc, nb_proc !VB 11/05/2026
+      CHARACTER(LEN=:), ALLOCATABLE :: name
+      TYPE(mesh_info_type)          :: info
+      MPI_Comm, POINTER             :: comm !VB 11/05/2026
    CONTAINS
       PROCEDURE :: jj_glob
       PROCEDURE :: jce_loc
@@ -205,7 +208,9 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER          :: n, ierr
 
-      ALLOCATE(this%disp(this%nb_proc + 1), this%domnp(this%nb_proc))
+      IF (.NOT. ALLOCATED(this%disp)) THEN
+         ALLOCATE(this%disp(this%nb_proc + 1), this%domnp(this%nb_proc))
+      END IF
       CALL MPI_ALLGATHER(this%dom_np, 1, MPI_INTEGER, this%domnp, 1, &
            MPI_INTEGER, this%comm, ierr)
       this%disp(1) = 1
@@ -219,7 +224,9 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER          :: n, ierr
 
-      ALLOCATE(this%discell(this%nb_proc + 1), this%domcell(this%nb_proc))
+      IF (.NOT. ALLOCATED(this%discell)) THEN
+         ALLOCATE(this%discell(this%nb_proc + 1), this%domcell(this%nb_proc))
+      END IF
       CALL MPI_ALLGATHER(this%me, 1, MPI_INTEGER, this%domcell, 1, &
            MPI_INTEGER, this%comm, ierr)
       this%discell(1) = 1
@@ -233,7 +240,9 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER          :: n, ierr
 
-      ALLOCATE(this%disedge(this%nb_proc + 1), this%domedge(this%nb_proc))
+      IF (.NOT. ALLOCATED(this%disedge)) THEN
+         ALLOCATE(this%disedge(this%nb_proc + 1), this%domedge(this%nb_proc))
+      END IF
       CALL MPI_ALLGATHER(this%medge, 1, MPI_INTEGER, this%domedge, 1, &
            MPI_INTEGER, this%comm, ierr)
       this%disedge(1) = 1

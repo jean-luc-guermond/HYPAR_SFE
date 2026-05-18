@@ -5,11 +5,12 @@ MODULE construct_mesh
   USE petsc
   USE mesh_data_module
   USE mesh_tools
+  USE mesh_refinement_1D, ONLY: refinement_P1_mesh_1D
   use gauss_points_1d, ONLY: create_gauss_points_1d
   PUBLIC :: get_mesh
   PRIVATE
 CONTAINS
-  SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab)
+  SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_name)
     USE mesh_1d
     USE mesh_distribution_1d
     USE load_mesh_2d
@@ -30,6 +31,7 @@ CONTAINS
     INTEGER :: n, nb_proc, ierr, rank
     LOGICAL :: edge_stab
     CHARACTER(LEN = 100) :: mesh_part_name
+    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: opt_name
     TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
     MPI_Comm       :: communicator
 
@@ -52,6 +54,7 @@ CONTAINS
        !===load and re order mesh
        CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &
             list_dom, list_inter, mesh_glob, mesh_data_info%if_mesh_formatted)
+       CALL mesh_glob%info%read(opt_name)
        ALLOCATE(part(mesh_glob%me))
 
        mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data_info%file_name))
@@ -74,7 +77,7 @@ CONTAINS
        CALL free_mesh(mesh_glob)
        DEALLOCATE(part)
        !===mesh refinements
-       DO n = 1, mesh_data_info%nb_refinement
+       DO n = 1, mesh%info%nb_refinement
           !===Create refined mesh
           CALL refinement_iso_grid_distributed(mesh)
           IF(rank == 0) write(*, *) 'refinement done', n
@@ -89,7 +92,8 @@ CONTAINS
        !      END IF
 
        !===create finite elements polynome on mesh
-       CALL create_iso_grid_distributed(mesh, mesh_r, mesh_data_info%type_fe)
+       CALL mesh_r%info%copy(mesh%info)
+       CALL create_iso_grid_distributed(mesh, mesh_r, mesh%info%type_fe)
        CALL free_mesh(mesh)
        CALL copy_mesh(mesh_r, mesh)
        CALL free_mesh(mesh_r)
@@ -104,23 +108,35 @@ CONTAINS
        mesh%rank = rank  !=== petsc convention
        mesh%edge_stab = .false.
        !===gauss points on mesh
-       CALL create_gauss_points_2d(mesh, mesh_data_info%type_fe)
+       CALL create_gauss_points_2d(mesh, mesh%info%type_fe)
 
     CASE(1)
        CALL load_mesh_1d(mesh_data_info%directory, mesh_data_info%file_name, mesh_glob, mesh_data_info%if_mesh_formatted)
+       CALL mesh_glob%info%read(opt_name)
        CALL extract_mesh_1d(communicator, mesh_glob, mesh)
        CALL free_mesh(mesh_glob)
        mesh%edge_stab = .false.
        mesh%rank = rank
 
+       IF ((mesh%info%refinement_order > 0) .AND. (mesh%info%type_fe > 1)) THEN
+         CALL error_petsc("BUG in construct_mesh (1D) => refinement_order & type_fe incompatible")
+       END IF
+
        != new ==> create Pk mesh
-       CALL create_Pk_mesh_1D(communicator, mesh, mesh_r, mesh_data_info%type_fe)
+       CALL create_Pk_mesh_1D(communicator, mesh, mesh_r, mesh%info%type_fe)
        CALL free_mesh(mesh)
        CALL copy_mesh(mesh_r, mesh)
        CALL free_mesh(mesh_r)
 
-       != new ==> create Pk mesh
-       CALL create_gauss_points_1d(mesh, mesh_data_info%type_fe)
+       != new ==> mesh refinement
+       IF ((mesh%info%refinement_order > 0)) THEN
+         CALL refinement_P1_mesh_1D(communicator, mesh, mesh_r, mesh%info%refinement_order)
+         CALL free_mesh(mesh)
+         CALL copy_mesh(mesh_r, mesh)
+         CALL free_mesh(mesh_r)
+       END IF
+       != new ==> create Pk gauss points
+       CALL create_gauss_points_1d(mesh, mesh%info%type_fe)
 
        
     CASE DEFAULT
@@ -130,12 +146,12 @@ CONTAINS
 
     mesh%edge_stab = .false. !FIXME remove edge_stab
 
-    mesh%per%nb_bords = mesh_data_info%nb_bords
-    ALLOCATE(mesh%per%list_periodic(SIZE(mesh_data_info%list_periodic,1),SIZE(mesh_data_info%list_periodic,2)))
-    ALLOCATE(mesh%per%vect_e(SIZE(mesh_data_info%vect_e,1),SIZE(mesh_data_info%vect_e,2)))
+    mesh%per%nb_bords = mesh%info%nb_bords
+    ALLOCATE(mesh%per%list_periodic(SIZE(mesh%info%list_periodic,1),SIZE(mesh%info%list_periodic,2)))
+    ALLOCATE(mesh%per%vect_e(SIZE(mesh%info%vect_e,1),SIZE(mesh%info%vect_e,2)))
     IF (mesh%per%nb_bords/=0) THEN 
-       mesh%per%list_periodic = mesh_data_info%list_periodic
-       mesh%per%vect_e = mesh_data_info%vect_e
+       mesh%per%list_periodic = mesh%info%list_periodic
+       mesh%per%vect_e = mesh%info%vect_e
        CALL prep_periodic_scal(mesh%per,mesh)
     END IF
 
@@ -184,7 +200,8 @@ CONTAINS
             ELSE IF (MIN(list_loc(i), perlist_loc(i)) .LE. mesh%dom_np) THEN
                WRITE(*, *) 'BUG in prep_periodic_scal, one of the boundary point is not attributed the same processor.',&
                            'rank = ', mesh%rank, list_loc(i), perlist_loc(i), mesh%dom_np
-               WRITE(*,*) "BUG IS OCURRING AT COORDINATES LIST = ", mesh%rr(:, list_loc(i)), "PERLIST = ", mesh%rr(:, perlist_loc(i))
+               WRITE(*,*) "BUG IS OCURRING AT COORDINATES LIST = ", mesh%rr(:, list_loc(i)), &
+               "PERLIST = ", mesh%rr(:, perlist_loc(i))
                STOP
             END IF
          END DO

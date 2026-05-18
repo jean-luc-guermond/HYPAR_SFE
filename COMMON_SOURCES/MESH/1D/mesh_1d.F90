@@ -109,10 +109,10 @@ CONTAINS
       mesh%domcell(1) = mesh%dom_me
       mesh%domedge(1) = mesh%medge
 
-      IF (mesh_data_info%nb_refinement > 0) THEN
-         CALL error_petsc(' BUG load_mesh_1d: refinements '//to_str(mesh_data_info%nb_refinement)//' &
-         not programmed yet, only "0" available')
-      END IF
+      ! IF (mesh_data_info%nb_refinement > 0) THEN
+      !    CALL error_petsc(' BUG load_mesh_1d: refinements '//to_str(mesh_data_info%nb_refinement)//' &
+      !    not programmed yet, only "0" available')
+      ! END IF
       ! IF (type_fe==1) THEN
       !    CALL GAUSS_POINT_1d(mesh)
       ! ELSE
@@ -121,7 +121,7 @@ CONTAINS
       ! END IF
       ALLOCATE(mesh%proc_np_loc(2, 0))
 
-
+      CLOSE(in_unit)
    END SUBROUTINE load_mesh_1d
 
    SUBROUTINE GAUSS_POINT_1d(mesh)

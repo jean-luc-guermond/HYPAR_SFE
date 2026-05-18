@@ -45,6 +45,7 @@ CONTAINS
          END IF
       END DO
 !=== okay = false ===> decide whether argument is added to data or not
+      end_idx_record = SIZE(record_info_from_data) + 1
       okay = .FALSE.
       CALL pack_opt(to_add, .TRUE., opt_add)
 !=== warning message if to_add = true
@@ -56,6 +57,7 @@ CONTAINS
          index_list_info_data = index_list_info_data+1
          list_info_for_new_data(index_list_info_data) = string_default
       END IF
+      
    END SUBROUTINE compare_string_to_record
    
 
@@ -67,7 +69,7 @@ CONTAINS
       
       IF (PRESENT(str_added)) str_added = .FALSE.
       j = start_idx + 1
-      DO WHILE(j < SIZE(record_info_from_data))
+      DO WHILE(j < record_size)!SIZE(record_info_from_data))
          IF (TRIM(ADJUSTL(record_info_from_data(j)(1:3)))=='===') THEN
             EXIT
          ELSE
@@ -251,7 +253,6 @@ CONTAINS
       CLOSE(in_unit)
       
       CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
-
    END SUBROUTINE read_data_init_list
    
    SUBROUTINE finalize_rewrite_data
@@ -299,10 +300,12 @@ CONTAINS
       USE character_strings, ONLY: last_of_string
       IMPLICIT NONE
       CHARACTER(LEN=*),          INTENT(IN)  :: raw_argument
-      CHARACTER(LEN=*), OPTIONAL,INTENT(IN)  :: name
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: name
       CHARACTER(LEN=:), ALLOCATABLE, INTENT(OUT) :: argument
       INTEGER :: size1, size2, size3
 
+      ! IF (ALLOCATED(argument)) DEALLOCATE(argument)
+      
       IF (raw_argument(1:3) /= '===') THEN
          CALL error_petsc("wrong argument "//TRIM(ADJUSTL(raw_argument))//", &
          make sure it starts with '==='")
@@ -311,20 +314,18 @@ CONTAINS
       IF (.NOT. PRESENT(name)) THEN
          argument = raw_argument
       ELSE
-         IF (TRIM(ADJUSTL(name))=="") THEN
+         IF (TRIM(ADJUSTL(name))==" ") THEN
             argument = raw_argument
-            RETURN
+         ELSE
+            size1 = last_of_string(TRIM(ADJUSTL(raw_argument)))
+            size2 = last_of_string(TRIM(ADJUSTL(name)))
+            size3 = LEN(" ===")
+            IF (raw_argument(size1-size3+1:size1) /= " ===") THEN
+               CALL error_petsc("BUG in concatenate_argument_name: wrong argument"//TRIM(ADJUSTL(raw_argument))//&
+               ", it should end with ' ==='")
+            END IF
+            argument = raw_argument(:size1-size3) // " " // name(:size2) // " ==="
          END IF
-
-         size1 = last_of_string(TRIM(ADJUSTL(raw_argument)))
-         size2 = last_of_string(TRIM(ADJUSTL(name)))
-         size3 = LEN(" ===")
-         IF (raw_argument(size1-size3+1:size1) /= " ===") THEN
-            CALL error_petsc("BUG in concatenate_argument_name: wrong argument"//TRIM(ADJUSTL(raw_argument))//&
-            ", it should end with ' ==='")
-         END IF
-         argument = raw_argument(:size1-size3) // " " // name(:size2) // " ==="
-
       END IF
    END SUBROUTINE concatenate_argument_name
 
@@ -370,7 +371,6 @@ CONTAINS
       IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
 
       CALL add_dummy_string_to_record(end_idx_record)
-
    END SUBROUTINE read_integer_data
    
    SUBROUTINE read_integer_array_data(raw_argument, val_in_out, opt_skip_data, opt_name, opt_add)

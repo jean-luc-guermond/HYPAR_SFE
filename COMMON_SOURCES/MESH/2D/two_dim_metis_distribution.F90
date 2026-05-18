@@ -57,9 +57,9 @@ CONTAINS
       !===End Create neigh_new for interfaces
 
       !===Create neigh_new for periodic faces
-      IF (mesh_data_info%nb_bords/=0) THEN
+      IF (mesh%info%nb_bords/=0) THEN
          CALL create_neigh_periodics(mesh, neigh_new, &
-                               mesh_data_info%list_periodic, mesh_data_info%vect_e)
+                               mesh%info%list_periodic, mesh%info%vect_e)
       END IF
       !===End Create neigh_new for periodic faces
 
@@ -71,18 +71,9 @@ CONTAINS
             ubvec, metis_opt, edge, part)
       !===End Create partitions
       !================================================
-      IF (rank==0) THEN
-         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd1.plt')
-      END IF
-      !================================================
       !===Create parts and modify part
       !===Search on the boundary whether ms is on a cut.
       CALL reassign_boundary_side_cut(mesh, part)
-      !================================================
-      IF (rank==0) THEN
-         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd2.plt')
-      END IF
-      !================================================
       !===Search on the boundary whether ms is on a cut.
       IF (SIZE(mesh%jj, 1)/=3) THEN
          WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
@@ -92,22 +83,13 @@ CONTAINS
          CALL reassign_interfaces(mesh, part, list_of_interfaces)
       END IF
       !================================================
-      IF (rank==0) THEN
-         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd3.plt')
-      END IF
-      !================================================
-      IF (mesh_data_info%nb_bords/=0) THEN
+      IF (mesh%info%nb_bords/=0) THEN
          CALL find_per_elements_along_same_pts(mesh, per_pts)
          CALL reassign_per_pts(mesh, part, per_pts)
          CALL reassign_pairs_of_periodic_ms(mesh, part, &
-                            mesh_data_info%list_periodic, mesh_data_info%vect_e)
+                            mesh%info%list_periodic, mesh%info%vect_e)
       END IF
       !===End Move the two elements with one periodic face on same processor
-      !================================================
-      IF (rank==0) THEN
-         CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd4.plt')
-      END IF
-      !================================================
       !================================================
       IF (rank==0) THEN
          CALL plot_const_p1_label(mesh%jj, mesh%rr, 1.d0 * part, 'dd.plt')
@@ -423,14 +405,14 @@ CONTAINS
          per_pts(:, 1) = [(j, j = 1, mesh%np)]
          per_pts(:, 2:3) = 0
          DO ms = 1, mesh%mes
-            IF (.NOT. (ANY(mesh%sides(ms)==mesh_data_info%list_periodic(:,:)))) CYCLE
+            IF (.NOT. (ANY(mesh%sides(ms)==mesh%info%list_periodic(:,:)))) CYCLE
             m = mesh%neighs(ms)
             DO ns = 1, SIZE(mesh%jjs, 1)
                j = mesh%jjs(ns, ms)
                per_pts(j, 2) = m
                test = .FALSE.
                DO msop = 1, mesh%mes
-                  IF (.NOT. (ANY(mesh%sides(msop)==mesh_data_info%list_periodic(:,:)))) CYCLE
+                  IF (.NOT. (ANY(mesh%sides(msop)==mesh%info%list_periodic(:,:)))) CYCLE
                   IF (msop == ms) CYCLE
                   DO nsop = 1, SIZE(mesh%jjs, 1)
                      IF (mesh%jjs(nsop, msop)==j) THEN
@@ -555,6 +537,8 @@ CONTAINS
       CALL mesh_loc%create_comm(communicator)
       nb_proc = mesh_loc%nb_proc
       ALLOCATE(nblmt_per_proc(nb_proc), start(nb_proc), displ(nb_proc))
+
+      CALL mesh%info%copy(mesh_glob%info)
 
       ! Create parts
       parts = part(mesh_glob%neighs)
@@ -816,6 +800,7 @@ CONTAINS
       nw = SIZE(mesh%jj, 1)
       nwc = SIZE(mesh%neigh, 1)
       nb_proc = mesh_loc%nb_proc!SIZE(mesh_loc%domnp)
+      CALL mesh_loc%info%copy(mesh%info)
 
       !==Test if one proc only
       IF (me_loc(2) - me_loc(1) + 1==mesh%me) THEN

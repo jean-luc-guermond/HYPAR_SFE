@@ -159,6 +159,7 @@ MODULE setup
    PUBLIC :: pressure, init_state_functions
    PRIVATE
    REAL(KIND = 8), PARAMETER, PRIVATE :: x0=0.1d0, x1=0.3d0, gamma=1.4d0
+   REAL(KIND = 8) :: length
 
 CONTAINS
 
@@ -179,9 +180,11 @@ CONTAINS
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
 
-   SUBROUTINE init_state_functions(bc)
+   SUBROUTINE init_state_functions(bc, mesh)
+      USE def_type_mesh, ONLY: mesh_type
       IMPLICIT NONE
       CLASS(euler_bc_type), INTENT(INOUT) :: bc
+      TYPE(mesh_type),         INTENT(IN) :: mesh
 
       bc%gamma = gamma
 
@@ -191,6 +194,12 @@ CONTAINS
       bc%vit_anal   => vect_one
 
       bc%rho_anal   => rho_anal_smooth_periodic
+
+      IF (mesh%info%nb_bords==0) THEN
+         length=1.d30
+      ELSE
+         length = abs(mesh%info%vect_e(1,1))
+      END IF
 
    END SUBROUTINE init_state_functions
 
@@ -202,12 +211,8 @@ CONTAINS
       REAL(KIND = 8),                  INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       INTEGER :: n, k
-      REAL(KIND = 8) :: length, x
-      IF (mesh_data_info%nb_bords==0) THEN
-         length=1.d30
-      ELSE
-         length = abs(mesh_data_info%vect_e(1,1))
-      END IF
+      REAL(KIND = 8) :: x
+
       IF (SIZE(vv)==0) RETURN
       DO n = 1, SIZE(vv)
          k = floor((rr(1, n) - time)/length)

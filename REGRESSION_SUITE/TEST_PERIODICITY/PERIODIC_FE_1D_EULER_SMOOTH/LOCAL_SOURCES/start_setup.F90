@@ -86,7 +86,7 @@ CONTAINS
 
     CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, &
                                opt_limiting_bounds=limiting_bounds_euler)
-    CALL init_state_functions(euler%bc)
+    CALL init_state_functions(euler%bc, mesh)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

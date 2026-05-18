@@ -27,6 +27,8 @@ CONTAINS
       INTEGER :: interface
       LOGICAL :: iso
 
+      CALL mesh%info%copy(mesh_p1%info)
+
       nw = SIZE(mesh_p1%jj, 1)   !===nodes in each volume element (3 in 2D)
       me = SIZE(mesh_p1%jj, 2)   !===number of cells
       kd = SIZE(mesh_p1%rr, 1)   !===space dimensions
@@ -534,6 +536,8 @@ CONTAINS
       INTEGER :: proc, nb_proc, p, cell_g, cell_l
       INTEGER :: m1, m2, interface, m_center, tab1, tab2, mes_int
       LOGICAL :: iso
+
+      CALL mesh%info%copy(mesh_p1%info)
 
       IF (mesh_p1%me == 0) THEN
          RETURN

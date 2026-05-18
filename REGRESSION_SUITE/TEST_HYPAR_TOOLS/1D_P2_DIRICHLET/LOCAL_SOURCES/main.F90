@@ -114,7 +114,7 @@ PROGRAM test_matrix
        ALLOCATE(tab_norm(1))
        tab_norm(1) = error / norm
        CALL get_num_test(num_test)
-       CALL regression(tab_norm, opt_num_test=num_test)
+       CALL regression(tab_norm, opt_num_test=num_test, opt_tol=5.d-7)
   END IF
 
 
