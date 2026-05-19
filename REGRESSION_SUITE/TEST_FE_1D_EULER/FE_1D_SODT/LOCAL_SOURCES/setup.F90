@@ -24,8 +24,8 @@ CONTAINS
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      REAL(KIND = 8) :: gamma
-      gamma = 7.0 / 5.0
+      ! REAL(KIND = 8) :: gamma
+      ! gamma = 7.0 / 5.0
       vv = rho * e * (gamma - 1)
    END FUNCTION pressure
 

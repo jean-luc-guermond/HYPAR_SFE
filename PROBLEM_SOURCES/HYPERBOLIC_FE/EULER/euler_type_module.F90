@@ -21,7 +21,7 @@ MODULE euler_type_module
    END INTERFACE
 
    TYPE argument_euler_type
-      
+
       CHARACTER(LEN=rec_length) :: no_iter   = '=== No iteration for lambda solver? (t/f) ==='
       CHARACTER(LEN=rec_length) :: in_tol    = '=== Tolerance for lambda solver ==='
       CHARACTER(LEN=rec_length) :: eos_param = '=== b_covolume? ==='
@@ -148,7 +148,7 @@ CONTAINS
    END FUNCTION flux_euler
 
 
-   SUBROUTINE lambda_euler(this, un, i, j, lambda_max, on_edge)
+   SUBROUTINE lambda_euler(this, un, i, j, lambda_max)
       USE arbitrary_eos_lambda_module
       USE space_dim
       IMPLICIT NONE
@@ -156,12 +156,11 @@ CONTAINS
       REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
       INTEGER,                                              INTENT(IN) :: i, j
       REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max
-      LOGICAL,                                              INTENT(IN) :: on_edge
 
       INTEGER, DIMENSION(1) :: i_t, j_t
       INTEGER :: k, ierr
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
-      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p!, lambda_max
+      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p
       REAL(KIND = 8) :: pstar
 
 
@@ -178,27 +177,10 @@ CONTAINS
       u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
       u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
 
-      ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * u(1) * u(1)
-      ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * u(2) * u(2)
+      ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * SUM(un(i, 2:1 + k_dim)**2) / rho(1)**2
+      ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * SUM(un(j, 2:1 + k_dim)**2) / rho(2)**2
+
       p = this%pressure(rho, ie)
-
-      IF (on_edge) THEN
-
-         DO k = 1, k_dim
-            CALL MatGetValues(this%matrices%nij_loc(k), 1, j_t - 1, 1, i_t - 1, nij_c(:, k), ierr)
-         END DO
-
-
-         u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
-         u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
-
-         ie = (/ie(2), ie(1)/)
-         p = (/p(2), p(1)/)
-         rho = (/rho(2), rho(1)/)
-
-      END IF
-
-
       CALL lambda_arbitrary_eos(this%eos_param, rho, u, ie, p, this%in_tol, this%no_iter, lambda_max, pstar)
 
    END SUBROUTINE lambda_euler

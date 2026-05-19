@@ -83,13 +83,21 @@ CONTAINS
 !======== EXAMPLES OF STATE FUNCTIONS FOR EULER OBJECT
 
    FUNCTION E_anal_ideal_gas(this, time, rr) RESULT(vv)
+      USE space_dim
       IMPLICIT NONE
       CLASS(euler_bc_type),            INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN)    :: rr
       REAL(KIND = 8),                  INTENT(IN)    :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2))         :: vv
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2))         :: vv, v_sqr
+      INTEGER :: k
+
+      v_sqr = 0.d0
+      DO k=1, k_dim
+         v_sqr = v_sqr + (this%vit_anal(k, time,  rr)**2)
+      END DO
+
       vv = this%press_anal(time, rr) / (this%gamma - 1.d0) &
-           + this%rho_anal(time, rr) * (this%vit_anal(1, time,  rr)**2) / 2
+           + this%rho_anal(time, rr) * v_sqr / 2
    END FUNCTION E_anal_ideal_gas
 
    FUNCTION mt_anal_rho_times_vit(this, comp, time, rr) RESULT(vv)

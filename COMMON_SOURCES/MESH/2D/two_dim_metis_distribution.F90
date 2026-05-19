@@ -866,6 +866,7 @@ CONTAINS
          CALL mesh_loc%gather_me
 
          CALL mesh_loc%gather_medge
+         ALLOCATE(mesh_loc%proc_np_loc(2, mesh_loc%np-mesh_loc%dom_np))
          RETURN
       END IF
       !==End test if one proc only

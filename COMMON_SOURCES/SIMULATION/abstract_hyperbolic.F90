@@ -73,14 +73,13 @@ MODULE abstract_hyperbolic_module
          REAL(KIND = 8), INTENT(IN)                     :: time
       END SUBROUTINE template_impose_bc
 
-      SUBROUTINE template_lambda(this, un, i, j, lambda_max, on_edge)
+      SUBROUTINE template_lambda(this, un, i, j, lambda_max)
          IMPORT :: hyperbolic_type
          IMPLICIT NONE
          CLASS(hyperbolic_type),                               INTENT(INOUT) :: this
          REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
          INTEGER,                                              INTENT(IN) :: i, j
          REAL(KIND=8), DIMENSION(2),                           INTENT(OUT) :: lambda_max
-         LOGICAL,                                              INTENT(IN) :: on_edge
       END SUBROUTINE template_lambda
 
       FUNCTION template_flux(this, comp, un) RESULT(vv)
@@ -426,14 +425,14 @@ CONTAINS
                i_t = i
                j_t = j
 
-               CALL this%compute_lambda(un, i, j, lambda_max, on_edge = .FALSE.)
+               CALL this%compute_lambda(un, i, j, lambda_max)
                CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                max_lambda = MAXVAL(lambda_max)
                dijL_c = max_lambda * norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
-                     CALL this%compute_lambda(un, i, j, lambda_max, on_edge = .TRUE.)
+                     CALL this%compute_lambda(un, j, i, lambda_max)
 
                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
