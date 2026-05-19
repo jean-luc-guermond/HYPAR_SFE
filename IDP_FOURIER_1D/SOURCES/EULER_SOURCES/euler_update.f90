@@ -1,9 +1,10 @@
 MODULE euler_module
+  USE read_inputs_module
   USE Butcher_tableau
   USE fourier_param_module
   USE cell_limiting_engine_module
   USE eos_module
-  INTEGER, PARAMETER :: rec_length = 200, list_length=200
+  !INTEGER, PARAMETER :: rec_length = 200, list_length=200
 
   ABSTRACT INTERFACE
      FUNCTION pressure_template(rho,e) RESULT(vv)
@@ -16,13 +17,13 @@ MODULE euler_module
        REAL(KIND = 8), DIMENSION(SIZE(u,1)) :: vv
      END FUNCTION  flux_template
      SUBROUTINE lambda_max_template(eos_param, in_rho, in_u, in_e, in_p, in_tol, no_iter, &
-          lambda_max, pstar)                                                       
-       IMPLICIT NONE                                                               
-       REAL(KIND = 8), DIMENSION(:) :: eos_param !===b_covolume         
-       REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_u, in_p        
-       REAL(KIND = 8) :: in_tol                                                    
-       LOGICAL, INTENT(IN) :: no_iter                                              
-       REAL(KIND = 8), INTENT(OUT) :: pstar                                        
+          lambda_max, pstar)
+       IMPLICIT NONE
+       REAL(KIND = 8), DIMENSION(:) :: eos_param !===b_covolume
+       REAL(KIND = 8), DIMENSION(2), INTENT(IN) :: in_rho, in_e, in_u, in_p
+       REAL(KIND = 8) :: in_tol
+       LOGICAL, INTENT(IN) :: no_iter
+       REAL(KIND = 8), INTENT(OUT) :: pstar
        REAL(KIND = 8), DIMENSION(2), INTENT(OUT) :: lambda_max
      END SUBROUTINE lambda_max_template
   END INTERFACE
@@ -41,8 +42,8 @@ MODULE euler_module
      INTEGER :: syst_size=3, nb_bounds=3
      REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
      REAL(KIND = 8) :: CFL = 0.5d0, glob_rho_min = 0.d0, glob_rho_max = 1.d20
-     CHARACTER(LEN=40) :: bound_relaxing = 'none'
-     CHARACTER(LEN=40) :: method = 'viscous'
+     CHARACTER(LEN=rec_length) :: bound_relaxing = 'none'
+     CHARACTER(LEN=rec_length) :: method = 'viscous'
      INTEGER :: erk_sv    = -21
      INTEGER :: Nmax, Nmax_real
      REAL(KIND = 8) :: time, dt, lumped, dx, in_tol, final_time
@@ -130,60 +131,67 @@ CONTAINS
     CHARACTER(1), PARAMETER :: end_section   ='~'
     INTEGER, PARAMETER :: in_unit = 21
     CLASS(euler_type), INTENT(INOUT):: this
-    TYPE(argument_euler)  :: argument_data
+    TYPE(argument_euler)  :: argument
     CHARACTER(LEN=rec_length), DIMENSION(list_length) :: list, record
     CHARACTER(LEN=rec_length)                         :: string_default
     LOGICAL :: okay
     INTEGER :: rank, record_size, i_list, j
 
-    !===Initialize data to zero and false by default
-    list = ''
-    record = ''
-    i_list = 1
-    !===Initializing record
-    CALL read_data_in_record(record_size, record, begin_section, end_section)
-
-    !===CFL
-    WRITE(string_default,*) this%CFL
-    CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%CFL
-    END IF
-
-    !===ERK
-    WRITE(string_default,*) this%erk_sv
-    CALL compare_string(record, list, argument_data%erk_sv, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%erk_sv
-    END IF
-
-    !===Higher-order vs. low-order
-    WRITE(string_default,*) this%method
-    CALL compare_string(record, list, argument_data%method, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%method
-    END IF
-
-    !=========================
-    !===Limiting parameters===
-    !=========================
-    !===if_limiting
-    WRITE(string_default,*) this%if_limiting
-    CALL compare_string(record, list, argument_data%if_limiting, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%if_limiting
-    END IF
-
-    !===Bound_relaxing
-    WRITE(string_default,*) this%bound_relaxing
-    CALL compare_string(record, list, argument_data%bound_relaxing, string_default, okay, i_list, j)
-    IF (okay) THEN
-       READ(list(i_list),*) this%bound_relaxing
-    END IF
-
-    !===Closing unit
-    rank = 0
-    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
+!    !===Initialize data to zero and false by default
+     CALL read_data_init_list("EULER FOURIER")
+!    list = ''
+!    record = ''
+!    i_list = 1
+!    !===Initializing record
+!    CALL read_data_in_record(record_size, record, begin_section, end_section)
+!
+!    !===CFL
+     CALL read_data(argument%cfl, this%cfl)
+!    WRITE(string_default,*) this%CFL
+!    CALL compare_string(record, list, argument_data%CFL, string_default, okay, i_list, j)
+!    IF (okay) THEN
+!       READ(list(i_list),*) this%CFL
+!    END IF
+!
+!    !===ERK
+     CALL read_data(argument%erk_sv, this%erk_sv)
+!    WRITE(string_default,*) this%erk_sv
+!    CALL compare_string(record, list, argument_data%erk_sv, string_default, okay, i_list, j)
+!    IF (okay) THEN
+!       READ(list(i_list),*) this%erk_sv
+!    END IF
+!
+!    !===Higher-order vs. low-order
+     CALL read_data(argument%method, this%method)
+!    WRITE(string_default,*) this%method
+!    CALL compare_string(record, list, argument_data%method, string_default, okay, i_list, j)
+!    IF (okay) THEN
+!       READ(list(i_list),*) this%method
+!    END IF
+!
+!    !=========================
+!    !===Limiting parameters===
+!    !=========================
+!    !===if_limiting
+!    WRITE(string_default,*) this%if_limiting
+CALL read_data(argument%if_limiting, this%if_limiting)
+!    CALL compare_string(record, list, argument_data%if_limiting, string_default, okay, i_list, j)
+!    IF (okay) THEN
+!       READ(list(i_list),*) this%if_limiting
+!    END IF
+!
+!    !===Bound_relaxing
+     CALL read_data(argument%bound_relaxing, this%bound_relaxing)
+!    WRITE(string_default,*) this%bound_relaxing
+!    CALL compare_string(record, list, argument_data%bound_relaxing, string_default, okay, i_list, j)
+!    IF (okay) THEN
+!       READ(list(i_list),*) this%bound_relaxing
+!    END IF
+!
+!    !===Closing unit
+     CALL finalize_rewrite_data
+!    rank = 0
+!    CALL rewrite_data_from_list_record(rank, list, record, i_list, record_size)
   END SUBROUTINE read_euler
 
   SUBROUTINE update(this, fourier_param)
@@ -252,7 +260,7 @@ CONTAINS
        DO k = 1, this%syst_size
           CALL Fourier_to_real(urk(:,:,k,stage),r_in(:,k))
        END DO
-       DO it = 1, this%it_limiting_max      
+       DO it = 1, this%it_limiting_max
           CALL iterative_cell_limiting_procedure(this%mass,this%jj,r_in,bounds(:,1),&
                psi_min,zero_of_psi_min,r_in)
        END DO
@@ -302,7 +310,7 @@ CONTAINS
        in_u(2) = r_out(j,2)*nij/in_rho(2)
        in_e(1) = r_out(i,this%syst_size)/in_rho(1) - 0.5d0*in_u(1)*in_u(1)
        in_e(2) = r_out(j,this%syst_size)/in_rho(2) - 0.5d0*in_u(2)*in_u(2)
-       in_p = this%eos%pressure(in_rho, in_e)       
+       in_p = this%eos%pressure(in_rho, in_e)
        CALL this%lambda_max(this%eos_param, in_rho, in_u, in_e, in_p, &
             this%in_tol, this%if_no_iter, lambda, pstar)
        dijL(i,2) = cij*MAXVAL(lambda)
@@ -537,7 +545,7 @@ CONTAINS
     IMPLICIT NONE
     CLASS(euler_type), INTENT(INOUT):: this
     REAL(KIND = 8), DIMENSION(this%Nmax_real):: r, vv
-    INTEGER :: m, i, j, n, np 
+    INTEGER :: m, i, j, n, np
     vv = 0.d0
     DO m = 1, this%Nmax_real !===loop over cells
        DO n = 1, 2
@@ -554,7 +562,7 @@ CONTAINS
     CLASS(euler_type), INTENT(INOUT):: this
     REAL(KIND = 8), DIMENSION(this%Nmax_real):: r, vv
     INTEGER, DIMENSION(this%Nmax_real):: count
-    INTEGER :: m, i, j, n, np 
+    INTEGER :: m, i, j, n, np
     vv = 0.d0
     count = 0
     DO m = 1, this%Nmax_real !===loop over cells
@@ -586,7 +594,7 @@ CONTAINS
     beta = FD(this,r_eta)
     avg = SUM(ABS(alpha))/this%Nmax_real
     alpha = MIN(ABS(alpha - beta)/avg,1.d0)
-    !alpha = threshold(alpha) 
+    !alpha = threshold(alpha)
     IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
        CALL this%FP%plot_1d(alpha, 'commutator_FD.plt')
     END IF
@@ -610,7 +618,7 @@ CONTAINS
     CALL real_derivative(r_eta,beta,Length) !<=derivative of eta
     avg = SUM(ABS(alpha))/this%Nmax_real
     alpha = MIN(ABS(alpha - beta)/avg,1.d0)
-    alpha = threshold(alpha) 
+    alpha = threshold(alpha)
     IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
        CALL this%FP%plot_1d(alpha, 'commutator.plt')
     END IF
@@ -637,7 +645,7 @@ CONTAINS
     CALL fourier_to_real_padded(cs1_pad,r_eta_pad,Nmax_pad)
     !===Compute entropy commutator (eta*dx(log(eta(u)))-dx(eta(u)))
     log_eta_pad = LOG(ABS(r_eta_pad))
-    CALL real_derivative(log_eta_pad,alpha_pad,Length) 
+    CALL real_derivative(log_eta_pad,alpha_pad,Length)
     alpha_pad = r_eta_pad*alpha_pad !<==multiply by eta
     CALL real_derivative(r_eta_pad,beta_pad,Length)
     avg = SUM(ABS(alpha_pad))/SIZE(alpha_pad)
@@ -662,7 +670,7 @@ CONTAINS
     REAL(KIND=8), PARAMETER :: x1=SQRT(3.d0)*x0
     SELECT CASE(exp)
     CASE(2)
-       !===Quadratic threshold    
+       !===Quadratic threshold
        z = x-x0
        zp = x-2*x0
        relu = (zp+ABS(zp))/2

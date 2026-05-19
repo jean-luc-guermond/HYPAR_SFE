@@ -15,7 +15,7 @@
       PROCEDURE, PUBLIC  :: init => init_limiting
       PROCEDURE, PUBLIC  :: read => read_limiting_data
    END TYPE limiting_type
-   
+
    SUBROUTINE read_limiting_data(this, section_name)
       USE read_inputs_module
       IMPLICIT NONE

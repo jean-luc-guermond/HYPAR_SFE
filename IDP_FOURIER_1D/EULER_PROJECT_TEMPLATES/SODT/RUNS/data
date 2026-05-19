@@ -1,5 +1,8 @@
+========================================
+!           FOURIER PARAMETERS
+========================================
 === Number of Fourier modes ? ===
-400
+100
 === Fourier periodic domain Length ? ===
 1.0
 === Restart (true/false) ===
@@ -8,11 +11,13 @@ F
 1.d20
 === Final time ===
 0.14
-
+===================================
+!           EULER FOURIER
+===================================
 === CFL ? ===
-.4
+.2
 === ERK ? ===
--41
+41
 === Which method (viscous,high) ? ===
 high
 === Limiting ? ===
