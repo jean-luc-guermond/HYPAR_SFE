@@ -234,7 +234,7 @@ CONTAINS
 
       CALL block_index(communicator, kmax, mesh, LA%loc_to_glob)
       nw = SIZE(mesh%jj, 1)
-      me = mesh%dom_me
+      me = mesh%me
       np = mesh%dom_np
       knp = kmax * np
       nb_procs = SIZE(mesh%domnp)

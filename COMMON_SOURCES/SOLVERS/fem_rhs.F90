@@ -24,7 +24,7 @@ MODULE fem_rhs
 
       CALL VecZeroEntries(vect, ierr)
 
-      DO m = 1, mesh%dom_me
+      DO m = 1, mesh%me
          jj_loc = mesh%jj(:, m)
          ff_loc = ff(jj_loc)
          DO ni = 1, mesh%gauss%n_w
@@ -67,7 +67,7 @@ MODULE fem_rhs
 
       CALL VecZeroEntries(vect, ierr)
 
-      DO m = 1, mesh%dom_me
+      DO m = 1, mesh%me
          jj_loc = mesh%jj(:, m)
          ff_loc = ff(jj_loc)
          DO ni = 1, mesh%gauss%n_w

@@ -22,9 +22,7 @@ CONTAINS
       mesh2%mextra = mesh1%mextra
       mesh2%mes_extra = mesh1%mes_extra
 
-      mesh2%dom_me = mesh1%dom_me
       mesh2%dom_np = mesh1%dom_np
-      mesh2%dom_mes = mesh1%dom_mes
       mesh2%nis = mesh1%nis
 
       ALLOCATE(mesh2%jj(SIZE(mesh1%jj, 1), SIZE(mesh1%jj, 2)))

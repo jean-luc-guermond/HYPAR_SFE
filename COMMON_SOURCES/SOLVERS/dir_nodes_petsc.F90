@@ -18,7 +18,7 @@ CONTAINS
       nws = SIZE(mesh%jjs, 1)
       nn = 0
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MAXVAL(ABS(mesh%rr(1, mesh%jjs(:, ms)))).GT.eps) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
@@ -35,7 +35,7 @@ CONTAINS
 
       nn = 0
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MAXVAL(ABS(mesh%rr(1, mesh%jjs(:, ms)))).GT.eps) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)

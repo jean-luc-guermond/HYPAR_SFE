@@ -63,7 +63,7 @@ CONTAINS
       INTEGER :: m, ni, nj, l, k, ierr
       DO k = 1, k_dim
          CALL MatZeroEntries (cij(k), ierr)
-         DO m = 1, mesh%dom_me
+         DO m = 1, mesh%me
             idx = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
             l = 0
             DO ni = 1, mesh%gauss%n_w

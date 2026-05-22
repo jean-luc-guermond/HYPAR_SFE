@@ -88,9 +88,9 @@ CONTAINS
          mesh%loc_to_glob = mesh_p1%loc_to_glob
          ALLOCATE(mesh%jcc_extra(mesh%mextra))
          mesh%jcc_extra = mesh_p1%jcc_extra
-         mesh%dom_me = mesh_p1%dom_me
+         mesh%me = mesh_p1%me
          mesh%dom_np = mesh_p1%dom_np
-         mesh%dom_mes = mesh_p1%dom_mes
+         mesh%mes = mesh_p1%mes
 
          CALL mesh%create_comm(mesh_p1%comm)
          CALL mesh%gather_dom_np
@@ -147,9 +147,9 @@ CONTAINS
          ALLOCATE(mesh%jcc_extra(mesh%mextra))
          mesh%jcc_extra = mesh_p1%jcc_extra
 
-         mesh%dom_me = mesh_p1%dom_me
+         mesh%me = mesh_p1%me
          mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
-         mesh%dom_mes = mesh_p1%dom_mes
+         mesh%mes = mesh_p1%mes
 
          CALL mesh%create_comm(mesh_p1%comm)
          CALL mesh%gather_dom_np
@@ -205,9 +205,9 @@ CONTAINS
          ALLOCATE(mesh%jcc_extra(mesh%mextra))
          mesh%jcc_extra = mesh_p1%jcc_extra
 
-         mesh%dom_me = mesh_p1%dom_me
+         mesh%me = mesh_p1%me
          mesh%dom_np = mesh_p1%dom_np + 2 * mesh_p1%medge + mesh_p1%me
-         mesh%dom_mes = mesh_p1%dom_mes
+         mesh%mes = mesh_p1%mes
 
          CALL mesh%create_comm(mesh_p1%comm)
          CALL mesh%gather_dom_np
@@ -578,9 +578,9 @@ CONTAINS
       ALLOCATE(mesh%neighs_int(2, mesh%mes_int)) !--->done
       ALLOCATE(mesh%sides_int(mesh%mes_int))
 
-      mesh%dom_me = 4 * mesh_p1%dom_me
+      mesh%me = 4 * mesh_p1%me
       mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
-      mesh%dom_mes = 2 * mesh_p1%dom_mes
+      mesh%mes = 2 * mesh_p1%mes
       CALL mesh%create_comm(mesh_p1%comm)
       CALL mesh%gather_dom_np
       CALL mesh%gather_me

@@ -78,8 +78,8 @@ CONTAINS
       mesh%mes_extra = 0
       mesh%mes_int = 0
       mesh%dom_np = mesh%np
-      mesh%dom_me = mesh%me
-      mesh%dom_mes = mesh%mes
+      mesh%me = mesh%me
+      mesh%mes = mesh%mes
       mesh%mextra = 0
 
       ALLOCATE(mesh%iis(0, 0))
@@ -102,11 +102,11 @@ CONTAINS
       mesh%disp(1) = 1
       mesh%disp(2) = mesh%dom_np + 1
       mesh%discell(1) = 1
-      mesh%discell(2) = mesh%dom_me + 1
+      mesh%discell(2) = mesh%me + 1
       mesh%disedge(1) = 1
       mesh%disedge(2) = mesh%medge + 1
       mesh%domnp(1) = mesh%dom_np
-      mesh%domcell(1) = mesh%dom_me
+      mesh%domcell(1) = mesh%me
       mesh%domedge(1) = mesh%medge
 
       ! IF (mesh_data_info%nb_refinement > 0) THEN

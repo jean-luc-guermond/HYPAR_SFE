@@ -26,7 +26,7 @@ CONTAINS
       DEALLOCATE(mesh_refined%jj, mesh_refined%jj_extra)
       mesh_refined%me =  refinement_order * mesh_P1%me
       mesh_refined%medge = mesh_P1%medge * refinement_order
-      mesh_refined%dom_me =  refinement_order * mesh_P1%dom_me
+      mesh_refined%me =  refinement_order * mesh_P1%me
       mesh_refined%mextra =  refinement_order * mesh_P1%mextra
       ALLOCATE(mesh_refined%jj(2, mesh_refined%me))
       ALLOCATE(mesh_refined%jj_extra(2, mesh_refined%me))

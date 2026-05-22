@@ -808,9 +808,9 @@ CONTAINS
          mesh_loc%np = mesh%np
          mesh_loc%mes = mesh%mes
          mesh_loc%mes_int = mesh%mes_int
-         mesh_loc%dom_me = mesh%me
+         mesh_loc%me = mesh%me
          mesh_loc%dom_np = mesh%np
-         mesh_loc%dom_mes = mesh%mes
+         mesh_loc%mes = mesh%mes
          mesh_loc%mextra = 0
          mesh_loc%mes_extra = 0
          mesh_loc%medge = mesh%medge
@@ -877,9 +877,7 @@ CONTAINS
       dom_np = np_loc(2) - np_loc(1) + 1
       mesh_loc%me = dom_me
       mesh_loc%mes = dom_mes
-      mesh_loc%dom_me = dom_me
       mesh_loc%dom_np = dom_np
-      mesh_loc%dom_mes = dom_mes
       CALL MPI_ALLREDUCE(dom_np, dom_np_glob, 1, MPI_INTEGER, &
            MPI_MIN, mesh_loc%comm, ierr)
       IF (dom_np_glob.LE.0) THEN
