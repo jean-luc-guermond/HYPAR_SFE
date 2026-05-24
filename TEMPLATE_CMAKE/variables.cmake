@@ -1,6 +1,6 @@
 # Variables for Whistler
 #==== Mandatory for any application ====
-set(HYPAR_SFE_DIR "/home/guermond/HYPAR_SFE")
+set(HYPAR_SFE_DIR "my_path_to_hypar_sfe/HYPAR_SFE")
 set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
 set(release_bounds "-O3")
 set(FE_dim "1") #1 or 2

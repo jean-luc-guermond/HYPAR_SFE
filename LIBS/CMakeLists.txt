@@ -5,7 +5,11 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")
 
 include(variables_lib.cmake)
-
+if(FE_dim EQUAL 0)
+    MESSAGE(FATAL_ERROR "BUG IN HYPAR_SFE/LIBS/CMakeLists.txt: FE_dim = 0 ==> very likely means you forgot to define it in your variable.cmake")
+elseif(FE_dim GREATER 2)
+    MESSAGE(FATAL_ERROR "BUG IN HYPAR_SFE/LIBS/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
+endif()
 #==========================================================================
 #=============== compilation of HYPAR_SFE
 #==========================================================================

@@ -1,0 +1,46 @@
+# Project name and version
+project(CTEST_HYPAR_TOOLS VERSION 1.0)
+message(STATUS "")
+message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+
+# List of tests
+#=== 1D_P2_DIRICHLET ===#
+generate_random_procs_list(LIST_PROC 
+MIN 1 MAX 16 DEFAULT 1
+LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
+add_regression_test(
+  TEST_NAME "1D_P2_DIRICHLET"  NB_REGEX 2
+  INCLUDE_TEMPLATE ON FE_DIM 1D LIST_N_PROCS ${LIST_PROC}
+)
+
+#=== 1D_P3_DIRICHLET ===#
+generate_random_procs_list(LIST_PROC 
+MIN 1 MAX 16 DEFAULT 1
+LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
+add_regression_test(
+  TEST_NAME "1D_P3_DIRICHLET"  NB_REGEX 1
+  INCLUDE_TEMPLATE ON FE_DIM 1D LIST_N_PROCS ${LIST_PROC}
+)
+
+#=== 1D_P8_DIRICHLET ===#
+generate_random_procs_list(LIST_PROC 
+MIN 1 MAX 2 DEFAULT 1
+LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 2 2 2))
+add_regression_test(
+  TEST_NAME "1D_P8_DIRICHLET"  NB_REGEX 1
+  INCLUDE_TEMPLATE ON FE_DIM 1D LIST_N_PROCS ${LIST_PROC}
+)
+
+#=== 1D_LAGRANGE ===#
+set(LIST_PROC 1)
+add_regression_test(
+  TEST_NAME "1D_LAGRANGE"  NB_REGEX 1
+  INCLUDE_TEMPLATE OFF FE_DIM 1D LIST_N_PROCS ${LIST_PROC}
+)
+
+#=== 1D_LEGENDRE ===#
+set(LIST_PROC 1)
+add_regression_test(
+  TEST_NAME "1D_LEGENDRE"  NB_REGEX 1
+  INCLUDE_TEMPLATE OFF FE_DIM 1D LIST_N_PROCS ${LIST_PROC}
+)
