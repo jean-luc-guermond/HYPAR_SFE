@@ -89,12 +89,11 @@ MODULE def_type_mesh
       INTEGER, ALLOCATABLE, DIMENSION(:) :: domnp, disp ! (JLG+FL, January 2011) resp. ALLGATHER(mesh%dom_np) and cumsum starting from 1
       INTEGER, ALLOCATABLE, DIMENSION(:) :: domcell, discell ! (MC, Sept 2022) resp. ALLGATHER(mesh%me) and cumsum starting from 1
       INTEGER, ALLOCATABLE, DIMENSION(:) :: disedge, domedge ! (MC, Sept 2022) resp. ALLGATHER(mesh%medge) and cumsum starting from 1
-      INTEGER :: dom_me, dom_np, dom_mes ! (JLG+FL, January 2011)
+      INTEGER :: dom_np ! (JLG+FL, January 2011)
       !==Isolated nodes at interfaces
       INTEGER, POINTER, DIMENSION(:) :: isolated_jjs !give glob index of isolated point
       INTEGER, POINTER, DIMENSION(:, :) :: isolated_interfaces !give the number of the interfaces
       INTEGER :: nis !number of isolated points
-      ! dom_me and dom_mes are obsolete structures.
       ! dom_np is the number of nodes owned by the processor: dom_np .LE. mesh%np
       !==End parallel structure
       INTEGER :: me, mes, np, nps, mi, medge, medges, mextra, mes_extra, mes_int

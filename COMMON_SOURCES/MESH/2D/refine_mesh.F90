@@ -19,7 +19,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: type_fe
       LOGICAL, DIMENSION(:), ALLOCATABLE :: virgin
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: j_mid, jjs_mid
-      INTEGER :: np, me, mes, nw, nws, kd, n, m, k, l, n_dof, dom_np
+      INTEGER :: np, me, mes, nw, nws, kd, n, m, k, l, n_dof, dom_np, ne
       INTEGER :: n1, n2, ms, n_start, n_end, n_loc
       INTEGER :: n_k1, n_k2, m_op_k, kk, i, mm, p_e, p_c
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: r_mid
@@ -30,6 +30,7 @@ CONTAINS
       CALL mesh%info%copy(mesh_p1%info)
 
       nw = SIZE(mesh_p1%jj, 1)   !===nodes in each volume element (3 in 2D)
+      ne = 3                     !===Number of edges in a cell (3 for a triangle)
       me = SIZE(mesh_p1%jj, 2)   !===number of cells
       kd = SIZE(mesh_p1%rr, 1)   !===space dimensions
       np = mesh_p1%np            !===number of P1 vertices connected to grid
@@ -46,189 +47,95 @@ CONTAINS
       ALLOCATE(mesh%neighs_int(2, SIZE(mesh_p1%neighs_int, 2)))
       mesh%neighs_int = mesh_p1%neighs_int
 
+!=== Unchanged number of edges and elements
+      mesh%me = mesh_p1%me
+      mesh%mes = mesh_p1%mes
+      mesh%medge = mesh_p1%medge
+      mesh%medges = mesh_p1%medges
+      mesh%mextra = mesh_p1%mextra
+      mesh%mes_extra = mesh_p1%mes_extra
+
+!=== New nodes
+      mesh%np = mesh_p1%np !=== previous P1 points
+      mesh%np = mesh%np + mesh_p1%medge * (type_fe - 1) !=== New points on each edge
+      mesh%np = mesh%np + mesh_p1%me * (type_fe - 2)*(type_fe - 1)/2 !=== New points inside each element
+      mesh%np = mesh%np + mesh_p1%medges*(type_fe - 1) !=== New ghost points on boundaries
+
+      mesh%dom_np = mesh_p1%dom_np !=== previous P1 points
+      mesh%dom_np = mesh%dom_np + mesh_p1%medge * (type_fe - 1) !=== New points on each edge
+      mesh%dom_np = mesh%dom_np + mesh_p1%me * (type_fe - 2)*(type_fe - 1)/2 !=== New points inside each element
+
+      mesh%gauss%n_w = (type_fe + 1) * (type_fe + 2) / 2
+      mesh%gauss%n_ws = type_fe + 1
+
+!=== Unchanged cell/edges structures
+      ALLOCATE(mesh%jce(ne, me))
+      mesh%jce = mesh_p1%jce
+      ALLOCATE(mesh%neigh(ne, mesh%me))
+      mesh%neigh = mesh_p1%neigh
+      ALLOCATE(mesh%sides(mesh%mes))
+      mesh%sides = mesh_p1%sides
+      ALLOCATE(mesh%neighs(mesh%mes))
+      mesh%neighs = mesh_p1%neighs
+      ALLOCATE(mesh%sides_extra(mesh%mes_extra))
+      mesh%sides_extra = mesh_p1%sides_extra
+      ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
+      mesh%neighs_extra = mesh_p1%neighs_extra
+      ALLOCATE(mesh%i_d(mesh%me))
+      mesh%i_d = mesh_p1%i_d
+      ALLOCATE(mesh%jcc_extra(mesh%mextra))
+      mesh%jcc_extra = mesh_p1%jcc_extra
+
+
+      mesh%nis = mesh_p1%nis
+      ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
+      mesh%isolated_interfaces = mesh_p1%isolated_interfaces
+
+      ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
+      mesh%jce_extra = mesh_p1%jce_extra
+      ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
+      mesh%jees = mesh_p1%jees
+      ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
+      mesh%jecs = mesh_p1%jecs
+
+
+      CALL mesh%create_comm(mesh_p1%comm)
+      CALL mesh%gather_dom_np
+      CALL mesh%gather_me
+      CALL mesh%gather_medge
+
+!=== New nodes and new global numbering
+      ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
+
+      ALLOCATE(mesh%jj(mesh%gauss%n_w, me))   
+      ALLOCATE(mesh%jjs(mesh%gauss%n_ws, mes))   
+
+      ALLOCATE(mesh%jj_extra(mesh%gauss%n_w, mesh%mextra)) 
+      ALLOCATE(mesh%jjs_extra(mesh%gauss%n_ws, mesh%mextra))
+
+      ALLOCATE(mesh%rr(kd, mesh%np))    
+      ALLOCATE(mesh%rrs_extra(kd, mesh%gauss%n_w, mesh%mes_extra))
+
+      ALLOCATE(mesh%loc_to_glob(mesh%np)) 
+      ALLOCATE(mesh%proc_np_loc(2, mesh%np-mesh%dom_np))
+
+
       IF (type_fe==1 .OR. mesh_p1%me == 0) THEN
-         mesh%me = mesh_p1%me
-         mesh%mes = mesh_p1%mes
-         mesh%np = mesh_p1%np
-         mesh%medge = mesh_p1%medge
-         mesh%medges = mesh_p1%medges
-         mesh%mextra = mesh_p1%mextra
-         mesh%mes_extra = mesh_p1%mes_extra
-         ALLOCATE(mesh%jj(nw, me))
+
          mesh%jj = mesh_p1%jj
-         ALLOCATE(mesh%jjs(nws, mes))
          mesh%jjs = mesh_p1%jjs
-         ALLOCATE(mesh%jjs_extra(nws, mesh%mes_extra))
          mesh%jjs_extra = mesh_p1%jjs_extra
-         !ALLOCATE(mesh%iis(nws,mes))
-         !mesh%iis = mesh_p1%iis
-         ALLOCATE(mesh%jj_extra(nw, mesh%mextra))
          mesh%jj_extra = mesh_p1%jj_extra
-         ALLOCATE(mesh%jce(nw, me))
-         mesh%jce = mesh_p1%jce
-         !ALLOCATE(mesh%jev(nw - 1, mesh%medge))
-         !mesh%jev = mesh_p1%jev
-         ALLOCATE(mesh%rr(kd, mesh%np))
          mesh%rr = mesh_p1%rr
-         ALLOCATE(mesh%neigh(nw, mesh%me))
-         mesh%neigh = mesh_p1%neigh
-         ALLOCATE(mesh%sides(mesh%mes))
-         mesh%sides = mesh_p1%sides
-         ALLOCATE(mesh%neighs(mesh%mes))
-         mesh%neighs = mesh_p1%neighs
-         ALLOCATE(mesh%sides_extra(mesh%mes_extra))
-         mesh%sides_extra = mesh_p1%sides_extra
-         ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
-         mesh%neighs_extra = mesh_p1%neighs_extra
-         ALLOCATE(mesh%rrs_extra(kd, nw, mesh%mes_extra))
          mesh%rrs_extra = mesh_p1%rrs_extra
-         ALLOCATE(mesh%i_d(mesh%me))
-         mesh%i_d = mesh_p1%i_d
-         ALLOCATE(mesh%loc_to_glob(mesh%np))
          mesh%loc_to_glob = mesh_p1%loc_to_glob
-         ALLOCATE(mesh%jcc_extra(mesh%mextra))
-         mesh%jcc_extra = mesh_p1%jcc_extra
-         mesh%dom_me = mesh_p1%dom_me
-         mesh%dom_np = mesh_p1%dom_np
-         mesh%dom_mes = mesh_p1%dom_mes
 
-         CALL mesh%create_comm(mesh_p1%comm)
-         CALL mesh%gather_dom_np
-         CALL mesh%gather_me
-         CALL mesh%gather_medge
-
-         mesh%nis = mesh_p1%nis
-         ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
-         mesh%isolated_interfaces = mesh_p1%isolated_interfaces
-         ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
          mesh%isolated_jjs = mesh_p1%isolated_jjs
-         ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
-         mesh%jce_extra = mesh_p1%jce_extra
-         ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
-         mesh%jees = mesh_p1%jees
-         ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
-         mesh%jecs = mesh_p1%jecs
-         mesh%gauss%n_w = 3
-         mesh%gauss%n_ws = 2
+         mesh%proc_np_loc(:,:) = mesh_P1%proc_np_loc(:,:)
+
          RETURN
-      ELSE IF (type_fe==2) THEN
-         mesh%me = mesh_p1%me
-         mesh%mes = mesh_p1%mes
-         mesh%np = mesh_p1%np + mesh_p1%medge + mesh_p1%medges
-         mesh%medge = mesh_p1%medge
-         mesh%medges = mesh_p1%medges
-         mesh%mextra = mesh_p1%mextra
-         mesh%mes_extra = mesh_p1%mes_extra
-
-         ALLOCATE(mesh%jj(nw * (f_dof + 1), me))   !---->
-         ALLOCATE(mesh%jjs(nws + f_dof, mes))   !---->
-         ALLOCATE(mesh%jjs_extra(nws + f_dof, mesh%mes_extra))
-         ALLOCATE(mesh%jj_extra(nw * (f_dof + 1), mesh%mextra)) !---->
-         ALLOCATE(mesh%rrs_extra(kd, nw * (f_dof + 1), mesh%mes_extra))
-         ALLOCATE(mesh%rr(kd, mesh%np))    !---->
-         ALLOCATE(mesh%loc_to_glob(mesh%np)) !---->
-
-         ALLOCATE(mesh%jce(nw, me))
-         mesh%jce = mesh_p1%jce
-         !ALLOCATE(mesh%jev(nw - 1, mesh%medge))
-         !mesh%jev = mesh_p1%jev
-         ALLOCATE(mesh%neigh(nw, mesh%me))
-         mesh%neigh = mesh_p1%neigh
-         ALLOCATE(mesh%sides(mesh%mes))
-         mesh%sides = mesh_p1%sides
-         ALLOCATE(mesh%neighs(mesh%mes))
-         mesh%neighs = mesh_p1%neighs
-         ALLOCATE(mesh%sides_extra(mesh%mes_extra))
-         mesh%sides_extra = mesh_p1%sides_extra
-         ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
-         mesh%neighs_extra = mesh_p1%neighs_extra
-         ALLOCATE(mesh%i_d(mesh%me))
-         mesh%i_d = mesh_p1%i_d
-         ALLOCATE(mesh%jcc_extra(mesh%mextra))
-         mesh%jcc_extra = mesh_p1%jcc_extra
-
-         mesh%dom_me = mesh_p1%dom_me
-         mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
-         mesh%dom_mes = mesh_p1%dom_mes
-
-         CALL mesh%create_comm(mesh_p1%comm)
-         CALL mesh%gather_dom_np
-         CALL mesh%gather_me
-         CALL mesh%gather_medge
-
-         mesh%nis = mesh_p1%nis
-         ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
-         mesh%isolated_interfaces = mesh_p1%isolated_interfaces
-         ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
-
-         ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
-         mesh%jce_extra = mesh_p1%jce_extra
-         ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
-         mesh%jees = mesh_p1%jees
-         ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
-         mesh%jecs = mesh_p1%jecs
-
-         mesh%gauss%n_w = 6
-         mesh%gauss%n_ws = 3
-      ELSE IF (type_fe==3) THEN
-         mesh%me = mesh_p1%me
-         mesh%mes = mesh_p1%mes
-         mesh%np = mesh_p1%np + 2 * mesh_p1%medge + 2 * mesh_p1%medges + mesh_p1%me
-         mesh%medge = mesh_p1%medge
-         mesh%mextra = mesh_p1%mextra
-         mesh%mes_extra = mesh_p1%mes_extra
-
-         ALLOCATE(mesh%jj(nw * (f_dof + 1) + 1, me))   !----> done
-         ALLOCATE(mesh%jjs(nws + f_dof, mes))   !---->
-         ALLOCATE(mesh%jjs_extra(nws + f_dof, mesh%mextra))   !---->
-         ALLOCATE(mesh%jj_extra(nw * (f_dof + 1) + 1, mesh%mextra)) !---->
-         ALLOCATE(mesh%rr(kd, mesh%np))    !----> done
-         ALLOCATE(mesh%rrs_extra(kd, nw * (f_dof + 1) + 1, mesh%mes_extra))
-         ALLOCATE(mesh%loc_to_glob(mesh%np)) !----> done
-
-         ALLOCATE(mesh%jce(nw, me))
-         mesh%jce = mesh_p1%jce
-         !ALLOCATE(mesh%jev(nw - 1, mesh%medge))
-         !mesh%jev = mesh_p1%jev
-         ALLOCATE(mesh%neigh(nw, mesh%me))
-         mesh%neigh = mesh_p1%neigh
-         ALLOCATE(mesh%sides(mesh%mes))
-         mesh%sides = mesh_p1%sides
-         ALLOCATE(mesh%neighs(mesh%mes))
-         mesh%neighs = mesh_p1%neighs
-         ALLOCATE(mesh%sides_extra(mesh%mes_extra))
-         mesh%sides_extra = mesh_p1%sides_extra
-         ALLOCATE(mesh%neighs_extra(mesh%mes_extra))
-         mesh%neighs_extra = mesh_p1%neighs_extra
-         ALLOCATE(mesh%i_d(mesh%me))
-         mesh%i_d = mesh_p1%i_d
-         ALLOCATE(mesh%jcc_extra(mesh%mextra))
-         mesh%jcc_extra = mesh_p1%jcc_extra
-
-         mesh%dom_me = mesh_p1%dom_me
-         mesh%dom_np = mesh_p1%dom_np + 2 * mesh_p1%medge + mesh_p1%me
-         mesh%dom_mes = mesh_p1%dom_mes
-
-         CALL mesh%create_comm(mesh_p1%comm)
-         CALL mesh%gather_dom_np
-         CALL mesh%gather_me
-         CALL mesh%gather_medge
-
-         mesh%nis = mesh_p1%nis
-         ALLOCATE(mesh%isolated_interfaces(mesh_p1%nis, 2))
-         mesh%isolated_interfaces = mesh_p1%isolated_interfaces
-         ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
-
-         ALLOCATE(mesh%jce_extra(SIZE(mesh_p1%jce_extra, 1), SIZE(mesh_p1%jce_extra, 2)))
-         mesh%jce_extra = mesh_p1%jce_extra
-         ALLOCATE(mesh%jees(SIZE(mesh_p1%jees)))
-         mesh%jees = mesh_p1%jees
-         ALLOCATE(mesh%jecs(SIZE(mesh_p1%jecs)))
-         mesh%jecs = mesh_p1%jecs
-
-         mesh%gauss%n_w = 10
-         mesh%gauss%n_ws = 4
       END IF
+      
       nb_angle = 0
       ALLOCATE(virgin(mesh_p1%medge), j_mid(nw * f_dof, me), jjs_mid(f_dof, mes), r_mid(kd))
 
@@ -238,7 +145,6 @@ CONTAINS
       END IF
 
       proc = mesh_p1%proc
-      ALLOCATE(mesh%proc_np_loc(2, mesh%np-mesh%dom_np))
       mesh%proc_np_loc = 0
       mesh%proc_np_loc(:,1:SIZE(mesh_P1%proc_np_loc,2)) = mesh_P1%proc_np_loc(:,:)
 
@@ -578,9 +484,7 @@ CONTAINS
       ALLOCATE(mesh%neighs_int(2, mesh%mes_int)) !--->done
       ALLOCATE(mesh%sides_int(mesh%mes_int))
 
-      mesh%dom_me = 4 * mesh_p1%dom_me
       mesh%dom_np = mesh_p1%dom_np + mesh_p1%medge
-      mesh%dom_mes = 2 * mesh_p1%dom_mes
       CALL mesh%create_comm(mesh_p1%comm)
       CALL mesh%gather_dom_np
       CALL mesh%gather_me

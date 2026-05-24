@@ -19,7 +19,7 @@ CONTAINS
       PetscErrorCode :: ierr
       CALL MatZeroEntries (matrix, ierr)
 
-      DO m = 1, mesh%dom_me
+      DO m = 1, mesh%me
          idxn = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
 
          al = visco * mesh%gauss%rj(:, m)

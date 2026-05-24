@@ -108,7 +108,7 @@ CONTAINS
       nn = 0
       ALLOCATE(virgin(mesh%np)) !===mesh%np instead of mesh%dom_np
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
@@ -133,7 +133,7 @@ CONTAINS
       ALLOCATE(this%jsd(n_D))
       nn = 0
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
@@ -196,7 +196,7 @@ CONTAINS
       nn = 0
       ALLOCATE(virgin(mesh%dom_np))
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
@@ -221,7 +221,7 @@ CONTAINS
       ALLOCATE(this%jsd(n_D))
       nn = 0
       virgin = .TRUE.
-      DO ms = 1, mesh%dom_mes
+      DO ms = 1, mesh%mes
          IF (MINVAL(ABS(mesh%sides(ms) - this%list_sides))/=0) CYCLE
          DO n = 1, nws
             p = mesh%jjs(n, ms)
