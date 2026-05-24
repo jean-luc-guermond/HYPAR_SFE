@@ -69,20 +69,25 @@ CONTAINS
       INTEGER :: n_w, n_ws, l_G, l_Gs
       REAL(KIND = 8), DIMENSION(k_d) :: rnor, rsd
 
-      SELECT CASE(type_fe)
-      CASE(1)
-         n_w = 2;  n_ws = 1; l_G = 2; l_Gs = 0
-         element_1d_Pk => element_1d_P1
-      CASE(2)
-         n_w = 3;  n_ws = 1; l_G = 3; l_Gs = 0
-         element_1d_Pk => element_1d_P2
-      CASE(3)
-         n_w = 4; n_ws = 1; l_G = 4; l_Gs = 0
-         element_1d_Pk => element_1d_P3
-      CASE DEFAULT
-         WRITE(*, *) ' FE not programmed yet', type_fe
-         STOP
-      END SELECT
+      n_w = type_fe + 1
+      n_ws = 1
+      l_G = type_fe + 1
+      l_Gs = 0
+
+      element_1d_Pk => reduced_element_1D_Pk
+
+      ! SELECT CASE(type_fe)
+      ! CASE(1)
+      !    element_1d_Pk => element_1d_P1
+      ! CASE(2)
+      !    element_1d_Pk => element_1d_P2
+      ! CASE(3)
+      !    element_1d_Pk => element_1d_P3
+      ! CASE DEFAULT
+      !    WRITE(*, *) ' FE not programmed yet', type_fe
+      !    STOP
+      ! END SELECT
+      
       ALLOCATE(dd(k_d, n_w, l_G), pp(l_G), r(n_w))
 
       me => mesh%me
@@ -125,6 +130,18 @@ CONTAINS
       ENDDO
 
       DEALLOCATE(dd, pp, r)
+
+   CONTAINS
+
+      SUBROUTINE reduced_element_1D_Pk(w, d, p, n_ws, l_Gs)
+         USE arbitrary_GP_1D_module, ONLY: element_1d_arbitrary_pk
+         IMPLICIT NONE
+         INTEGER,                                INTENT(IN)  :: n_ws, l_Gs
+         REAL(KIND=8), DIMENSION(   n_ws, l_Gs), INTENT(OUT) :: w
+         REAL(KIND=8), DIMENSION(1, n_ws, l_Gs), INTENT(OUT) :: d
+         REAL(KIND=8), DIMENSION(l_Gs),          INTENT(OUT) :: p
+         CALL element_1d_arbitrary_pk (w, d, p, n_ws, l_Gs, type_fe)
+      END SUBROUTINE reduced_element_1D_Pk
 
    END SUBROUTINE create_gauss_points_1d
 END MODULE gauss_points_1d
