@@ -45,7 +45,7 @@ TEST_FOURIER_1D_SCALAR:
 
 
 TEST_HYPAR_FE_TOOLS:
-    1D_LEGENDRE     => Legendre polynomials, derivatives, roots, up to m = 50
+    1D_LEGENDRE     => Legendre polynomials, derivatives, roots, up to m = 50, Newton iteration method
     1D_LAGRANGE     => 1D Lagrange polynomials, derivatives, zeros and ones, up to m = 50
     1D_P2_DIRICHLET => 1D, Laplace equation, P2 using manual mesh refinements, Full Dirichlet BC, analytical solution
     1D_P3_DIRICHLET => 1D, Laplace equation, P3 using manual mesh refinements, Full Dirichlet BC, analytical solution

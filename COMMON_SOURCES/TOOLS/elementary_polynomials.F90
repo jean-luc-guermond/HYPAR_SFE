@@ -133,7 +133,14 @@ CONTAINS
     END FUNCTION D_legendre
 
     SUBROUTINE zero_legendre(k, zeros)
-        USE my_util, ONLY: error_petsc, to_str
+        USE my_util,       ONLY: error_petsc, to_str
+        USE Newton_method, ONLY: newton
+         !> Computes the zeros of the legendre polynomial of order k
+         !! output zeros in increasing order in the array zeros
+         !! input k, number of zeros to compute (i.e. order of legendre polynomial)
+         !! output zeros, array of size k containing the zeros in increasing order
+         !! uses a Newton method to find the zeros, with a good initial guess based on the asymptotic distribution of the zeros of legendre polynomials
+         !! for k <= 5, the zeros are hard-coded, for k > 5, the zeros are computed using a Newton method with a good initial guess based on the asymptotic distribution of the zeros of legendre pol
         IMPLICIT NONE
         INTEGER,                                 INTENT(IN) :: k
         REAL(KIND=8), DIMENSION(:), ALLOCATABLE,INTENT(OUT) :: zeros
@@ -178,42 +185,10 @@ CONTAINS
                 IF (val0 * val1 > 0) THEN
                     CALL error_petsc("BUG in zero_legendre for m = "//to_str(k)//": wrong init for finding zeros")
                 END IF
-            !=== Find zeros using naive dichotomy
-                !=== Dichotomy loop
-                ! DO WHILE (ABS((x0-x1)/x0) > tol)
-                !     xmid = (x0+x1)/2.d0
-                !     valmid = legendre(xmid, k)
-                !     IF (valmid*val0 < 0) THEN
-                !         x1 = xmid
-                !         val1 = valmid
-                !     ELSE
-                !         x0 = xmid
-                !         val0 = valmid
-                !     END IF
-                ! END DO
-                !=== Found our number
-                ! zeros(i) = (x0 + x1) / 2.d0
                 !=== Newton loop
-                x1 = (x0+x1)/2.d0
-                val1 = legendre(x1, k)
-                dval1 = D_legendre(x1, k)
-                it = 0
-                DO WHILE (ABS(val1) > tol)
-                    it = it + 1
-                    val0 = val1
-                    dval0 = dval1
-                    x0 = x1
-                    x1 = x0 - val0/dval0
-                    val1 = legendre(x1, k)
-                    dval1 = D_legendre(x1, k)
-                    dval1 = D_legendre(x1, k)
-                    IF (it==10) THEN
-                        WRITE(*,*) 'exiting loop at it = 10 with value = ', ABS(val1)
-                        EXIT
-                    END IF
-                END DO
-                !=== Found our number
-                zeros(i) = x1
+                xmid = (x0+x1)/2.d0
+                CALL newton(xmid, legendre_k, Dlegendre_k, tol)
+                zeros(i) = xmid
                 !=== Check the roots are in increasing order
                 IF (i > 1) THEN
                     IF (zeros(i) < zeros(i-1)) THEN
@@ -227,6 +202,18 @@ CONTAINS
         CASE DEFAULT
             CALL error_petsc('BUG in zero_legendre => case k = '//to_str(k)//' not coded yet, only 1/2/3')
         END SELECT
+
+    CONTAINS
+        FUNCTION legendre_k(x) RESULT(fx)
+            REAL(KIND=8), INTENT(IN) :: x
+            REAL(KIND=8)             :: fx
+            fx = legendre(x, k)
+        END FUNCTION legendre_k
+        FUNCTION Dlegendre_k(x) RESULT(fx)
+            REAL(KIND=8), INTENT(IN) :: x
+            REAL(KIND=8)             :: fx
+            fx = D_legendre(x, k)
+        END FUNCTION Dlegendre_k
 
     END SUBROUTINE zero_legendre
 

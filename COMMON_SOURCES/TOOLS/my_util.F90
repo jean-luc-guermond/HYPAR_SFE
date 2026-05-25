@@ -6,7 +6,7 @@ MODULE my_util
   END INTERFACE to_str
 
   INTERFACE pack_opt
-      MODULE PROCEDURE pack_opt_logical, pack_opt_real, pack_opt_character
+      MODULE PROCEDURE pack_opt_logical, pack_opt_integer, pack_opt_real, pack_opt_character
   END INTERFACE pack_opt
 
   PUBLIC :: user_time, error_Petsc, to_str, write_rank_0, pack_opt
@@ -66,6 +66,20 @@ CONTAINS
     END IF
 
   END SUBROUTINE pack_opt_logical
+
+  SUBROUTINE pack_opt_integer(val_out, val_default, opt_val_in)
+    IMPLICIT NONE
+    INTEGER, INTENT(IN)  :: val_default
+    INTEGER, INTENT(OUT) :: val_out
+    INTEGER, OPTIONAL, INTENT(IN) :: opt_val_in
+
+    IF (PRESENT(opt_val_in)) THEN
+      val_out = opt_val_in
+    ELSE
+      val_out = val_default
+    END IF
+
+  END SUBROUTINE pack_opt_integer
 
   SUBROUTINE pack_opt_real(val_out, val_default, opt_val_in)
     IMPLICIT NONE
