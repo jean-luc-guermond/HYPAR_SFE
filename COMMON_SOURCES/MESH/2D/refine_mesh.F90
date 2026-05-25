@@ -14,6 +14,7 @@ CONTAINS
       !===jjs_f(:, :)  nodes of the surface_elements of the output p2 grid
       !===rr_f(:, :)  cartesian coordinates of the nodes of the output p2 grid
       USE def_type_mesh
+      USE my_util, ONLY : error_petsc
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh_p1, mesh
       INTEGER, INTENT(IN) :: type_fe
@@ -111,7 +112,7 @@ CONTAINS
       ALLOCATE(mesh%jjs(mesh%gauss%n_ws, mes))   
 
       ALLOCATE(mesh%jj_extra(mesh%gauss%n_w, mesh%mextra)) 
-      ALLOCATE(mesh%jjs_extra(mesh%gauss%n_ws, mesh%mextra))
+      ALLOCATE(mesh%jjs_extra(mesh%gauss%n_ws, mesh%mes_extra))
 
       ALLOCATE(mesh%rr(kd, mesh%np))    
       ALLOCATE(mesh%rrs_extra(kd, mesh%gauss%n_w, mesh%mes_extra))
@@ -153,10 +154,12 @@ CONTAINS
       mesh%rr(:, mesh%dom_np + 1:mesh%dom_np + np - dom_np) = mesh_p1%rr(:, dom_np + 1:)
       mesh%jj(1:nw, :) = mesh_p1%jj
       mesh%jj_extra(1:nw, :) = mesh_p1%jj_extra
-      IF (size(mesh_p1%jjs_extra)/=0) THEN
-         mesh%jjs_extra(1:nws, 1:mesh_p1%mes_extra) = mesh_p1%jjs_extra !<== JLG April 16, 2026
-         !mesh%jjs_extra(1:nws, :) = mesh_p1%jjs_extra
-      END IF
+!VB useless??
+      ! IF (size(mesh_p1%jjs_extra)/=0) THEN
+      !    mesh%jjs_extra(1:nws, 1:mesh_p1%mes_extra) = mesh_p1%jjs_extra !<== JLG April 16, 2026
+      !    !mesh%jjs_extra(1:nws, :) = mesh_p1%jjs_extra
+      ! END IF
+!VB
       IF (size(mesh_p1%rrs_extra)/=0) THEN
          mesh%rrs_extra(:, 1:nw, 1:mesh_p1%mes_extra) = mesh_p1%rrs_extra !<== JLG April 16, 2026
          !mesh%rrs_extra(:, 1:nw, :) = mesh_p1%rrs_extra
@@ -381,13 +384,17 @@ CONTAINS
          DO m = 1, mesh%mextra !find associated extra cell
             IF (mesh_p1%jcc_extra(m) == cell_g) EXIT
          END DO
+
+         kk = 0
          DO n = 1, kd + 1 !===find side in cell
-            IF (MINVAL(ABS(mesh%jj_extra(n, m) - mesh_p1%jjs_extra(:, ms)))/=0) THEN
+            IF (.NOT. (ANY(mesh_p1%jj_extra(n, m)==mesh_p1%jjs_extra(:, ms)))) THEN
                kk = n
                EXIT
             END IF
          ENDDO
-
+         IF (kk==0) THEN
+            CALL error_petsc("BUG in create_iso_grid_distributed: did not find extra cell")
+         END IF
          DO l = 1, f_dof
             mesh%jjs_extra(nws + l, ms) = mesh%jj_extra(nw + (kk - 1) * f_dof + l, m)
          END DO
@@ -432,23 +439,23 @@ CONTAINS
       !===jjs_f(:, :)  nodes of the surface_elements of the output p2 grid
       !===rr_f(:, :)  cartesian coordinates of the nodes of the output p2 grid
       USE def_type_mesh
+      USE my_util, ONLY: error_petsc
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh_p1, mesh
       INTEGER :: np, me, mes, nw, nws, kd, n, m, k, n_dof, dom_np, e_g, mextra
       INTEGER :: n1, n2, ms, neigh, k_neigh, n_kneigh1, n_kneigh2, swap, n_loc
       INTEGER :: i, p_c, m_new, e_k, p_j
-      INTEGER, DIMENSION(3) :: edges_g, edges_l, p_es
+      INTEGER, DIMENSION(3) :: edges_g, edges_l, p_es, sub_cell
       INTEGER, DIMENSION(2) :: n_ks
       INTEGER :: proc, nb_proc, p, cell_g, cell_l
       INTEGER :: m1, m2, interface, m_center, tab1, tab2, mes_int
       LOGICAL :: iso
+      type(mesh_type) :: mesh_p2
+
+
+      IF (mesh_p1%me == 0) RETURN
 
       CALL mesh%info%copy(mesh_p1%info)
-
-      IF (mesh_p1%me == 0) THEN
-         RETURN
-      END IF
-
       nw = SIZE(mesh_p1%jj, 1)   !===nodes in each volume element (3 in 2D)
       me = SIZE(mesh_p1%jj, 2)   !===number of cells
       kd = SIZE(mesh_p1%rr, 1)   !===space dimensions
@@ -496,23 +503,30 @@ CONTAINS
       ALLOCATE(mesh%isolated_jjs(mesh_p1%nis))
 
       IF (kd == 3) THEN
-         WRITE(*, *) ' CREATE_GRID_Pk: 3D case not programmed yet !'
-         STOP
+         CALL error_petsc('CREATE_GRID_Pk: 3D case not programmed yet !')
       END IF
 
       
+
       proc = mesh_p1%get_proc(mesh_p1%loc_to_glob(1), 'np')
 
       !===GENERATION OF THE Pk GRID
-      mesh%rr(:, 1:dom_np) = mesh_p1%rr(:, 1:dom_np)
-      mesh%rr(:, mesh%dom_np + 1:mesh%dom_np + np - dom_np) = mesh_p1%rr(:, dom_np + 1:)
-      ALLOCATE(mesh%proc_np_loc(2, mesh%np-mesh%dom_np))
-      mesh%isolated_jjs = mesh_p1%isolated_jjs + mesh_p1%disedge(proc) - 1
+      CALL create_iso_grid_distributed(mesh_p1, mesh_p2, 2)
+      mesh%rr = mesh_p2%rr
 
-      DO n = 1, np - dom_np
-         mesh%proc_np_loc(:, n) = mesh_p1%proc_np_loc(:, n)
-         p = mesh_p1%proc_np_loc(1, n)
+      ALLOCATE(mesh%proc_np_loc(2, mesh%np-mesh%dom_np))
+      mesh%proc_np_loc = mesh_p2%proc_np_loc
+      mesh%isolated_jjs = mesh_p2%isolated_jjs
+
+      DO m=1, me
+         m_center = 4 * (m - 1) + 1
+         mesh%jj(:, m_center    ) = mesh_p2%jj([4,5,6], m)
+         mesh%jj(:, m_center + 1) = mesh_p2%jj([1,5,6], m)
+         mesh%jj(:, m_center + 2) = mesh_p2%jj([2,4,6], m)
+         mesh%jj(:, m_center + 3) = mesh_p2%jj([3,4,5], m)
       END DO
+
+
 
       n_dof = 0
       DO m = 1, me !===loop on the elements unrefined mesh
@@ -522,27 +536,6 @@ CONTAINS
          !===Center cell
          mesh%i_d(m_center) = mesh_p1%i_d(m)
          DO i = 1, nw
-            !===Creating the new points
-            IF (edges_l(i) <=0) THEN
-               p = mesh_p1%get_proc(edges_g(i), 'medge')
-               DO ms = 1, mesh_p1%medges
-                  IF (mesh_p1%jees(ms) == edges_g(i)) EXIT
-               END DO
-               n_loc = mesh%dom_np + mesh_p1%np - mesh_p1%dom_np + ms
-               mesh%jj(i, m_center) = n_loc
-
-               mesh%proc_np_loc(1, n_loc-mesh%dom_np) = p
-               !dom_np(p) shifted by the local number of the edge on processor p (i.e edge_g-disedge)
-               mesh%proc_np_loc(2, n_loc-mesh%dom_np) = mesh_p1%domnp(p) + edges_g(i) - mesh_p1%disedge(p) + 1 
-            ELSE
-               n_loc = dom_np + edges_l(i) !dom_np(proc) shifted by the local number of the edge
-               mesh%jj(i, m_center) = n_loc
-            END IF
-
-            n1 = mesh_p1%jj(MODULO(i, nw) + 1, m)
-            n2 = mesh_p1%jj(MODULO(i + 1, nw) + 1, m)
-            mesh%rr(:, mesh%jj(i, m_center)) = (mesh_p1%rr(:, n2) + mesh_p1%rr(:, n1)) / 2.d0
-
             !===Setting up neighbours and edges
             mesh%neigh(i, m_center) = m_center + i
             mesh%i_d(mesh%neigh(i, m_center)) = mesh_p1%i_d(m)
@@ -563,15 +556,6 @@ CONTAINS
             mesh%neigh(1, m_new) = m_center
             mesh%jce(1, m_new) = mesh%jce(k, m_center)
 
-            !===Adding the points using the center cell
-            IF (mesh_p1%jj(k, m) > dom_np) THEN
-               mesh%jj(1, m_new) = mesh_p1%jj(k, m) + mesh%dom_np - mesh_p1%dom_np
-            ELSE
-               mesh%jj(1, m_new) = mesh_p1%jj(k, m)
-            END IF
-            mesh%jj(2, m_new) = mesh%jj(n_ks(1), m_center)
-            mesh%jj(3, m_new) = mesh%jj(n_ks(2), m_center)
-            !===Adding the last edges and neighbours
             DO e_k = 1, 2
 
                !===Adding neighbours
@@ -627,6 +611,11 @@ CONTAINS
          END DO
       END DO
 
+      DO ms = 1, mes
+         mesh%jjs(:, ms) = mesh_p2%jjs([1, 3], ms)
+         mesh%jjs(:, ms + mes) = mesh_p2%jjs([2, 3], ms)
+      END DO
+
       !===Surface elements
       DO ms = 1, mes
          m = mesh_p1%neighs(ms)
@@ -640,13 +629,6 @@ CONTAINS
             n_ks = (/n_ks(2), n_ks(1)/)
          END IF
 
-         mesh%jjs(1, ms) = mesh_p1%jj(n_ks(1), m)
-         IF (mesh%jjs(1, ms) > mesh_p1%dom_np) mesh%jjs(1, ms) = mesh%jjs(1, ms) + mesh%dom_np - mesh_p1%dom_np
-         mesh%jjs(1, mes + ms) = mesh_p1%jj(n_ks(2), m)
-         IF (mesh%jjs(1, mes + ms) > mesh_p1%dom_np) mesh%jjs(1, mes + ms) = mesh%jjs(1, mes + ms) &
-              + mesh%dom_np - mesh_p1%dom_np
-         mesh%jjs(2, ms) = mesh%jj(k, 4 * (m - 1) + 1)
-         mesh%jjs(2, mes + ms) = mesh%jj(k, 4 * (m - 1) + 1)
          mesh%neighs(ms) = mesh%neigh(n_ks(1), 4 * (m - 1) + 1)
          mesh%neighs(mes + ms) = mesh%neigh(n_ks(2), 4 * (m - 1) + 1)
          mesh%sides(ms) = mesh_p1%sides(ms)
@@ -723,6 +705,19 @@ CONTAINS
       ALLOCATE(mesh%jce_extra(nw, mesh%mextra)) !---->
       ALLOCATE(mesh%jcc_extra(mesh%mextra)) !---->
 
+      mextra = 0
+      DO m=1, mesh_p1%mextra
+         mextra = mextra + 1
+         mesh%jj_extra(:, mextra    ) = mesh_p2%jj_extra([4,5,6], m)
+         mextra = mextra + 1
+         mesh%jj_extra(:, mextra) = mesh_p2%jj_extra([1,5,6], m)
+         mextra = mextra + 1
+         mesh%jj_extra(:, mextra) = mesh_p2%jj_extra([2,4,6], m)
+         mextra = mextra + 1
+         mesh%jj_extra(:, mextra) = mesh_p2%jj_extra([3,4,5], m)
+      END DO
+
+
       !===Constructing the extra cells
       mextra = 0
       DO m = 1, mesh_p1%mextra
@@ -739,7 +734,7 @@ CONTAINS
             mesh%jce_extra(i, mextra) = mesh%disedge(p_c) - 1 + 2 * mesh_p1%domedge(p_c) + 3 * (cell_l - 1) + i
             e_g = mesh_p1%jce_extra(i, m)
             p = mesh_p1%get_proc(e_g, 'medge')
-            mesh%jj_extra(i, mextra) = mesh%disp(p) - 1 + mesh_p1%domnp(p) + e_g - mesh_p1%disedge(p) + 1
+            ! mesh%jj_extra(i, mextra) = mesh%disp(p) - 1 + mesh_p1%domnp(p) + e_g - mesh_p1%disedge(p) + 1
          END DO
 
          !corner cells
@@ -761,15 +756,6 @@ CONTAINS
             DO i = 1, nw
                p_es(i) = mesh_p1%get_proc(edges_g(i), 'medge')
             END DO
-
-            !===Adding the points
-            p_j = mesh_p1%get_proc(mesh_p1%jj_extra(k, m), 'np')
-
-            mesh%jj_extra(1, mextra) = mesh_p1%jj_extra(k, m) + mesh_p1%disedge(p_j) - 1
-            mesh%jj_extra(2, mextra) = mesh%disp(p_es(n_ks(1))) - 1 + &
-                 mesh_p1%domnp(p_es(n_ks(1))) + edges_g(n_ks(1)) - mesh_p1%disedge(p_es(n_ks(1))) + 1
-            mesh%jj_extra(3, mextra) = mesh%disp(p_es(n_ks(2))) - 1 + &
-                 mesh_p1%domnp(p_es(n_ks(2))) + edges_g(n_ks(2)) - mesh_p1%disedge(p_es(n_ks(2))) + 1
 
             !===Adding the edges
             mesh%jce_extra(1, mextra) = mesh%disedge(p_c) - 1 + 2 * mesh_p1%domedge(p_c) + 3 * (cell_l - 1) + k
@@ -806,10 +792,10 @@ CONTAINS
          cell_l = cell_g - mesh_p1%discell(p_c) + 1
 
          DO n = 1, 3 !===find side in cell
-            IF (MINVAL(ABS(mesh_p1%jj_extra(n, m1) - mesh_p1%jjs_extra(:, m)))/=0) THEN
+            IF (.NOT.(ANY(mesh_p1%jj_extra(n, m1) == mesh_p1%jjs_extra(:, m)))) THEN
                EXIT
             END IF
-            IF (n == 3) write(*, *) 'BUG in refinement : didnt find face in extra cell for extra edge'
+            IF (n == 3) CALL error_petsc('BUG in refinement : didnt find face in extra cell for extra edge')
          ENDDO
 
          !==cell index of edge
@@ -822,37 +808,58 @@ CONTAINS
             mextra = mextra + 1
             mesh%sides_extra(mextra) = mesh_p1%sides_extra(m)
             mesh%neighs_extra(mextra) = mesh%discell(p_c) - 1 + 4 * (cell_l - 1) + 1 + n_ks(k)
-            DO m2 = 1, mesh%mextra !find associated extra cell
-               IF (mesh%jcc_extra(m2) == mesh%neighs_extra(mextra)) EXIT
-            END DO
 
-            p_j = mesh_p1%get_proc(mesh_p1%jj_extra(n_ks(k), m), 'np')
+            !!$   VB comment
+            !!$   !! example on n = 2
+            !!$   3
+            !!$   5  4
+            !!$   1  6  2
+            !!$
+            !!$   !! n = 2 ==> rrs receives triangles [1, 5, 6] and [3, 4, 5] (opposite to point nw = n = 2)
+            !!$   !! k = 1 (resp 2) ==> second point considered is nw = 1 (resp nw = 3) => rrs receives triangle ecompassing
+            !!$      edge [1, 5] (resp [3, 5]) => triangle is therefore [1, 5, 6] (resp [3, 4, 5])
+            !!$   VB comment
 
-            mesh%jjs_extra(1, mextra) = mesh%jj_extra(1, m2)
-            mesh%rrs_extra(:, 1, mextra) = mesh_p1%rrs_extra(:, n_ks(k), m)
-
-            IF (n == 1) THEN
-               tab1 = 2
-               tab2 = 3
-            ELSE IF (n == 3) THEN
-               tab1 = 3
-               tab2 = 2
-            ELSE
-               IF (k == 1) THEN
-                  tab1 = 2
-                  tab2 = 3
-               ELSE
-                  tab1 = 3
-                  tab2 = 2
-               END IF
+            IF ((n==1 .AND. k==1) .OR. (n==3 .AND. k==2)) THEN
+               sub_cell = [2, 4, 6]
+            ELSE IF ((n==1 .AND. k==2) .OR. (n==2 .AND. k==2)) THEN
+               sub_cell = [3, 4, 5]
+            ELSE IF ((n==2 .AND. k==1) .OR. (n==3 .AND. k==1)) THEN
+               sub_cell = [1, 5, 6]
             END IF
-            mesh%jjs_extra(2, mextra) = mesh%jj_extra(tab1, m2)
-            mesh%rrs_extra(:, tab1, mextra) = (mesh_p1%rrs_extra(:, n_ks(1), m) + mesh_p1%rrs_extra(:, n_ks(2), m)) / 2
-            !            IF (iso) THEN
-            !               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
-            !            END IF
-            mesh%rrs_extra(:, tab2, mextra) = (mesh_p1%rrs_extra(:, n_ks(k), m) + mesh_p1%rrs_extra(:, n, m)) / 2
+            mesh%rrs_extra(:, :, mextra) = mesh_p2%rrs_extra(:,sub_cell, (mextra+1)/2)
+
+            ! IF (n == 1) THEN
+            !    tab1 = 2
+            !    tab2 = 3
+            ! ELSE IF (n == 3) THEN
+            !    tab1 = 3
+            !    tab2 = 2
+            ! ELSE
+            !    IF (k == 1) THEN
+            !       tab1 = 2
+            !       tab2 = 3
+            !    ELSE
+            !       tab1 = 3
+            !       tab2 = 2
+            !    END IF
+            ! END IF
+            ! mesh%rrs_extra(:, tab1, mextra) = (mesh_p1%rrs_extra(:, n_ks(1), m) + mesh_p1%rrs_extra(:, n_ks(2), m)) / 2
+            ! !            IF (iso) THEN
+            ! !               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
+            ! !            END IF
+            ! mesh%rrs_extra(:, tab2, mextra) = (mesh_p1%rrs_extra(:, n_ks(k), m) + mesh_p1%rrs_extra(:, n, m)) / 2
+
          END DO
+      END DO
+
+      
+      mextra = 0
+      DO m=1, mesh_p1%mes_extra
+         mextra = mextra + 1
+         mesh%jjs_extra(:, mextra) = mesh_p2%jjs_extra([1, 3], (mextra+1)/2)
+         mextra = mextra + 1
+         mesh%jjs_extra(:, mextra) = mesh_p2%jjs_extra([2, 3], (mextra+1)/2)
       END DO
 
 
