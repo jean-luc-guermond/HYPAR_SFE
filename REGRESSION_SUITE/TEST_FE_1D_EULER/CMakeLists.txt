@@ -6,7 +6,7 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 # List of tests
 #=== FE_1D_SODT ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_1D_SODT" NB_REGEX 1
@@ -15,7 +15,7 @@ add_regression_test(
 
 #=== FE_1D_SMOOTH ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_1D_SMOOTH" NB_REGEX 1
@@ -24,7 +24,7 @@ add_regression_test(
 
 #=== FE_1D_VANDERWALLS ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_1D_VANDERWALLS" NB_REGEX 1
@@ -33,7 +33,7 @@ add_regression_test(
 
 # #=== FE_1D_SODT_HIGH_ORDER ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 1
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 1
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_1D_SODT_HIGH_ORDER" NB_REGEX 1

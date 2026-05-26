@@ -6,7 +6,7 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 # List of tests
 #=== PERIODIC_FE_1D_EULER_SMOOTH ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "PERIODIC_FE_1D_EULER_SMOOTH"  NB_REGEX 1
@@ -15,7 +15,7 @@ add_regression_test(
 
 #=== PERIODIC_1D_SCAL_ADV_DIFF ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "PERIODIC_1D_SCAL_ADV_DIFF"  NB_REGEX 2
@@ -24,7 +24,7 @@ add_regression_test(
 
 #=== PERIODIC_2D_SCAL_ADV_DIFF ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "PERIODIC_2D_SCAL_ADV_DIFF"  NB_REGEX 3

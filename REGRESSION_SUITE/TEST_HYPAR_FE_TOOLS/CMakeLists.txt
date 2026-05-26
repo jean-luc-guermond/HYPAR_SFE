@@ -6,7 +6,7 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 # List of tests
 #=== 1D_P2_DIRICHLET ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 1
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 1
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "1D_P2_DIRICHLET"  NB_REGEX 2
@@ -15,7 +15,7 @@ add_regression_test(
 
 #=== 1D_P3_DIRICHLET ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 1
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 1
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "1D_P3_DIRICHLET"  NB_REGEX 1

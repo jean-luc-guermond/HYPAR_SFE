@@ -6,7 +6,7 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 # List of tests
 #=== FE_2D_ISENTROPIC_VORTEX ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_2D_ISENTROPIC_VORTEX"  NB_REGEX 1
@@ -15,7 +15,7 @@ add_regression_test(
 
 #=== FE_2D_WIND_TUNNEL ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 4
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_2D_WIND_TUNNEL"  NB_REGEX 1
@@ -24,7 +24,7 @@ add_regression_test(
 
 #=== FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 1
+MIN 1 MAX ${MAX_PROC_PARALLEL_TEST} DEFAULT 1
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER"  NB_REGEX 1

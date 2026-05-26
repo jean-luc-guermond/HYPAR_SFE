@@ -13,3 +13,5 @@ set(RUN_POST_PROC "")
 # level 1 => one run with a random number of procs
 #  4 >= levels > 1 => increasing number of distinct runs, with distinct random number of procs 
 set(PARALLEL_TEST_LEVEL 0) 
+# How many procs tested at most?
+set(MAX_PROC_PARALLEL_TEST 16)
