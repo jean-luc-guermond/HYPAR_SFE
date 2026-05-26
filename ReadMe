@@ -13,26 +13,20 @@ FE_1D_EULER:
             work to do before converging high order
     FE_1D_SODT_HIGH_ORDER_LIMITING        => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
             work to do before converging high order
-            fails with more than 1 proc 
     FE_1D_SODT_HIGH_ORDER_LIMITING_MINMOD => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, minmod relaxation, analytical solution
             work to do before converging high order
             relaxation not included in the hyperbolic%update
-            fails with more than 1 proc 
 
 FE_2D_EULER:
     FE_2D_WIND_TUNNEL                           => 2D, P1, hyperbolic/Euler, viscous method, ideal gas, u.n/ux/uy BC, 
             Might fail for many procs on some clusters
     FE_2D_ISENTROPIC_VORTEX                     => 2D, P1, hyperbolic/Euler, viscous method, ideal gas, analytical solution
-            convergence towards analytical solution VS refinements => saturates at approx 1d-3
     FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER          => 2D, P1, hyperbolic/Euler, high method, ideal gas, analytical solution
             work to do before converging high order
-            convergence towards analytical solution VS refinements => saturates at approx 1d-3
     FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
             work to do before converging high order
-            convergence towards analytical solution VS refinements => saturates at approx 1d-3
     FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, avg relaxation, ideal gas, analytical solution
             work to do before converging high order
-            convergence towards analytical solution VS refinements => saturates at approx 1d-3
             relaxation not included in the hyperbolic%update
 
 TEST_FFT:

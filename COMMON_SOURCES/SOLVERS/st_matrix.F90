@@ -64,7 +64,7 @@ CONTAINS
       CALL VecRestoreArrayF90(xghost, x_loc, ierr)
    END SUBROUTINE extract
 
-   SUBROUTINE extract_through_ghost(xvec, xghost, ks, ke, LA, phi, operation_ghost, opt_assemble)
+   SUBROUTINE extract_through_ghost(xvec, ks, ke, LA, phi, opt_assemble)
       !> VB 30/04/2026 => subroutine to simplify readability of code
       !! instead of always having to copy/paste the same lines
       !! see SUBROUTINE extract() for more information
@@ -77,7 +77,6 @@ CONTAINS
       USE petsc
       IMPLICIT NONE
       INTEGER,                      INTENT(IN)  :: ks, ke
-      CHARACTER(len=*),             INTENT(IN)  :: operation_ghost
       REAL(KIND = 8), DIMENSION(:), INTENT(OUT) :: phi
       LOGICAL, OPTIONAL                         :: opt_assemble
       TYPE(petsc_csr_LA)                        :: LA    
@@ -92,20 +91,10 @@ CONTAINS
       END IF
 
       CALL VecGhostGetLocalForm(xvec, xghost, ierr)
-      SELECT CASE(operation_ghost)
-      CASE('insert')
-         CALL VecGhostUpdateBegin(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-         CALL VecGhostUpdateEnd(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-      CASE('min')
-         CALL VecGhostUpdateBegin(xvec, MIN_VALUES, SCATTER_FORWARD, ierr)
-         CALL VecGhostUpdateEnd(xvec, MIN_VALUES, SCATTER_FORWARD, ierr)
-      CASE('max')
-         CALL VecGhostUpdateBegin(xvec, MAX_VALUES, SCATTER_FORWARD, ierr)
-         CALL VecGhostUpdateEnd(xvec, MAX_VALUES, SCATTER_FORWARD, ierr)
-      CASE DEFAULT
-         CALL error_petsc("unavailable operation_ghost in extract_through_ghost '"//operation_ghost//"'.&
-          Available for now => 'insert/min/max'")
-      END SELECT
+
+      CALL VecGhostUpdateBegin(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CALL VecGhostUpdateEnd(xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
+
       CALL extract(xghost, ks, ke, LA, phi)
    END SUBROUTINE extract_through_ghost
 

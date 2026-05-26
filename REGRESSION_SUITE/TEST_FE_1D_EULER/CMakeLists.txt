@@ -33,7 +33,7 @@ add_regression_test(
 
 # #=== FE_1D_SODT_HIGH_ORDER ===#
 generate_random_procs_list(LIST_PROC 
-MIN 1 MAX 16 DEFAULT 1
+MIN 1 MAX 16 DEFAULT 4
 LEVEL ${PARALLEL_TEST_LEVEL} LIST_LEVEL (1 3 7 13))
 add_regression_test(
   TEST_NAME "FE_1D_SODT_HIGH_ORDER" NB_REGEX 1

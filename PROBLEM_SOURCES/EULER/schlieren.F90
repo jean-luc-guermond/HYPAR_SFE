@@ -26,8 +26,7 @@ MODULE euler_post_proc_module
 
       CALL VecSqrtAbs(euler%x2vec, ierr)
       CALL VecPointWiseDivide(euler%x3vec, euler%x2vec, euler%matrices%lump_mass_vec, ierr)
-      CALL extract_through_ghost(euler%x3vec, euler%x2_ghost, 1, 1, euler%LA, grad, &
-                                'insert', opt_assemble=.FALSE.)
+      CALL extract_through_ghost(euler%x3vec, 1, 1, euler%LA, grad, opt_assemble=.FALSE.)
       ! grad = sqrt(grad)/this%matrices%lumped_mass
 
 

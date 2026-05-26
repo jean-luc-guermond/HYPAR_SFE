@@ -3,9 +3,9 @@ MODULE start_setup_MODULE
   USE petsc
   USE def_type_mesh
   USE euler_type_module
-  USE limiting_bounds_euler_module, ONLY: psi_rho_min, psi_rho_max,&
+  USE limiting_functionals_euler_module, ONLY: psi_rho_min, psi_rho_max,&
                                zero_of_psi_rho_max, zero_of_psi_rho_min
-  USE cell_limiting_engine_parallel_module, ONLY: limiting_bounds_type
+  USE cell_limiting_engine_parallel_module, ONLY: limiting_functionals_type
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
@@ -38,7 +38,7 @@ MODULE start_setup_MODULE
   TYPE(euler_bc_type),                PRIVATE :: my_bc
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
-  TYPE(limiting_bounds_type),       PRIVATE :: limiting_bounds_euler
+  TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
   MPI_Comm :: communicator
   PUBLIC :: start_setup
@@ -78,14 +78,17 @@ CONTAINS
     !===Start Euler
     times(2) = setup_data%final_time
     CALL euler%init_euler(name, pressure, my_bc)
+    
+    !=== Define Euler limiting bounds (should we put this in PROBLEM_SOURCES instead?)
+    ALLOCATE(limiting_functionals_euler(2))
+    limiting_functionals_euler(1)%psi => psi_rho_min
+    limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_euler(2)%psi => psi_rho_max
+    limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_rho_max
+    !=== Define Euler limiting bounds
 
-    limiting_bounds_euler%psi_min => psi_rho_min
-    limiting_bounds_euler%psi_max => psi_rho_max
-    limiting_bounds_euler%zero_of_psi_min => zero_of_psi_rho_min
-    limiting_bounds_euler%zero_of_psi_max => zero_of_psi_rho_max
+    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
 
-    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, &
-                               opt_limiting_bounds=limiting_bounds_euler)
     CALL init_state_functions(euler%bc)
   END SUBROUTINE start_setup
 

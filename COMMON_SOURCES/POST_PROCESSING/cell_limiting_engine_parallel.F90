@@ -48,12 +48,14 @@ MODULE cell_limiting_engine_parallel_module
       END FUNCTION template_psi
    END INTERFACE
 
-   TYPE :: limiting_bounds_type
-      PROCEDURE(template_psi),         POINTER, NOPASS :: psi_min => NULL()
-      PROCEDURE(template_psi),         POINTER, NOPASS :: psi_max => NULL()
-      PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_min => NULL()
-      PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_max => NULL()
-   END TYPE limiting_bounds_type
+   TYPE :: limiting_functionals_type
+      ! PROCEDURE(template_psi),         POINTER, NOPASS :: psi_min => NULL()
+      ! PROCEDURE(template_psi),         POINTER, NOPASS :: psi_max => NULL()
+      ! PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_min => NULL()
+      ! PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi_max => NULL()
+      PROCEDURE(template_psi),         POINTER, NOPASS :: psi => NULL()
+      PROCEDURE(template_zero_of_psi), POINTER, NOPASS :: zero_of_psi => NULL()
+   END TYPE limiting_functionals_type
    
 CONTAINS
 
@@ -117,8 +119,7 @@ CONTAINS
          CALL VecSetValues(this%xvect, mesh%gauss%n_w, idxm, vol_of_Ti_loc, ADD_VALUES, ierr)
       END DO
 
-      CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, vol_of_Ti, &
-                                'insert', opt_assemble=.TRUE.)
+      CALL extract_through_ghost(this%xvect, 1, 1, this%LA, vol_of_Ti, opt_assemble=.TRUE.)
 !VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
       DO m = 1, mesh%me
@@ -173,14 +174,15 @@ CONTAINS
       CALL finalize_rewrite_data
    END SUBROUTINE read_limiting_data
 
-   SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, minmax, xx_out)  
+   SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, xx_out)  
+   ! SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, minmax, xx_out)  
       USE my_util, ONLY: error_petsc
       IMPLICIT NONE
       CLASS(limiting_type),         INTENT(IN) :: this
-      CLASS(limiting_bounds_type),  INTENT(IN) :: lim_bounds
+      CLASS(limiting_functionals_type),  INTENT(IN) :: lim_bounds
       PROCEDURE(template_zero_of_psi), POINTER :: zero_of_psi
       PROCEDURE(template_psi)        , POINTER :: psi
-      CHARACTER(LEN=*),             INTENT(IN) :: minmax
+      ! CHARACTER(LEN=*),             INTENT(IN) :: minmax
       REAL(KIND=8), DIMENSION(:,:),                         INTENT(IN) :: xx_in
       REAL(KIND=8), DIMENSION(SIZE(xx_in,1),SIZE(xx_in,2)), INTENT(OUT):: xx_out
 
@@ -198,17 +200,20 @@ CONTAINS
             lambda_K_minus, lambda_K_plus, &
             lambda_star_minus, lambda_star_plus
 
-      SELECT CASE(minmax)
-      CASE('MAX')
-         zero_of_psi => lim_bounds%zero_of_psi_max
-         psi         => lim_bounds%psi_max
-      CASE('MIN')
-         zero_of_psi => lim_bounds%zero_of_psi_min
-         psi         => lim_bounds%psi_min
-      CASE DEFAULT
-         CALL error_petsc("BUG in iterative_cell_limiting_procedure: you selected "//minmax//&
-         ", please select either MIN or MAX.")
-      END SELECT
+      ! SELECT CASE(minmax)
+      ! CASE('MAX')
+      !    zero_of_psi => lim_bounds%zero_of_psi_max
+      !    psi         => lim_bounds%psi_max
+      ! CASE('MIN')
+      !    zero_of_psi => lim_bounds%zero_of_psi_min
+      !    psi         => lim_bounds%psi_min
+      ! CASE DEFAULT
+      !    CALL error_petsc("BUG in iterative_cell_limiting_procedure: you selected "//minmax//&
+      !    ", please select either MIN or MAX.")
+      ! END SELECT
+
+      zero_of_psi => lim_bounds%zero_of_psi
+      psi         => lim_bounds%psi
 
       me = SIZE(this%jj,2)
       nw = SIZE(this%jj,1)
@@ -334,8 +339,7 @@ CONTAINS
          CALL VecSetValues(this%xvect, nw, idxm, v_loc, ADD_VALUES, ierr)
       END DO
 
-      CALL extract_through_ghost(this%xvect, this%x_ghost, 1, 1, this%LA, xx_inter, &
-                                'insert', opt_assemble=.TRUE.)
+      CALL extract_through_ghost(this%xvect, 1, 1, this%LA, xx_inter, opt_assemble=.TRUE.)
 
       !===Rescaling
       WHERE (this%lumped_mass .GT.this%mass_eps)

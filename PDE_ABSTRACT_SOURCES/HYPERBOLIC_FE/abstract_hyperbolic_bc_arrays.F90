@@ -9,7 +9,7 @@ CONTAINS
       USE dirichlet_type_module, ONLY : dirichlet_bc
       USE space_dim
       USE def_type_mesh, ONLY: mesh_type, petsc_csr_LA
-      USE hyperbolic_matrices_module, ONLY : x1vec, x2vec, x2_ghost
+      USE st_matrix, ONLY : create_my_ghost
       USE st_matrix,                  ONLY : extract_through_ghost
       IMPLICIT NONE
       TYPE(mesh_type),                 INTENT(IN) :: mesh
@@ -22,12 +22,19 @@ CONTAINS
       INTEGER,        DIMENSION(SIZE(mesh%jjs,1)):: idxms
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
       REAL(KIND = 8) :: norm
+      INTEGER, DIMENSION(:), POINTER :: ifrom
       INTEGER :: ms, ns, js, n, ierr
+      Vec :: x1vec, x2vec, x2_ghost
+
 
       !===Normal at vertices
       SELECT CASE(k_dim)
       CASE(2)
 
+         CALL create_my_ghost(mesh, LA, ifrom)
+         CALL VecCreateGhost(mesh%comm, mesh%dom_np, &
+            PETSC_DETERMINE, SIZE(ifrom), ifrom, x1vec, ierr)
+         CALL VecDuplicate(x1vec, x2vec, ierr)
          CALL VecZeroEntries(x1vec, ierr)
          CALL VecZeroEntries(x2vec, ierr)
 
@@ -51,13 +58,13 @@ CONTAINS
             CALL VecSetValues(x2vec, mesh%gauss%n_ws, idxms, normal_vtx(mesh%iis(:,ms),2), ADD_VALUES, ierr)
          END DO
 
-         CALL extract_through_ghost(x1vec, x2_ghost, 1, 1, LA, dummy_normal_vtx(:), 'insert', opt_assemble=.TRUE.)
+         CALL extract_through_ghost(x1vec, 1, 1, LA, dummy_normal_vtx(:), opt_assemble=.TRUE.)
          DO ms = 1, mesh%mes
             IF (.NOT. ANY(mesh%sides(ms) == udotn_bc%list_sides)) CYCLE
             normal_vtx(mesh%iis(:,ms), 1) = dummy_normal_vtx(mesh%jjs(:,ms))
          END DO
 
-         CALL extract_through_ghost(x2vec, x2_ghost, 1, 1, LA, dummy_normal_vtx(:), 'insert', opt_assemble=.TRUE.)
+         CALL extract_through_ghost(x2vec, 1, 1, LA, dummy_normal_vtx(:), opt_assemble=.TRUE.)
          DO ms = 1, mesh%mes
             IF (.NOT. ANY(mesh%sides(ms) == udotn_bc%list_sides)) CYCLE
             normal_vtx(mesh%iis(:,ms), 2) = dummy_normal_vtx(mesh%jjs(:,ms))
