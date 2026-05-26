@@ -199,13 +199,11 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np,SIZE(this%limiting_functionals)) :: bounds
       INTEGER :: comp, k, ierr, it
 
-write(*,*) 'flag 1'
-
       un_temp = un
       DO comp=1, this%syst_dim
          this%flux_array(:, :, comp) = this%flux(comp, un_temp)
       END DO
-write(*,*) 'flag 2'
+
       SELECT CASE(this%method)
       CASE('viscous')
          !===compute dijL and dt

@@ -302,7 +302,7 @@ CONTAINS
       ! copy previous points
       mesh_Pk%rr = -1 ! VB dummy init
       mesh_Pk%rr(:, 1:mesh_P1%dom_np) = mesh_P1%rr(:, 1:mesh_P1%dom_np)
-      mesh_Pk%rr(:, mesh_Pk%dom_np+1:mesh_Pk%np + (mesh_P1%np-mesh_P1%dom_np)) = mesh_P1%rr(:,mesh_P1%dom_np+1:mesh_P1%np)
+      mesh_Pk%rr(:, mesh_Pk%dom_np+1:mesh_Pk%dom_np + (mesh_P1%np-mesh_P1%dom_np)) = mesh_P1%rr(:,mesh_P1%dom_np+1:mesh_P1%np)
       
       n_shift = mesh_P1%dom_np + 1 ! start appending the new Pk nodes only after the P1 nodes
       ! rebuild P1 nodes in jj
