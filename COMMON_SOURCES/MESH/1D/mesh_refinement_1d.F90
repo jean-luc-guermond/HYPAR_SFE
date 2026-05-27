@@ -5,14 +5,13 @@ MODULE mesh_refinement_1d
    USE mesh_distribution_1d
    PUBLIC :: refinement_P1_mesh_1D, build_jce_1D
    PRIVATE
-   LOGICAL, PRIVATE :: per_bool ! <== FIXME
 CONTAINS
 
-   SUBROUTINE refinement_P1_mesh_1D(communicator, mesh_P1, mesh_refined, refinement_order)
+   SUBROUTINE refinement_P1_mesh_1D_arbitrary_order(communicator, mesh_Pk, mesh_refined, refinement_order)
       USE def_type_mesh
       USE my_util, ONLY: error_petsc, to_str
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_P1, mesh_Pk, mesh_refined
+      TYPE(mesh_type) :: mesh_Pk, mesh_refined
       REAL(KIND=8) :: dx, x0
       INTEGER :: n, m, i, n_shift, i_shift, n_loc, other_proc, other_m_loc, p, k, jj_shift, dom_np_diff, np_diff
       INTEGER, INTENT(IN) :: refinement_order
@@ -20,13 +19,12 @@ CONTAINS
       integer :: ierr
       MPI_Comm :: communicator
 
-      CALL create_Pk_mesh_1D(communicator, mesh_P1, mesh_Pk, refinement_order)
       CALL copy_mesh(mesh_Pk, mesh_refined)
 
       DEALLOCATE(mesh_refined%jj, mesh_refined%jj_extra)
-      mesh_refined%me =  refinement_order * mesh_P1%me
-      mesh_refined%medge = mesh_P1%medge * refinement_order
-      mesh_refined%mextra =  refinement_order * mesh_P1%mextra
+      mesh_refined%me     = refinement_order * mesh_Pk%me
+      mesh_refined%medge  = refinement_order * mesh_Pk%medge
+      mesh_refined%mextra = refinement_order * mesh_Pk%mextra
       ALLOCATE(mesh_refined%jj(2, mesh_refined%me))
       ALLOCATE(mesh_refined%jj_extra(2, mesh_refined%me))
 
@@ -102,6 +100,19 @@ CONTAINS
       ! write(*,*) mesh_refined%loc_to_glob
 !=== DEBUGGING
       CALL free_mesh(mesh_Pk)
+      CALL build_jce_1D(mesh_refined)
+
+   END SUBROUTINE refinement_P1_mesh_1D_arbitrary_order
+
+   SUBROUTINE refinement_P1_mesh_1D(communicator, mesh_P1, mesh_refined, refinement_order)
+      USE def_type_mesh
+      IMPLICIT NONE
+      TYPE(mesh_type)     :: mesh_P1, mesh_Pk, mesh_refined
+      INTEGER, INTENT(IN) :: refinement_order
+      MPI_Comm            :: communicator
+
+      CALL create_Pk_mesh_1D(communicator, mesh_P1, mesh_Pk, refinement_order)
+      CALL refinement_P1_mesh_1D_arbitrary_order(communicator, mesh_Pk, mesh_refined, refinement_order)
 
    END SUBROUTINE refinement_P1_mesh_1D
 

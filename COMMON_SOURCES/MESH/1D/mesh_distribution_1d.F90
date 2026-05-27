@@ -300,7 +300,7 @@ CONTAINS
       ! copy previous points
       mesh_Pk%rr = -1 ! VB dummy init
       mesh_Pk%rr(:, 1:mesh_P1%dom_np) = mesh_P1%rr(:, 1:mesh_P1%dom_np)
-      mesh_Pk%rr(:, mesh_Pk%dom_np+1:mesh_Pk%np + (mesh_P1%np-mesh_P1%dom_np)) = mesh_P1%rr(:,mesh_P1%dom_np+1:mesh_P1%np)
+      mesh_Pk%rr(:, mesh_Pk%dom_np+1:mesh_Pk%dom_np + (mesh_P1%np-mesh_P1%dom_np)) = mesh_P1%rr(:,mesh_P1%dom_np+1:mesh_P1%np)
       
       n_shift = mesh_P1%dom_np + 1 ! start appending the new Pk nodes only after the P1 nodes
       ! rebuild P1 nodes in jj
@@ -313,22 +313,18 @@ CONTAINS
          END WHERE
       END DO
 
-      dx = mesh_P1%rr(1, 2) - mesh_P1%rr(1, 1) ! FIXME WARNING: this is assuming uniform mesh
       DO m=1, mesh_P1%me
-         ! dx = ABS(mesh_P1%jj(2, m) - mesh_P1%jj(1, m)) !<== FIXME
 
-         IF ((mesh_Pk%proc==1) .OR. (per_bool .AND. m==mesh_P1%me .AND. mesh_Pk%proc==mesh_Pk%nb_proc)) THEN
-            x0 = mesh_P1%rr(1, m) + dx
-         ELSE
-            x0 = mesh_P1%rr(1, m)
-         END IF
+         dx = MINVAL(ABS(mesh_P1%rr(1, mesh_P1%jj(2:, m)) - mesh_P1%rr(1, mesh_P1%jj(1, m))))
+         x0 = MINVAL(mesh_P1%rr(1, mesh_P1%jj(:, m))) + dx
+
          i_shift = n_shift + (m-1)*(type_fe-1)
          mesh_Pk%rr(1,i_shift:i_shift+type_fe-2) = x0 - dx/(type_fe*1.d0)*[(n, n=1 ,type_fe-1)]
       END DO
       
       DO m=1, mesh_P1%me
          ! appending Pk nodes
-         mesh_Pk%jj(3:type_fe+1, m) = n_shift + (m-1)*(type_fe - 1) + [(n, n=type_fe-2, 0, -1)] ! may fail for fe = 3 (see Gauss points ordering)?
+         mesh_Pk%jj(3:type_fe+1, m) = n_shift + (m-1)*(type_fe - 1) + [(n, n=type_fe-2, 0, -1)]
       END DO
 
 !=== DEBUGGING

@@ -1,161 +1,163 @@
 MODULE construct_mesh
 #include "petsc/finclude/petsc.h"
-  USE def_type_mesh
-  USE st_matrix
-  USE petsc
-  USE mesh_data_module
-  USE mesh_tools
-  USE mesh_refinement_1D, ONLY: refinement_P1_mesh_1D
-  use gauss_points_1d, ONLY: create_gauss_points_1d
-  PUBLIC :: get_mesh
-  PRIVATE
+   USE def_type_mesh
+   USE st_matrix
+   USE petsc
+   USE mesh_data_module
+   USE mesh_tools
+   USE mesh_refinement_1D, ONLY: refinement_P1_mesh_1D
+   use gauss_points_1d, ONLY: create_gauss_points_1d
+   PUBLIC :: get_mesh
+   PRIVATE
 CONTAINS
-  SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_name)
-    USE mesh_1d
-    USE mesh_distribution_1d
-    USE load_mesh_2d
-    USE refine_mesh
-    USE two_dim_metis_distribution
-    USE gauss_points_2d
-    USE Dir_nodes
-    USE space_dim
-    USE mesh_parameters
-    USE my_util, ONLY : error_petsc, to_str
+   SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_name)
+      USE mesh_1d
+      USE mesh_distribution_1d
+      USE load_mesh_2d
+      USE refine_mesh
+      USE two_dim_metis_distribution
+      USE gauss_points_2d
+      USE Dir_nodes
+      USE space_dim
+      USE mesh_parameters
+      USE my_util, ONLY : error_petsc, to_str
 
-    IMPLICIT NONE
-    LOGICAL, OPTIONAL :: opt_edge_stab
-    INTEGER, OPTIONAL :: opt_fe
-    INTEGER, DIMENSION(1) :: list_dom = 1
-    INTEGER, DIMENSION(0) :: list_inter
-    INTEGER, DIMENSION(:), ALLOCATABLE :: part
-    INTEGER :: n, nb_proc, ierr, rank
-    LOGICAL :: edge_stab
-    CHARACTER(LEN = 100) :: mesh_part_name
-    CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: opt_name
-    TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
-    MPI_Comm       :: communicator
+      IMPLICIT NONE
+      LOGICAL, OPTIONAL :: opt_edge_stab
+      INTEGER, OPTIONAL :: opt_fe
+      INTEGER, DIMENSION(1) :: list_dom = 1
+      INTEGER, DIMENSION(0) :: list_inter
+      INTEGER, DIMENSION(:), ALLOCATABLE :: part
+      INTEGER :: n, nb_proc, ierr, rank
+      LOGICAL :: edge_stab
+      CHARACTER(LEN = 100) :: mesh_part_name
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: opt_name
+      TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
+      MPI_Comm       :: communicator
 
-    CALL mesh_data_info%init
-    CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
-    CALL MPI_Comm_rank(communicator, rank, ierr)
+      CALL mesh_data_info%init
+      CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
+      CALL MPI_Comm_rank(communicator, rank, ierr)
 
-    IF (.NOT.PRESENT(opt_edge_stab)) THEN
-       edge_stab = .FALSE.
-    ELSE
-       edge_stab = opt_edge_stab
-    END IF
+      IF (.NOT.PRESENT(opt_edge_stab)) THEN
+         edge_stab = .FALSE.
+      ELSE
+         edge_stab = opt_edge_stab
+      END IF
 
-    !=== FIXME mesh%rank to be transferred through refinement_iso_grid_distributed,
-    !=== create_iso_grid_distributed, copy_mesh
-    mesh_glob%rank = -1
+      !=== FIXME mesh%rank to be transferred through refinement_iso_grid_distributed,
+      !=== create_iso_grid_distributed, copy_mesh
+      mesh_glob%rank = -1
 
-    SELECT CASE(k_dim)
-    CASE(2)
-       !===load and re order mesh
-       CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &
-            list_dom, list_inter, mesh_glob, mesh_data_info%if_mesh_formatted)
-       CALL mesh_glob%info%read(opt_name)
-       ALLOCATE(part(mesh_glob%me))
+      SELECT CASE(k_dim)
+      CASE(2)
+         !===load and re order mesh
+         CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &
+               list_dom, list_inter, mesh_glob, mesh_data_info%if_mesh_formatted)
+         CALL mesh_glob%info%read(opt_name)
+         ALLOCATE(part(mesh_glob%me))
 
-       mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data_info%file_name))
-       IF (mesh_data_info%if_read_partition) THEN
-          IF (rank == 0) WRITE(*, *) 'read partition'
-          OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'unknown', FORM = 'formatted')
-          READ(51, *) part
-          CLOSE(51)
-       ELSE
-          IF (rank == 0) WRITE(*, *) 'create partition'
-          CALL part_mesh(nb_proc, mesh_glob, list_inter, part)
-          IF (rank==0) THEN
-             OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'replace', FORM = 'formatted')
-             WRITE(51, *) part
-             CLOSE(51)
-          END IF
-       END IF
+         mesh_part_name = 'mesh_part.' // TRIM(ADJUSTL(mesh_data_info%file_name))
+         IF (mesh_data_info%if_read_partition) THEN
+            IF (rank == 0) WRITE(*, *) 'read partition'
+            OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'unknown', FORM = 'formatted')
+            READ(51, *) part
+            CLOSE(51)
+         ELSE
+            IF (rank == 0) WRITE(*, *) 'create partition'
+            CALL part_mesh(nb_proc, mesh_glob, list_inter, part)
+            IF (rank==0) THEN
+               OPEN(UNIT = 51, FILE = mesh_part_name, STATUS = 'replace', FORM = 'formatted')
+               WRITE(51, *) part
+               CLOSE(51)
+            END IF
+         END IF
 
-       CALL extract_mesh(communicator, mesh_glob, part, list_dom, mesh)
-       CALL free_mesh(mesh_glob)
-       DEALLOCATE(part)
-       !===mesh refinements
-       DO n = 1, mesh%info%nb_refinement
-          !===Create refined mesh
-          CALL refinement_iso_grid_distributed(mesh)
-          IF(rank == 0) write(*, *) 'refinement done', n
-       END DO
+         CALL extract_mesh(communicator, mesh_glob, part, list_dom, mesh)
+         CALL free_mesh(mesh_glob)
+         DEALLOCATE(part)
+         !===mesh refinements
+         DO n = 1, mesh%info%nb_refinement
+            !===Create refined mesh
+            CALL refinement_iso_grid_distributed(mesh)
+            IF(rank == 0) write(*, *) 'refinement done', n
+         END DO
 
-       !===special meshes
-       !      IF(mesh_data_info%if_HCT) THEN
-       !         CALL HCT_iso_grid_distributed(mesh_p1, HCT_mesh_p1)
-       !         CALL deallocate_mesh(mesh_p1)
-       !         CALL copy_mesh(HCT_mesh_p1, mesh_p1)
-       !         CALL deallocate_mesh(HCT_mesh_p1)
-       !      END IF
+         !===special meshes
+         !      IF(mesh_data_info%if_HCT) THEN
+         !         CALL HCT_iso_grid_distributed(mesh_p1, HCT_mesh_p1)
+         !         CALL deallocate_mesh(mesh_p1)
+         !         CALL copy_mesh(HCT_mesh_p1, mesh_p1)
+         !         CALL deallocate_mesh(HCT_mesh_p1)
+         !      END IF
 
-       !===create finite elements polynome on mesh
-       CALL mesh_r%info%copy(mesh%info)
-       CALL create_iso_grid_distributed(mesh, mesh_r, mesh%info%type_fe)
-       CALL free_mesh(mesh)
-       CALL copy_mesh(mesh_r, mesh)
-       CALL free_mesh(mesh_r)
-
-       !===(JLG) Added March 21 2026 
-       ALLOCATE(mesh%iis(SIZE(mesh%jjs,1),mesh%mes))
-       CALL dirichlet_nodes(mesh%jjs, SPREAD(1,1,mesh%mes), SPREAD(.TRUE.,1,1), mesh%j_s)
-       CALL surf_nodes_i(mesh%jjs, mesh%j_s,  mesh%iis)
-       mesh%nps = SIZE(mesh%j_s)
-       !===END (JLG) Added March 21 2026 
-
-       mesh%rank = rank  !=== petsc convention
-       mesh%edge_stab = .false.
-       !===gauss points on mesh
-       CALL create_gauss_points_2d(mesh, mesh%info%type_fe)
-
-    CASE(1)
-       CALL load_mesh_1d(mesh_data_info%directory, mesh_data_info%file_name, mesh_glob, mesh_data_info%if_mesh_formatted)
-       CALL mesh_glob%info%read(opt_name)
-       CALL extract_mesh_1d(communicator, mesh_glob, mesh)
-       CALL free_mesh(mesh_glob)
-       mesh%edge_stab = .false.
-       mesh%rank = rank
-
-       IF ((mesh%info%refinement_order > 0) .AND. (mesh%info%type_fe > 1)) THEN
-         CALL error_petsc("BUG in construct_mesh (1D) => refinement_order & type_fe incompatible")
-       END IF
-
-       != new ==> create Pk mesh
-       CALL create_Pk_mesh_1D(communicator, mesh, mesh_r, mesh%info%type_fe)
-       CALL free_mesh(mesh)
-       CALL copy_mesh(mesh_r, mesh)
-       CALL free_mesh(mesh_r)
-
-       != new ==> mesh refinement
-       IF ((mesh%info%refinement_order > 0)) THEN
-         CALL refinement_P1_mesh_1D(communicator, mesh, mesh_r, mesh%info%refinement_order)
+         !===create finite elements polynome on mesh
+         CALL mesh_r%info%copy(mesh%info)
+         CALL create_iso_grid_distributed(mesh, mesh_r, mesh%info%type_fe)
          CALL free_mesh(mesh)
          CALL copy_mesh(mesh_r, mesh)
          CALL free_mesh(mesh_r)
-       END IF
-       != new ==> create Pk gauss points
-       CALL create_gauss_points_1d(mesh, mesh%info%type_fe)
+
+         !===(JLG) Added March 21 2026 
+         ALLOCATE(mesh%iis(SIZE(mesh%jjs,1),mesh%mes))
+         CALL dirichlet_nodes(mesh%jjs, SPREAD(1,1,mesh%mes), SPREAD(.TRUE.,1,1), mesh%j_s)
+         CALL surf_nodes_i(mesh%jjs, mesh%j_s,  mesh%iis)
+         mesh%nps = SIZE(mesh%j_s)
+         !===END (JLG) Added March 21 2026 
+
+         mesh%rank = rank  !=== petsc convention
+         mesh%edge_stab = .false.
+         !===gauss points on mesh
+         CALL create_gauss_points_2d(mesh, mesh%info%type_fe)
+
+      CASE(1)
+         CALL load_mesh_1d(mesh_data_info%directory, mesh_data_info%file_name, mesh_glob, mesh_data_info%if_mesh_formatted)
+         CALL mesh_glob%info%read(opt_name)
+         CALL extract_mesh_1d(communicator, mesh_glob, mesh)
+         CALL free_mesh(mesh_glob)
+         mesh%edge_stab = .false.
+         mesh%rank = rank
+
+         !=== VB 05/2026
+         != new ==> mesh refinement
+         DO n = 1, mesh%info%nb_refinement
+            IF ((mesh%info%refinement_order > 0)) THEN
+               CALL refinement_P1_mesh_1D(communicator, mesh, mesh_r, mesh%info%refinement_order)
+               IF(rank == 0) write(*, *) 'refinement order ', mesh%info%refinement_order, ' done ', n
+               CALL free_mesh(mesh)
+               CALL copy_mesh(mesh_r, mesh)
+               CALL free_mesh(mesh_r)
+            END IF
+         END DO
+
+         != new ==> create Pk mesh
+         CALL create_Pk_mesh_1D(communicator, mesh, mesh_r, mesh%info%type_fe)
+         CALL free_mesh(mesh)
+         CALL copy_mesh(mesh_r, mesh)
+         CALL free_mesh(mesh_r)
+
+         != new ==> create Pk gauss points
+         CALL create_gauss_points_1d(mesh, mesh%info%type_fe)
+         !=== VB 05/2026
 
        
-    CASE DEFAULT
-       CALL error_petsc("BUG in construct_mesh, incorrect k_dim="//to_str(k_dim)//&
-                         "  should be 1 or 2")
-    END SELECT
+      CASE DEFAULT
+         CALL error_petsc("BUG in construct_mesh, incorrect k_dim="//to_str(k_dim)//&
+                           "  should be 1 or 2")
+      END SELECT
 
-    mesh%edge_stab = .false. !FIXME remove edge_stab
+      mesh%edge_stab = .false. !FIXME remove edge_stab
 
-    mesh%per%nb_bords = mesh%info%nb_bords
-    ALLOCATE(mesh%per%list_periodic(SIZE(mesh%info%list_periodic,1),SIZE(mesh%info%list_periodic,2)))
-    ALLOCATE(mesh%per%vect_e(SIZE(mesh%info%vect_e,1),SIZE(mesh%info%vect_e,2)))
-    IF (mesh%per%nb_bords/=0) THEN 
-       mesh%per%list_periodic = mesh%info%list_periodic
-       mesh%per%vect_e = mesh%info%vect_e
-       CALL prep_periodic_scal(mesh%per,mesh)
-    END IF
+      mesh%per%nb_bords = mesh%info%nb_bords
+      ALLOCATE(mesh%per%list_periodic(SIZE(mesh%info%list_periodic,1),SIZE(mesh%info%list_periodic,2)))
+      ALLOCATE(mesh%per%vect_e(SIZE(mesh%info%vect_e,1),SIZE(mesh%info%vect_e,2)))
+      IF (mesh%per%nb_bords/=0) THEN 
+         mesh%per%list_periodic = mesh%info%list_periodic
+         mesh%per%vect_e = mesh%info%vect_e
+         CALL prep_periodic_scal(mesh%per,mesh)
+      END IF
 
-  END SUBROUTINE get_mesh
+   END SUBROUTINE get_mesh
 
 
   SUBROUTINE prep_periodic_scal(periodic, mesh)

@@ -101,7 +101,6 @@ CONTAINS
       USE read_inputs_module
       IMPLICIT NONE
 
-      ! CHARACTER(LEN=rec_length), PARAMETER   :: section_name='MESH SETUP'
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: opt_name
 
       CLASS(mesh_info_type), INTENT(INOUT) :: this
@@ -109,10 +108,8 @@ CONTAINS
 
       !=== Reading all data file
       IF (PRESENT(opt_name)) THEN
-         ! write(*,*) section_name//" FOR "//opt_name
          CALL read_data_init_list("MESH SETUP FOR "//opt_name)
       ELSE
-         ! write(*,*) section_name
          CALL read_data_init_list("MESH SETUP")
       END IF
       !================
@@ -120,10 +117,10 @@ CONTAINS
       !================
 
       !=== type of finite element
-      CALL read_data(argument_data%type_fe, this%type_fe, opt_name=opt_name)!, opt_add=(k_dim==2))
+      CALL read_data(argument_data%type_fe, this%type_fe, opt_name=opt_name)
 
       !=== number of refinement steps
-      CALL read_data(argument_data%nb_refinement, this%nb_refinement, opt_name=opt_name, opt_add=(k_dim==2))
+      CALL read_data(argument_data%nb_refinement,    this%nb_refinement,    opt_name=opt_name)
 
       !=== order refinement
       CALL read_data(argument_data%refinement_order, this%refinement_order, opt_name=opt_name, opt_add=(k_dim==1))
