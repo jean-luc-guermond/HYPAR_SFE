@@ -13,11 +13,9 @@ FE_1D_EULER:
             work to do before converging high order
     FE_1D_SODT_HIGH_ORDER_LIMITING        => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
             work to do before converging high order
-            fails with more than 1 proc 
     FE_1D_SODT_HIGH_ORDER_LIMITING_MINMOD => 1D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, minmod relaxation, analytical solution
             work to do before converging high order
             relaxation not included in the hyperbolic%update
-            fails with more than 1 proc 
 
 FE_2D_EULER:
     FE_2D_WIND_TUNNEL                           => 2D, P1, hyperbolic/Euler, viscous method, ideal gas, u.n/ux/uy BC, 

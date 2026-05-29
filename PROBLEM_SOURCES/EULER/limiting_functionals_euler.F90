@@ -1,4 +1,4 @@
-MODULE limiting_bounds_euler_module
+MODULE limiting_functionals_euler_module
 
 CONTAINS
 
@@ -23,7 +23,7 @@ CONTAINS
        REAL(KIND=8), DIMENSION(:), INTENT(IN) :: x
        REAL(KIND=8), INTENT(IN) :: psi_m
        REAL(KIND=8) :: v
-       v = psi_m-x(1)
+       v = -psi_m-x(1) !<== note the minus sign (max(x) = min(-x))
     END FUNCTION psi_rho_max
 
     FUNCTION zero_of_psi_rho_max(psi_m,u0,P) RESULT(v)
@@ -31,7 +31,7 @@ CONTAINS
        REAL(KIND=8), DIMENSION(:), INTENT(IN) :: u0, P
        REAL(KIND=8), INTENT(IN) :: psi_m
        REAL(KIND=8) :: v
-       v = (psi_m-u0(1))/P(1)
+       v = (-psi_m-u0(1))/P(1)!<== note the minus sign (max(x) = min(-x))
     END FUNCTION zero_of_psi_rho_max
 
-END MODULE limiting_bounds_euler_module
+END MODULE limiting_functionals_euler_module

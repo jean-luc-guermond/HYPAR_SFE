@@ -22,9 +22,11 @@ CONTAINS
       CALL copy_mesh(mesh_Pk, mesh_refined)
 
       DEALLOCATE(mesh_refined%jj, mesh_refined%jj_extra)
+
       mesh_refined%me     = refinement_order * mesh_Pk%me
       mesh_refined%medge  = refinement_order * mesh_Pk%medge
       mesh_refined%mextra = refinement_order * mesh_Pk%mextra
+
       ALLOCATE(mesh_refined%jj(2, mesh_refined%me))
       ALLOCATE(mesh_refined%jj_extra(2, mesh_refined%mextra))
 

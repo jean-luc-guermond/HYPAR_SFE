@@ -1,6 +1,8 @@
 MODULE setup
    USE space_dim, ONLY : k_dim
    USE euler_bc_arrays, ONLY: euler_bc_type, mt_anal_rho_times_vit, E_anal_ideal_gas
+   USE euler_type_module, ONLY: euler_type
+   USE euler_eta_commute, ONLY: default_eta_commute
 
    PUBLIC :: pressure, init_state_functions
 
@@ -28,18 +30,20 @@ MODULE setup
 !==========================================================================
       
 
-   SUBROUTINE init_state_functions(bc)
+   SUBROUTINE init_state_functions(euler)
       IMPLICIT NONE
-      CLASS(euler_bc_type), INTENT(INOUT) :: bc
+      TYPE(euler_type), INTENT(INOUT) :: euler
 
-      bc%gamma = gamma
+      euler%bc%gamma = gamma
+      euler%pressure => pressure
 
-      bc%mt_anal      => mt_anal_rho_times_vit
-      bc%E_anal       => E_anal_ideal_gas
+      euler%bc%mt_anal      => mt_anal_rho_times_vit
+      euler%bc%E_anal       => E_anal_ideal_gas
 
-      bc%rho_anal     => rho_anal_isentropic
-      bc%vit_anal     => vit_anal_isentropic
-      bc%press_anal   => press_anal_isentropic
+      euler%bc%rho_anal     => rho_anal_isentropic
+      euler%bc%vit_anal     => vit_anal_isentropic
+      euler%bc%press_anal   => press_anal_isentropic
+      euler%eta_commute => default_eta_commute
 
    END SUBROUTINE init_state_functions
 

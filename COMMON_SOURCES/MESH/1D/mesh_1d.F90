@@ -70,6 +70,7 @@ CONTAINS
       mesh%mes_extra = 0
       mesh%mes_int = 0
       mesh%dom_np = mesh%np
+
       mesh%mextra = 0
 
       ALLOCATE(mesh%iis(0, 0))

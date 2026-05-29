@@ -54,7 +54,7 @@ T
 === CFL ? Euler 1 ===
 1.5d0
 === ERK ? Euler 1 ===
--21
+11
 === Which method to solve Euler (viscous, high) ? Euler 1 ===
 viscous
 =========================================================

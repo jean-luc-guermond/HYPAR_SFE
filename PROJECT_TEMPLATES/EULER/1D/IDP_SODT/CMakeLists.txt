@@ -47,7 +47,12 @@ ADD_CUSTOM_TARGET(native
 #============ COMPILING AND LINKING WITH HYPAR   =============
 #=============================================================
 
+<<<<<<< HEAD
 set(exe "ref.exe")
+
+=======
+set(exe "a.exe")
+>>>>>>> 733407001da433135a1acace1c553dc62ab1409c
 
 
 # Building HYPAR_SFE library

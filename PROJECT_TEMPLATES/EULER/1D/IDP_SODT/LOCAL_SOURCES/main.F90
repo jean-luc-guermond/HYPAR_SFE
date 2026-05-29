@@ -47,8 +47,8 @@ PROGRAM prog
 
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
-     WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
+     WRITE(*,*) ' tot_np', tot_np, ' time ', euler%time
+     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n*euler%ERK%s), tps, n
   END IF
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
 

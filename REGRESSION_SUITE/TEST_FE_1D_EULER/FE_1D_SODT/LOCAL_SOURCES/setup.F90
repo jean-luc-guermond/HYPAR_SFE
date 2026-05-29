@@ -1,6 +1,9 @@
 MODULE setup
    USE space_dim, ONLY : k_dim
-   USE euler_bc_arrays, ONLY: euler_bc_type, mt_anal_rho_times_vit, E_anal_ideal_gas
+   USE euler_bc_arrays, ONLY: euler_bc_type
+   USE euler_bc_arrays, ONLY: mt_anal_rho_times_vit, E_anal_ideal_gas
+   USE euler_type_module, ONLY: euler_type
+   USE euler_eta_commute, ONLY: default_eta_commute
 
    PUBLIC :: pressure, init_state_functions
 
@@ -24,30 +27,31 @@ CONTAINS
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      ! REAL(KIND = 8) :: gamma
-      ! gamma = 7.0 / 5.0
       vv = rho * e * (gamma - 1)
    END FUNCTION pressure
 
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
-
    
-   SUBROUTINE init_state_functions(bc)
+   SUBROUTINE init_state_functions(euler)
       IMPLICIT NONE
-      CLASS(euler_bc_type), INTENT(INOUT) :: bc
+      TYPE(euler_type), INTENT(INOUT) :: euler
 
-      bc%gamma = gamma
+      euler%bc%gamma = gamma
+      euler%pressure => pressure
+      
+      euler%bc%mt_anal    => mt_anal_rho_times_vit
+      euler%bc%E_anal     => E_anal_ideal_gas
 
-      bc%mt_anal    => mt_anal_rho_times_vit
-      bc%E_anal     => E_anal_ideal_gas
+      euler%bc%rho_anal   => rho_anal_sodt
+      euler%bc%press_anal => press_anal_sodt
+      euler%bc%vit_anal   => vit_anal_sodt
 
-      bc%rho_anal   => rho_anal_sodt
-      bc%press_anal => press_anal_sodt
-      bc%vit_anal   => vit_anal_sodt
+      euler%eta_commute => default_eta_commute
+
+      
    END SUBROUTINE init_state_functions
-
 
    FUNCTION rho_anal_sodt(this, time, rr) RESULT(vv)
       IMPLICIT NONE

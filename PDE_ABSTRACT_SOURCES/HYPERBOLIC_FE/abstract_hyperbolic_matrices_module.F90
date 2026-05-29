@@ -7,10 +7,8 @@ MODULE hyperbolic_matrices_module
    USE compute_periodic
    USE fem_petsc_matrix_factory_module, &
               ONLY : construct_lumped_mass_vector, construct_cij
-   USE st_matrix, ONLY : extract_through_ghost
    TYPE hyperbolic_matrices_type
       CHARACTER(LEN=200) :: method
-      ! REAL(KIND = 8), DIMENSION(:), POINTER :: dK
       Mat :: mass, dijL, stiffL, cij_norm_loc
       Mat :: dijH
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
@@ -21,27 +19,23 @@ MODULE hyperbolic_matrices_module
       PROCEDURE, PRIVATE :: construct_loc_nij
    END TYPE hyperbolic_matrices_type
 
-!>>> global vectors accessible from here so we don't have to recreate any other ones in other modules
-   Vec, TARGET, PUBLIC :: x1vec, x2vec, x2_ghost, vec_loc
-!>>> global vectors accessible from here so we don't have to recreate any other ones in other modules
-
 CONTAINS
 
    SUBROUTINE construct_hyperbolic_matrices(this, communicator, mesh, LA)
       USE space_dim
       USE fem_M
+      USE st_matrix, ONLY: create_my_ghost
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
       INTEGER :: k, ierr
+      INTEGER, DIMENSION(:), POINTER :: ifrom
       real(kind=8) :: norm
       MPI_Comm       :: communicator
       IS, DIMENSION(1) :: is
 
       !===Init global vectors
-      CALL init_my_vectors(communicator, mesh, LA)
-
       IF (.NOT. ALLOCATED(this%cij)) THEN
          ALLOCATE(this%cij(k_dim))
          ALLOCATE(this%nij_loc(k_dim))
@@ -55,18 +49,14 @@ CONTAINS
          CALL create_local_petsc_matrix(communicator, LA, this%cij(k), clean = .FALSE.)
       END DO
 
-      
-      !VB USELESS???
-      ! ALLOCATE(this%dK(mesh%me))
-      !VB USELESS???
-
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
       !>>> because this subroutine is designed to solve AX=Y but does not technically periodize A
       CALL periodic_matrix_petsc(mesh%per, LA, this%mass)
       
-
-      CALL VecDuplicate(x1vec, this%lump_mass_vec, ierr)
+      CALL create_my_ghost(mesh, LA, ifrom)
+      CALL VecCreateGhost(communicator, mesh%dom_np, &
+           PETSC_DETERMINE, SIZE(ifrom), ifrom, this%lump_mass_vec, ierr)
       CALL construct_lumped_mass_vector(mesh, LA, this%mass, this%lump_mass_vec)
       
 
@@ -114,6 +104,7 @@ CONTAINS
                i = mesh%jj(ni, m)
                j = mesh%jj(nj, m)
 
+               !=== fill blocks (i, j)
                norm = 0.d0
                DO k = 1, k_dim
                   CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
@@ -122,11 +113,25 @@ CONTAINS
                norm = SQRT(norm)
 
                CALL MatSetValues(this%cij_norm_loc, 1, i - 1, 1, j - 1, norm, ADD_VALUES, ierr)
-
                DO k = 1, k_dim
                   nij_c = cij_c(1, k) / norm
                   CALL MatSetValues(this%nij_loc(k), 1, i - 1, 1, j - 1, nij_c, ADD_VALUES, ierr)
                END DO
+
+               !=== fill blocks (j, i)
+               norm = 0.d0
+               DO k = 1, k_dim
+                  CALL MatGetValues(this%cij_loc(1, k), 1, j - 1, 1, i - 1, cij_c(:, k), ierr)
+                  norm = norm + cij_c(1, k)**2
+               END DO
+               norm = SQRT(norm)
+
+               CALL MatSetValues(this%cij_norm_loc, 1, j - 1, 1, i - 1, norm, ADD_VALUES, ierr)
+               DO k = 1, k_dim
+                  nij_c = cij_c(1, k) / norm
+                  CALL MatSetValues(this%nij_loc(k), 1, j - 1, 1, i - 1, nij_c, ADD_VALUES, ierr)
+               END DO
+
             END IF
          END DO
       END DO
@@ -140,27 +145,5 @@ CONTAINS
       CALL MatAssemblyEnd  (this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
 
    END SUBROUTINE construct_loc_nij
-
-   SUBROUTINE init_my_vectors(communicator, mesh, LA)
-      USE st_matrix, ONLY : create_my_ghost
-      USE petsc
-#include "petsc/finclude/petsc.h"
-
-      IMPLICIT NONE  
-      TYPE(mesh_type)                :: mesh
-      TYPE(petsc_csr_LA)             :: LA    
-      INTEGER, POINTER, DIMENSION(:) :: ifrom
-      INTEGER :: ierr
-      MPI_Comm :: communicator
-
-      CALL create_my_ghost(mesh, LA, ifrom)
-      CALL VecCreateGhost(communicator, mesh%dom_np, &
-           PETSC_DETERMINE, SIZE(ifrom), ifrom, x1vec, ierr)
-      CALL VecDuplicate(x1vec, x2vec, ierr)
-      CALL VecGhostGetLocalForm(x2vec, x2_ghost, ierr)
-
-      CALL VecCreateSeq(PETSC_COMM_SELF, mesh%dom_np, vec_loc, ierr)
-
-   END SUBROUTINE init_my_vectors
 
 END MODULE hyperbolic_matrices_module

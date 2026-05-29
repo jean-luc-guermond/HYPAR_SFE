@@ -32,7 +32,7 @@ MODULE euler_type_module
       REAL(KIND = 8), DIMENSION(1) :: eos_param = 0.d0
       REAL(KIND = 8)               :: in_tol = 1.d-2
       LOGICAL                      :: no_iter = .TRUE.
-      CLASS(euler_bc_type), POINTER :: bc => NULL()
+      TYPE(euler_bc_type)         :: bc
       PROCEDURE(function_template_pressure),  NOPASS, POINTER :: pressure => NULL()
    CONTAINS
       PROCEDURE, PUBLIC  :: init_euler
@@ -44,18 +44,13 @@ MODULE euler_type_module
    END TYPE euler_type
 
 CONTAINS
-   SUBROUTINE init_euler(this, name, pressure, bc_object)
+   SUBROUTINE init_euler(this, name)
       USE space_dim
       IMPLICIT NONE
       CLASS(euler_type), INTENT(INOUT) :: this
       CHARACTER(LEN=*),  INTENT(IN)    :: name
-      PROCEDURE(function_template_pressure) :: pressure
-      CLASS(euler_bc_type), TARGET :: bc_object
 
-      this%pressure => pressure
-      this%bc       => bc_object
       this%name = name
-
 
       CALL this%read_euler_data(trim(adjustl(name))//" PARAMETERS")
 

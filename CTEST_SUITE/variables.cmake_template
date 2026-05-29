@@ -1,6 +1,6 @@
 #==== Mandatory for any application ====
 set(HYPAR_SFE_DIR "path_to_hypar/HYPAR_SFE")
-set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
+set(debug_bounds "-Wall -fimplicit-none -fbounds-check -finit-real=snan")
 set(release_bounds "-O3")
 ###set(FE_dim "2")  <=== do not use in CTEST, only for app
 
