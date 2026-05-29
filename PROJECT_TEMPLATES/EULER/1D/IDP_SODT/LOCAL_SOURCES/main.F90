@@ -28,7 +28,8 @@ PROGRAM prog
 
   tps = user_time()
   n = 0
-  DO WHILE(euler%time < setup_data%final_time)
+  DO WHILE(ABS(euler%time - setup_data%final_time).GE.setup_data%final_time*1.d-12)
+!  DO WHILE(euler%time < setup_data%final_time)
     CALL euler%update(un)
     n = n + 1
     IF (MOD(n, setup_data%verbose_freq)==0) THEN
@@ -47,8 +48,8 @@ PROGRAM prog
 
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
-     WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
+     WRITE(*,*) ' tot_np', tot_np, ' time ', euler%time
+     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n*euler%ERK%s), tps, n
   END IF
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
 
@@ -79,14 +80,14 @@ CONTAINS
         CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
         CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
         norm = error/norm_anal
-        IF(euler%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
       ELSE
         CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
         IF(euler%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
       END IF
     END DO
 
-    
+
 !==== For regression tests ====!
     IF (setup_data%if_regression_test) THEN
       DO n=1, SIZE(un,2)

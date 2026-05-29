@@ -9,7 +9,6 @@ MODULE start_setup_MODULE
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
-  USE euler_bc_arrays, ONLY: euler_bc_type
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
@@ -35,7 +34,6 @@ MODULE start_setup_MODULE
 
   TYPE(mesh_type),                   PUBLIC :: mesh
   TYPE(petsc_csr_LA),               PRIVATE :: LA
-  TYPE(euler_bc_type),                PRIVATE :: my_bc
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
@@ -77,7 +75,7 @@ CONTAINS
 
     !===Start Euler
     times(2) = setup_data%final_time
-    CALL euler%init_euler(name, pressure, my_bc)
+    CALL euler%init_euler(name)
     
     !=== Define Euler limiting bounds (should we put this in PROBLEM_SOURCES instead?)
     ALLOCATE(limiting_functionals_euler(2))
@@ -87,9 +85,9 @@ CONTAINS
     limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_rho_max
     !=== Define Euler limiting bounds
 
+    CALL init_state_functions(euler)
     CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
 
-    CALL init_state_functions(euler%bc)
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)
