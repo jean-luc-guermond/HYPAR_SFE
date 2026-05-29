@@ -101,8 +101,17 @@ function(generate_random_procs_list OUT_VAR)
         # Safety check
         math(EXPR range_size "${LOCAL_MAX} - ${LOCAL_MIN} + 1")
         if(N GREATER range_size)
-        message(FATAL_ERROR
-            "Cannot generate ${N} unique numbers in range [${LOCAL_MIN}, ${LOCAL_MAX}]")
+            message(WARNING
+                "Requested ${N} unique numbers, but range [${LOCAL_MIN}, ${LOCAL_MAX}] "
+                "only contains ${range_size}. Returning full range instead.")
+
+            set(result "")
+            foreach(i RANGE ${LOCAL_MIN} ${LOCAL_MAX})
+                list(APPEND result ${i})
+            endforeach()
+
+            set(${OUT_VAR} "${result}" PARENT_SCOPE)
+            return()
         endif()
 
         # Decide strategy

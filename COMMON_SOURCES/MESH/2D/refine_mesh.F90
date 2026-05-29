@@ -14,7 +14,7 @@ CONTAINS
       !===jjs_f(:, :)  nodes of the surface_elements of the output p2 grid
       !===rr_f(:, :)  cartesian coordinates of the nodes of the output p2 grid
       USE def_type_mesh
-      USE my_util, ONLY : error_petsc, to_str
+      USE my_util, ONLY : error_petsc, to_str, local_error_petsc
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh_p1, mesh
       INTEGER, INTENT(IN) :: type_fe
@@ -433,7 +433,7 @@ CONTAINS
             END IF
          ENDDO
          IF (kk==0) THEN
-            CALL error_petsc("BUG in create_iso_grid_distributed: did not find extra cell")
+            CALL local_error_petsc("BUG in create_iso_grid_distributed: did not find extra cell")
          END IF
          DO l = 1, f_dof
             mesh%jjs_extra(nws + l, ms) = mesh%jj_extra(nw + (kk - 1) * f_dof + l, m)
@@ -469,21 +469,22 @@ CONTAINS
 
    END SUBROUTINE  create_iso_grid_distributed
 
-   SUBROUTINE refinement_iso_grid_distributed(mesh_p1)
+   SUBROUTINE refinement_iso_grid_distributed(mesh_p1, refine_order)
       USE def_type_mesh
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_p1, mesh_p2
-      INTEGER :: refine_order
+      TYPE(mesh_type)     :: mesh_p1, mesh_pk
+      INTEGER, INTENT(IN) :: refine_order
 
-      refine_order = 2
-
-      CALL create_iso_grid_distributed(mesh_p1, mesh_p2, refine_order)
+      CALL create_iso_grid_distributed(mesh_p1, mesh_pk, refine_order)
       CALL free_mesh(mesh_p1)
-      CALL refinement_iso_grid_distributed_order_2(mesh_p2, mesh_p1)
-      CALL free_mesh(mesh_p2)
+      CALL general_refinement_iso_grid_distributed(mesh_pk, mesh_p1)
+      CALL free_mesh(mesh_pk)
    END SUBROUTINE refinement_iso_grid_distributed
 
-   SUBROUTINE refinement_iso_grid_distributed_order_2(mesh_p2, mesh)
+   SUBROUTINE general_refinement_iso_grid_distributed(mesh_pk, mesh)
+      ! subroutine that takes iso_grid_distributed mesh_pk as argument (meant for Pk)
+      ! returns mesh which is the P1 mesh having same nodes as Pk but connected (many more triangles)
+      
       !===jj(:, :)    nodes of the  volume_elements of the input grid
       !===jjs(:, :)    nodes of the surface_elements of the input grid
       !===rr(:, :)    cartesian coordinates of the nodes of the input grid
@@ -493,63 +494,106 @@ CONTAINS
       !===jjs_f(:, :)  nodes of the surface_elements of the output p2 grid
       !===rr_f(:, :)  cartesian coordinates of the nodes of the output p2 grid
       USE def_type_mesh
-      USE my_util, ONLY: error_petsc
+      USE my_util, ONLY: error_petsc, to_str, local_error_petsc
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_p2, mesh
+      TYPE(mesh_type) :: mesh_pk, mesh
       INTEGER :: np, me, mes, nw, nws, kd, n, m, k, n_dof, dom_np, e_g, mextra
       INTEGER :: n1, n2, ms, neigh, k_neigh, n_kneigh1, n_kneigh2, swap, n_loc
-      INTEGER :: i, p_c, m_new, e_k, p_j, ne, refine_order
-      INTEGER, DIMENSION(3) :: edges_g, edges_l, p_es, sub_cell
-      INTEGER, DIMENSION(2) :: n_ks
+      INTEGER :: i, p_c, m_new, e_k, p_j, ne, nc
+      INTEGER, DIMENSION(3) :: edges_g, edges_l, p_es, sub_cell, nodes_new
+      INTEGER, DIMENSION(4) :: neigh_coarse_triangles
+      INTEGER, DIMENSION(2) :: n_ks, pts_jjs
+      INTEGER :: proc, nb_proc, p, cell_g, cell_l, nb_subcell, nb_subcells, nc_neigh, edge_neigh, cur_local_edge, refine_order
+      INTEGER :: m1, m2, interface, m_center, tab1, tab2, mes_int, n_loc_1, n_loc_2, offset, m_neigh, idx
+      INTEGER :: sub_edge, old_e_g, idx1, idx2, cur_local_edge_offset, new_mes
+      INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: outer_edges
+      INTEGER, DIMENSION(:,:), ALLOCATABLE :: inner_edges, inner_edges_to_subcell, outer_edges_coarse
+      INTEGER :: nc_complementary, m_new_complementary, n_complementary, idx_m_new_complementary
+      INTEGER, DIMENSION(:), ALLOCATABLE :: idx_n_loc_1, idx_n_loc_2, tab_subcell_order, tab_subcells_order
+      LOGICAL :: iso, is_new_edge, is_associated, is_inner_edge
       INTEGER, DIMENSION(:,:), ALLOCATABLE :: jj_HL, jjs_HL
-      INTEGER :: proc, nb_proc, p, cell_g, cell_l
-      INTEGER :: m1, m2, interface, m_center, tab1, tab2, mes_int
-      LOGICAL :: iso
 
+      refine_order = SIZE(mesh_pk%jjs, 1)-1
 
-      refine_order = 2
+      nb_subcell = refine_order**2
+      nb_subcells = refine_order
       ne = 3
+      ALLOCATE(jj_HL(nb_subcell, ne))
+      ALLOCATE(jjs_HL(nb_subcells, ne-1))
+      ALLOCATE(tab_subcell_order(refine_order**2))
+      ALLOCATE(tab_subcells_order(refine_order))
 
-      ALLOCATE(jj_HL(refine_order**2, ne))
-      ALLOCATE(jjs_HL(refine_order, ne-1))
 
-      jj_HL(1, :) = [4, 5, 6]
-      jj_HL(2, :) = [1, 5, 6]
-      jj_HL(3, :) = [2, 4, 6]
-      jj_HL(4, :) = [3, 4, 5]
+      SELECT CASE(refine_order)
+      CASE(2)
+         tab_subcell_order = [3, 4, 2, 1]
+         jj_HL(tab_subcell_order(1), :) = [4, 5, 6]
+         jj_HL(tab_subcell_order(2), :) = [1, 5, 6]
+         jj_HL(tab_subcell_order(3), :) = [2, 4, 6]
+         jj_HL(tab_subcell_order(4), :) = [3, 4, 5]
 
-      jjs_HL(1, :) = [1, 3]
-      jjs_HL(2, :) = [2, 3]
+         tab_subcells_order = [2,  1]
+         jjs_HL(tab_subcells_order(1), :) = [1, 3]
+         jjs_HL(tab_subcells_order(2), :) = [2, 3]
 
-      IF (mesh_p2%me == 0) RETURN
+      CASE(3)
+         tab_subcell_order = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+         jj_HL(tab_subcell_order(1), :) = [1, 6, 8]
+         jj_HL(tab_subcell_order(2), :) = [6, 8, 10]
+         jj_HL(tab_subcell_order(3), :) = [8, 9, 10]
+         jj_HL(tab_subcell_order(4), :) = [4, 9, 10]
+         jj_HL(tab_subcell_order(5), :) = [2, 4, 9]
+         jj_HL(tab_subcell_order(6), :) = [6, 7, 10]
+         jj_HL(tab_subcell_order(7), :) = [5, 7, 10]
+         jj_HL(tab_subcell_order(8), :) = [4, 5, 10]
+         jj_HL(tab_subcell_order(9), :) = [3, 5, 7]
 
-      CALL mesh%info%copy(mesh_p2%info)
+         tab_subcells_order = [1, 2, 3]
+         jjs_HL(tab_subcells_order(1), :) = [1, 3]
+         jjs_HL(tab_subcells_order(2), :) = [3, 4]
+         jjs_HL(tab_subcells_order(3), :) = [2, 4]
+
+      CASE DEFAULT
+         CALL error_petsc("BUG in refinement_iso_grid_distributed => order = "//to_str(refine_order)//&
+         " does not have its subcell order defined")
+      END SELECT
+
+      CALL build_outer_inner_edges(jj_HL, jjs_HL)
+
+      IF (mesh_pk%me == 0) RETURN
+
+      CALL mesh%info%copy(mesh_pk%info)
       nw  = 3   !===nodes in each volume element (3 in 2D)
       nws = 2  !===nodes in each edge element (2 in 2D)
-      me = SIZE(mesh_p2%jj, 2)   !===number of cells
-      kd = SIZE(mesh_p2%rr, 1)   !===space dimensions
-      mes     = SIZE(mesh_p2%jjs, 2)
-      mes_int = SIZE(mesh_p2%jjs_int, 2)
-      nb_proc = SIZE(mesh_p2%domnp)
+      me = SIZE(mesh_pk%jj, 2)   !===number of cells
+      kd = SIZE(mesh_pk%rr, 1)   !===space dimensions
+      mes     = SIZE(mesh_pk%jjs, 2)
+      mes_int = SIZE(mesh_pk%jjs_int, 2)
+      nb_proc = SIZE(mesh_pk%domnp)
 
-      mesh%me      = refine_order**2 * mesh_p2%me
-      mesh%mes     = refine_order * mesh_p2%mes !---> something with news to take into account
-      mesh%mes_int = refine_order * mesh_p2%mes_int
-      mesh%np      = mesh_p2%np
-      mesh%medge   = refine_order * mesh_p2%medge + 3*(refine_order-1)*refine_order/2*mesh_p2%me
-      mesh%medges  = refine_order * mesh_p2%medges
+      mesh%me      = refine_order**2 * mesh_pk%me
+      mesh%mes     = refine_order * mesh_pk%mes !---> something with news to take into account
+      mesh%mes_int = refine_order * mesh_pk%mes_int
+      mesh%np      = mesh_pk%np
+      mesh%medge   = refine_order * mesh_pk%medge + 3*(refine_order-1)*refine_order/2*mesh_pk%me
+      mesh%medges  = refine_order * mesh_pk%medges
+      !naive mextra, can definitely be reduced with some work
+      mesh%mextra = refine_order**2 * mesh_pk%mextra
+      !however mes_extra cannot be reduced
+      mesh%mes_extra = refine_order * mesh_pk%mes_extra
 
       ALLOCATE(mesh%jj(nw, mesh%me)) !--->done
       ALLOCATE(mesh%jjs(nws, mesh%mes))  !--->done
       ALLOCATE(mesh%rr(kd, mesh%np)) !--->done
       ALLOCATE(mesh%loc_to_glob(mesh%np)) !--->done
 
-      ALLOCATE(mesh%jce(nw, mesh%me))  !--->done
-      !ALLOCATE(mesh%jev(nw - 1, mesh%medge)) !----->never needed so not constructed
-      ALLOCATE(mesh%jees(mesh%medges))  !--->done
-      ALLOCATE(mesh%jecs(mesh%medges))  !--->done
 
-      ALLOCATE(mesh%neigh(nw, mesh%me)) !--->done
+      ALLOCATE(mesh%jce(ne, mesh%me), SOURCE=-1)  !--->done
+      !ALLOCATE(mesh%jev(nw - 1, mesh%medge)) !----->never needed so not constructed
+      ALLOCATE(mesh%jees(mesh%medges), SOURCE=0)  !--->done
+      ALLOCATE(mesh%jecs(mesh%medges), SOURCE=0)  !--->done
+
+      ALLOCATE(mesh%neigh(ne, mesh%me), SOURCE=-10000) !--->done
       ALLOCATE(mesh%sides(mesh%mes))   !---> still don't know what this is ?? done ?
       ALLOCATE(mesh%neighs(mesh%mes))  !--->done
       ALLOCATE(mesh%i_d(mesh%me)) !--->done
@@ -558,160 +602,217 @@ CONTAINS
       ALLOCATE(mesh%neighs_int(2, mesh%mes_int)) !--->done
       ALLOCATE(mesh%sides_int(mesh%mes_int))
 
-      mesh%dom_np = mesh_p2%dom_np
-      CALL mesh%create_comm(mesh_p2%comm)
+      mesh%dom_np = mesh_pk%dom_np
+      CALL mesh%create_comm(mesh_pk%comm)
       CALL mesh%gather_dom_np
       CALL mesh%gather_me
       CALL mesh%gather_medge
 
-      mesh%nis = mesh_p2%nis
-      ALLOCATE(mesh%isolated_interfaces(mesh_p2%nis, 2))
-      mesh%isolated_interfaces = mesh_p2%isolated_interfaces
-      ALLOCATE(mesh%isolated_jjs(mesh_p2%nis))
+      mesh%nis = mesh_pk%nis
+      ALLOCATE(mesh%isolated_interfaces(mesh_pk%nis, 2))
+      mesh%isolated_interfaces = mesh_pk%isolated_interfaces
+      ALLOCATE(mesh%isolated_jjs(mesh_pk%nis))
 
       IF (kd == 3) THEN
          CALL error_petsc('refinement_iso_grid_distributed: 3D case not programmed yet !')
-      END IF
+      END IF   
 
-      
-
-      proc = mesh_p2%get_proc(mesh_p2%loc_to_glob(1), 'np')
+      proc = mesh_pk%get_proc(mesh_pk%loc_to_glob(1), 'np')
 
       !===GENERATION OF THE Pk GRID
-      mesh%rr = mesh_p2%rr
+      mesh%rr = mesh_pk%rr
 
       ALLOCATE(mesh%proc_np_loc(2, mesh%np-mesh%dom_np))
-      mesh%proc_np_loc = mesh_p2%proc_np_loc
-      mesh%isolated_jjs = mesh_p2%isolated_jjs
+      mesh%proc_np_loc = mesh_pk%proc_np_loc
+      mesh%isolated_jjs = mesh_pk%isolated_jjs
 
       DO m=1, me
          m_center = refine_order**2 * (m - 1) + 1
          DO i=1, refine_order**2
-            mesh%jj(:, m_center + i - 1) = mesh_p2%jj(jj_HL(i, :), m)
+            mesh%jj(:, m_center + i - 1) = mesh_pk%jj(jj_HL(i, :), m)
          END DO
       END DO
 
+      ! Loop on coarse triangles
+      DO m = 1, me
+         
+         cur_local_edge_offset = 3*(refine_order-1)*refine_order/2*(m-1) + 1
+         cur_local_edge = cur_local_edge_offset
 
-      n_dof = 0
-      DO m = 1, me !===loop on the elements unrefined mesh
-         edges_g = mesh_p2%jce(:, m)
-         edges_l = edges_g - mesh_p2%disedge(proc) + 1
-         m_center = refine_order**2 * (m - 1) + 1
-         !===Center cell
-         mesh%i_d(m_center) = mesh_p2%i_d(m)
-         DO i = 1, nw
-            !===Setting up neighbours and edges
-            mesh%neigh(i, m_center) = m_center + i
-            mesh%i_d(mesh%neigh(i, m_center)) = mesh_p2%i_d(m)
-            mesh%jce(i, m_center) = mesh%disedge(proc) - 1 + refine_order * mesh_p2%medge &
-                                    + 3*(refine_order-1)*refine_order/2*(m - 1) + i
-         END DO
+         neigh_coarse_triangles(1) = m
+         neigh_coarse_triangles(2:4) = mesh_pk%neigh(:, m)
 
+         !define i_d of all subcells of the coarse triangle as the i_d of the coarse triangle
+         mesh%i_d(refine_order**2 * (m - 1) + [(nc, nc=1, nb_subcell)]) = mesh_pk%i_d(m)         
 
-         !===Corner cells
-         DO k = 1, nw
-            m_new = mesh%neigh(k, m_center)
+         !Loop on subcells of the coarse triangle   
+         DO nc = 1, nb_subcell
+            m_new = refine_order**2 * (m - 1) + nc
+            nodes_new = mesh_pk%jj(jj_HL(nc, :), m)
+               
 
-            n_ks = (/MODULO(k, nw) + 1, MODULO(k + 1, nw) + 1/)
-            IF (n_ks(1)>n_ks(2)) THEN
-               n_ks = (/n_ks(2), n_ks(1)/)
-            END IF
-
-            !===Setting the center cell as a neighbour
-            mesh%neigh(1, m_new) = m_center
-            mesh%jce(1, m_new) = mesh%jce(k, m_center)
-
-            DO e_k = 1, 2
-
-               !===Adding neighbours
-               neigh = mesh_p2%neigh(n_ks(MODULO(e_k, 2) + 1), m)
-
-               IF (neigh <= 0) THEN
-                  mesh%neigh(e_k + 1, m_new) = neigh
+            ! Loop on summits/vertices of the subcell
+            DO n=1, ne
+               ! n_ks(dim=2)      => complementary of n in [1,2,3]
+               ! n_loc_1, n_loc_2 => numbering of n_ks(1), n_ks(2) at the coarse cell scale
+               ! idx1, idx2       => see subroutine find_edge
+               CALL get_edge(n, nc, n_ks, n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
+               ! Find the neighbour of the coarse triangle sharing the edge of the subcell
+               IF (is_inner_edge) THEN
+                  i = 1
                ELSE
-                  DO k_neigh = 1, nw
-                     IF (mesh_p2%neigh(k_neigh, neigh) == m) exit
+                  DO i = 2, 4
+                     IF (neigh_coarse_triangles(i) <= 0) CYCLE
+                     IF (ANY(nodes_new(n_ks(1))==mesh_pk%jj(:,neigh_coarse_triangles(i)))) THEN
+                        IF (ANY(nodes_new(n_ks(2))==mesh_pk%jj(:,neigh_coarse_triangles(i)))) EXIT
+                     END IF
                   END DO
-                  n_kneigh1 = MODULO(k_neigh, nw) + 1
-                  n_kneigh2 = MODULO(k_neigh + 1, nw) + 1
-                  IF (n_kneigh1>n_kneigh2) THEN
-                     swap = n_kneigh1
-                     n_kneigh1 = n_kneigh2
-                     n_kneigh2 = swap
-                  END IF
-                  IF (k < n_ks(e_k)) THEN
-                     mesh%neigh(e_k + 1, m_new) = 4 * (neigh - 1) + 1 + n_kneigh1
-                  ELSE
-                     mesh%neigh(e_k + 1, m_new) = 4 * (neigh - 1) + 1 + n_kneigh2
-                  END IF
                END IF
-
-               !===Adding edge
-               e_g = mesh_p2%jce(n_ks(MODULO(e_k, 2) + 1), m)
-               IF (e_g < mesh_p2%disedge(proc)) THEN
-                  p = mesh_p2%get_proc(e_g, 'medge')
+               ! Find the subcell in the neighbour coarse triangle sharing the edge of the subcell
+               IF (i==5) THEN
+                  !Case where neigh is <= 0
+                  mesh%neigh(n, m_new) = mesh_pk%neigh(idx2, m)
                ELSE
-                  p = proc
-               END IF
-
-               IF (k < n_ks(e_k)) THEN
-                  mesh%jce(e_k + 1, m_new) = mesh%disedge(p) - 1 + e_g - mesh_p2%disedge(p) + 1
-               ELSE
-                  mesh%jce(e_k + 1, m_new) = mesh%disedge(p) - 1 + mesh_p2%domedge(p) + e_g - mesh_p2%disedge(p) + 1
-               END IF
-
-               IF (e_g < mesh_p2%disedge(proc)) THEN
-                  DO ms = 1, mesh_p2%medges
-                     IF (mesh_p2%jees(ms) == e_g) EXIT
+                  DO nc_neigh=1, nb_subcell
+                     IF (ANY(nodes_new(n_ks(1))==mesh_pk%jj(jj_HL(nc_neigh, :), neigh_coarse_triangles(i)))) THEN
+                        IF (ANY(nodes_new(n_ks(2))==mesh_pk%jj(jj_HL(nc_neigh, :), neigh_coarse_triangles(i)))) THEN
+                           IF (i>1) THEN
+                              ! neighboor is outer cell => found our guy
+                              EXIT
+                           ELSE
+                              ! special case where neighboor is the same cell => make sure we don't take the same subcell
+                              IF (.NOT. ANY(nodes_new(n)==mesh_pk%jj(jj_HL(nc_neigh, :), neigh_coarse_triangles(i)))) THEN
+                                 EXIT
+                              END IF
+                           END IF
+                        END IF
+                     END IF
                   END DO
-                  IF (k < n_ks(e_k)) THEN
-                     mesh%jees(ms) = mesh%jce(e_k + 1, m_new)
-                     mesh%jecs(ms) = m_new
-                  ELSE
-                     mesh%jees(mesh_p2%medges + ms) = mesh%jce(e_k + 1, m_new)
-                     mesh%jecs(mesh_p2%medges + ms) = m_new
-                  END IF
+                  !found our neigh
+                  mesh%neigh(n, m_new) = refine_order**2 * (neigh_coarse_triangles(i) - 1) + nc_neigh
                END IF
-            END DO
-         END DO
-      END DO
+
+               !build our edge connectivity
+               IF (is_inner_edge) THEN !---> new inner edge inside the coarse cell
+                  IF (inner_edges_to_subcell(idx1, 1) == nc) THEN
+                     nc_complementary = inner_edges_to_subcell(idx1, 2)
+                  ELSE
+                     nc_complementary = inner_edges_to_subcell(idx1, 1)
+                  END IF
+                  m_new_complementary = m_new - nc + nc_complementary
+                  idx_n_loc_1 = MINLOC(ABS(jj_HL(nc_complementary,:)-n_loc_1))
+                  idx_n_loc_2 = MINLOC(ABS(jj_HL(nc_complementary,:)-n_loc_2))
+                  DO n_complementary=1, ne
+                     IF (n_complementary /= idx_n_loc_1(1)) THEN
+                        IF (n_complementary /= idx_n_loc_2(1)) EXIT                        
+                     END IF
+                  END DO
+!====== DEBUGGING ======!
+! write(*,*) 'the two adjacent subcells', nc_complementary, nc
+! write(*,*) 'idx of inner triangle:', n_loc_1, n_loc_2, jj_HL(nc, n), idx1!, m_new - nc
+! write(*,*) 'n_complementary vs th = ', n_complementary, idx_n_loc_1(1), idx_n_loc_2(1), MOD(m_new, refine_order**2)
+! write(*,*) mesh%jce(n, m_new), mesh%jce(n, m_new), mesh%jce(n_complementary, m_new_complementary)
+!====== DEBUGGING ======!
+                  DEALLOCATE(idx_n_loc_1, idx_n_loc_2)
+                  IF (mesh%jce(n_complementary, m_new_complementary) /= -1) THEN
+                     mesh%jce(n, m_new) = mesh%jce(n_complementary, m_new_complementary)
+                  ELSE
+                     mesh%jce(n, m_new) = cur_local_edge + (mesh%disedge(proc) - 1)     & ! offset for edges on previous procs
+                                        + refine_order * mesh_pk%medge  ! offset for edges resulting from previously existing coarse edges
+                     cur_local_edge = cur_local_edge + 1
+                  END IF
+!====== DEBUGGING ======!
+! write(*,*) mesh%jce(n, m_new), mesh%jce(n, m_new)
+! IF (mesh%jce(n, m_new) /= mesh%jce(n, m_new)) STOP
+! if (mesh%jce(n, m_new) /= mesh%jce(n, m_new)) THEN
+!    write(*,*) 'm = ', m, 'n = ', n
+!    write(*,*) 'mesh%jce', mesh%jce(:, m_new)
+!    write(*,*) ' mesh%jce',  mesh%jce(:, m_new)
+!    call error_petsc('wrong in inner edge')
+! ! else
+!    ! write(*,*) 'inner jce passed'
+! end if
+!=========== DEBUGGING =========! 
+               ELSE                  !---> new outer cell, i.e resulting from partitioning of older triangle edges
+                  old_e_g = mesh_pk%jce(idx2, m)
+                  IF (old_e_g < mesh_pk%disedge(proc)) THEN
+                     p = mesh_pk%get_proc(old_e_g, 'medge')
+                  ELSE
+                     p = proc
+                  END IF
+                  IF ((n_loc_1==outer_edges_coarse(idx2, 1))) THEN ! i.e one of the point is one of the old coarse triangle summits
+                     sub_edge = 0
+                  ELSE IF ((n_loc_1==outer_edges_coarse(idx2, 2))) THEN
+                     sub_edge = refine_order - 1
+                  !dummy if refinement of order 2
+                  ELSE
+                     sub_edge = n_loc_2 - outer_edges_coarse(idx2, 3)
+                  END IF
+                  mesh%jce(n, m_new) = old_e_g - mesh_pk%disedge(p) + 1 & !old local numbering
+                                     + mesh%disedge(p) - 1 & ! offset by all previous edges for new global numbering
+                                     + sub_edge * mesh_pk%domedge(p) ! offset related to local numbering at current coarse triangle scale
+
+                  ! IF (old_e_g < mesh_pk%disedge(proc)) THEN 
+                  IF (p < proc) THEN
+                     DO ms=1, mesh_pk%medges
+                        IF (mesh_pk%jees(ms) == old_e_g) EXIT
+                     END DO
+                     mesh%jees(ms + mesh_pk%medges*sub_edge) = mesh%jce(n, m_new)
+                     mesh%jecs(ms + mesh_pk%medges*sub_edge) = m_new
+                  END IF
+
+!=========== DEBUGGING =========! 
+! if (mesh%jce(n, m_new) /= mesh%jce(n, m_new)) THEN
+!    write(*,*) 'm = ', m, 'n = ', n, 'domedge = ', mesh_pk%domedge(p) 
+!    write(*,*) 'old values = ', mesh_pk%jce(idx2, m), mesh_pk%jce(:, m)
+!    write(*,*) 'mesh%jce', mesh%jce(:, m_new)
+!    write(*,*) ' mesh%jce',  mesh%jce(:, m_new)
+!    write(*,*) 'sub_edge = ', sub_edge, ', th_sub_edge = ', &
+!    (mesh%jce(n, m_new)-(old_e_g - mesh_pk%disedge(p) + 1 + mesh%disedge(p) - 1))/mesh_pk%domedge(p)
+!    write(*,*) 'MOD == 0: ', MOD(mesh%jce(n, m_new)-(old_e_g - mesh_pk%disedge(p) + 1 + mesh%disedge(p) - 1),&
+!     mesh_pk%domedge(p))
+!    write(*,*) 'n_loc = ', n_loc_1, n_loc_2, outer_edges_coarse(idx2, 3)
+!    call error_petsc('wrong in outer edge')
+! else
+!    write(*,*) 'outer jce passed'
+! end if
+!=========== DEBUGGING =========! 
+               END IF
+            END DO !end do on vertices of the subcell
+         END DO !end do on subcells of the coarse triangle
+      END DO !end do on coarse triangles
 
       DO ms = 1, mes
          DO i=1, refine_order
-            mesh%jjs(:, ms + (i - 1) * mes) = mesh_p2%jjs(jjs_HL(i, :), ms)
+            mesh%jjs(:, ms + (i - 1) * mes) = mesh_pk%jjs(jjs_HL(i, :), ms)
          ENDDO
       END DO
 
-      !===Surface elements
-      DO ms = 1, mes
-         m = mesh_p2%neighs(ms)
-         !===Finding the corresponding side in the cell
-         DO k = 1, nw
-            IF (MINVAL(ABS(mesh_p2%jj(k, m) - mesh_p2%jjs(:, ms)))/=0) EXIT
-         ENDDO
-
-         n_ks = (/MODULO(k, nw) + 1, MODULO(k + 1, nw) + 1/)
-         IF (n_ks(1)>n_ks(2)) THEN
-            n_ks = (/n_ks(2), n_ks(1)/)
-         END IF
-
-         mesh%neighs(ms) = mesh%neigh(n_ks(1), 4 * (m - 1) + 1)
-         mesh%neighs(mes + ms) = mesh%neigh(n_ks(2), 4 * (m - 1) + 1)
-         mesh%sides(ms) = mesh_p2%sides(ms)
-         mesh%sides(mes + ms) = mesh_p2%sides(ms)
-
-         !         CALL is_on_curved_interface(mesh_p2%sides(ms), iso, interface)
-         !         IF (iso) THEN
-         !            CALL rescale_to_curved_boundary(mesh%rr(:, mesh%jj(k, 4 * (m - 1) + 1)), interface)
-         !         END IF
-      ENDDO
+      DO ms=1, mes
+         m = mesh_pk%neighs(ms)
+         m_new = refine_order**2 * (m - 1)
+         DO nc = 1, nb_subcells
+            mesh%sides(ms + mes*(nc-1)) = mesh_pk%sides(ms)
+            pts_jjs = mesh%jjs(:, ms + mes*(nc-1))
+            ! Find subcell containing new neighs
+            DO idx=1, nb_subcell
+               IF (ANY(pts_jjs(1)==mesh%jj(:, m_new+idx))) THEN
+                  IF (ANY(pts_jjs(2)==mesh%jj(:, m_new+idx))) EXIT
+               END IF
+            END DO
+            IF (idx == nb_subcell+1) THEN
+               CALL local_error_petsc("BUG in surface points => did not find corresponding subcell")
+            END IF
+            mesh%neighs(ms + mes*(nc-1)) = m_new+idx
+         END DO
+      END DO
 
       !===Internal surface elements
       DO ms = 1, mes_int
-         m = mesh_p2%neighs_int(1, ms)
+         m = mesh_pk%neighs_int(1, ms)
          !===Finding the corresponding side in the cell
          DO k = 1, nw
-            IF (MINVAL(ABS(mesh_p2%jj(k, m) - mesh_p2%jjs_int(:, ms)))/=0) EXIT
+            IF (MINVAL(ABS(mesh_pk%jj(k, m) - mesh_pk%jjs_int(:, ms)))/=0) EXIT
          ENDDO
 
          n_ks = (/MODULO(k, nw) + 1, MODULO(k + 1, nw) + 1/)
@@ -721,7 +822,7 @@ CONTAINS
 
          ! VB 27/05/2026 => no test or guarantee that it works, i also don't know where these are used
          DO i=1, refine_order
-            mesh%jjs_int(:, ms + (i - 1) * mes) = mesh_p2%jjs_int(jjs_HL(i, :), ms)
+            mesh%jjs_int(:, ms + (i - 1) * mes) = mesh_pk%jjs_int(jjs_HL(i, :), ms)
          ENDDO
          ! mesh%jjs_int(1, ms) = mesh_p1%jj(n_ks(1), m)
          ! IF (mesh%jjs_int(1, ms) > mesh_p1%dom_np) mesh%jjs_int(1, ms) = mesh%jjs_int(1, ms) + mesh%dom_np - mesh_p1%dom_np
@@ -732,8 +833,8 @@ CONTAINS
          ! mesh%jjs_int(2, mes_int + ms) = mesh%jj(k, 4 * (m - 1) + 1)
          mesh%neighs_int(1, ms) = mesh%neigh(n_ks(1), 4 * (m - 1) + 1)
          mesh%neighs_int(1, mes_int + ms) = mesh%neigh(n_ks(2), 4 * (m - 1) + 1)
-         mesh%sides_int(ms) = mesh_p2%sides_int(ms)
-         mesh%sides_int(mes_int + ms) = mesh_p2%sides_int(ms)
+         mesh%sides_int(ms) = mesh_pk%sides_int(ms)
+         mesh%sides_int(mes_int + ms) = mesh_pk%sides_int(ms)
          ! VB 27/05/2026 => see also create_iso_grid_distributed, no test or guarantee that it works, i also don't know where these are used
 
          !         CALL is_on_curved_interface(mesh_p2%sides_int(ms), iso, interface)
@@ -743,7 +844,7 @@ CONTAINS
       ENDDO
 
       !===Counting number of new extra cells
-      mesh%mextra = 0
+      ! mesh%mextra = 0
       !===Need to rework that to do it the smart way and the update conditions when constructing cells
       !      DO m = 1, mesh_p1%mextra
       !         a = 0
@@ -770,162 +871,186 @@ CONTAINS
       !            END IF
       !         END DO
       !      END DO
-      !===In the mean time
-      mesh%mextra = mesh_p2%mextra * refine_order**2
+      !===In the mean time naive mesh%mextra = mesh_pk%mextra * refine_order**2
       ALLOCATE(mesh%jj_extra(nw, mesh%mextra)) !---->
-      ALLOCATE(mesh%jce_extra(nw, mesh%mextra)) !---->
+      ALLOCATE(mesh%jce_extra(nw, mesh%mextra), SOURCE=-1) !---->
       ALLOCATE(mesh%jcc_extra(mesh%mextra)) !---->
 
       mextra = 0
-      DO m=1, mesh_p2%mextra
+      DO m=1, mesh_pk%mextra
          DO i=1, refine_order**2
             mextra = mextra + 1
-            mesh%jj_extra(:, mextra) = mesh_p2%jj_extra(jj_HL(i, :), m)
+            mesh%jj_extra(:, mextra) = mesh_pk%jj_extra(jj_HL(i, :), m)
          END DO
       END DO
 
-
-      !===Constructing the extra cells
       mextra = 0
-      DO m = 1, mesh_p2%mextra
+      DO m = 1, mesh_pk%mextra
+         !!! getting global and local numbering of old coarse extra cell
+         cell_g = mesh_pk%jcc_extra(m)
+         p_c = mesh_pk%get_proc(cell_g, 'me')
+         cell_l = cell_g - mesh_pk%discell(p_c) + 1
+         !!! getting global and local numbering of old coarse extra cell
+         DO nc = 1, nb_subcell
+            mextra = mextra + 1
+            mesh%jcc_extra(mextra) = mesh%discell(p_c) - 1     & !offset due to global numbering
+                                   + nb_subcell*(cell_l-1)+1 & !offset due to cells owned by proc p_c
+                                   + nc - 1                    !renumbering at the scale of the new fine cell
+         END DO
+      END DO
 
-         !center cell
-         mextra = mextra + 1
+      mextra = 0
+      DO m = 1, mesh_pk%mextra
+         p_c = mesh_pk%get_proc(mesh_pk%jcc_extra(m), 'me')
+         !!! WARNING => jcc_extra is the GLOBAL numbering of the elements: need -mesh_pk%discell(p_c) to make it local
+         cur_local_edge_offset = 3*(refine_order-1)*refine_order/2*(mesh_pk%jcc_extra(m) - mesh_pk%discell(p_c)) + 1
+         cur_local_edge = cur_local_edge_offset
+         !!! WARNING => jcc_extra is the GLOBAL numbering of the elements: need -mesh_pk%discell(p_c) to make it local
 
-         cell_g = mesh_p2%jcc_extra(m)
-         p_c = mesh_p2%get_proc(cell_g, 'me')
-         cell_l = cell_g - mesh_p2%discell(p_c) + 1
-         mesh%jcc_extra(mextra) = 4 * (cell_l - 1) + 1 + mesh%discell(p_c) - 1
-
-         DO i = 1, 3
-            mesh%jce_extra(i, mextra) = mesh%disedge(p_c) - 1 + 2 * mesh_p2%domedge(p_c) + 3 * (cell_l - 1) + i
+         edges_g = mesh_pk%jce_extra(:, m)
+         DO i = 1, ne
+            p_es(i) = mesh_pk%get_proc(edges_g(i), 'medge')
          END DO
 
-         !corner cells
-         DO k = 1, nw
-            n_ks = (/MODULO(k, nw) + 1, MODULO(k + 1, nw) + 1/)
-            IF (n_ks(1)>n_ks(2)) THEN
-               n_ks = (/n_ks(2), n_ks(1)/)
-            END IF
+         DO nc = 1, nb_subcell
+            m_new = refine_order**2 * (mesh_pk%jcc_extra(m) - 1) + nc
 
             mextra = mextra + 1
-            cell_g = mesh_p2%jcc_extra(m)
-            p_c = mesh_p2%get_proc(cell_g, 'me')
+            DO n = 1, ne
+               ! n_ks(dim=2)      => complementary of n in [1,2,3]
+               ! n_loc_1, n_loc_2 => numbering of n_ks(1), n_ks(2) at the coarse cell scale
+               ! idx1, idx2       => see subroutine find_edge
+               CALL get_edge(n, nc, n_ks, n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
+               IF (is_inner_edge) THEN !---> new inner edge inside the coarse cell
+                  IF (inner_edges_to_subcell(idx1, 1) == nc) THEN
+                     nc_complementary = inner_edges_to_subcell(idx1, 2)
+                  ELSE
+                     nc_complementary = inner_edges_to_subcell(idx1, 1)
+                  END IF
+                  m_new_complementary = m_new - nc + nc_complementary
+                  DO idx_m_new_complementary=1, SIZE(mesh%jcc_extra) 
+                     IF (mesh%jcc_extra(idx_m_new_complementary) == m_new_complementary) EXIT
+                  END DO
+                  idx_n_loc_1 = MINLOC(ABS(jj_HL(nc_complementary,:)-n_loc_1))
+                  idx_n_loc_2 = MINLOC(ABS(jj_HL(nc_complementary,:)-n_loc_2))
+                  DO n_complementary=1, ne
+                     IF (n_complementary /= idx_n_loc_1(1)) THEN
+                        IF (n_complementary /= idx_n_loc_2(1)) EXIT                        
+                     END IF
+                  END DO
+!====== DEBUGGING ======!
+! write(*,*) 'the two adjacent subcells', nc_complementary, nc
+! write(*,*) 'idx of inner triangle:', n_loc_1, n_loc_2, jj_HL(nc, n), idx1!, m_new - nc
+! write(*,*) 'n_complementary vs th = ', n_complementary, idx_n_loc_1(1), idx_n_loc_2(1), MOD(m_new, refine_order**2)
+! write(*,*) mesh%jce(n, m_new), mesh%jce(n, m_new), mesh%jce(n_complementary, m_new_complementary)
+!====== DEBUGGING ======!
+                  DEALLOCATE(idx_n_loc_1, idx_n_loc_2)
+                  IF (mesh%jce_extra(n_complementary, idx_m_new_complementary) /= -1) THEN
+                     mesh%jce_extra(n, mextra) = mesh%jce_extra(n_complementary, idx_m_new_complementary)
+                  ELSE
+                     mesh%jce_extra(n, mextra) = cur_local_edge + (mesh%disedge(p_c) - 1)     & ! offset for edges on previous procs
+                                        + refine_order * mesh_pk%domedge(p_c)  ! offset for edges resulting from previously existing coarse edges
+                     cur_local_edge = cur_local_edge + 1
+                  END IF
+!====== DEBUGGING ======!
+! write(*,*) mesh%jce(n, m_new), mesh%jce(n, m_new)
+! IF (mesh%jce(n, m_new) /= mesh%jce(n, m_new)) STOP
+! if (mesh%jce(n, m_new) /= mesh%jce(n, m_new)) THEN
+!    write(*,*) 'm = ', m, 'n = ', n
+!    write(*,*) 'mesh%jce', mesh%jce(:, m_new)
+!    write(*,*) ' mesh%jce',  mesh%jce(:, m_new)
+!    call error_petsc('wrong in inner edge')
+! ! else
+!    ! write(*,*) 'inner jce passed'
+! end if
+! write(*,*) 'bug in inner edges', mesh%jce_extra(n, mextra), mesh%jce_extra(n, mextra)
+! write(*,*) 'domedge P2 = ', mesh_pk%domedge
+! write(*,*) 'disedge refined = ', mesh%disedge
+! write(*,*) 'p_c = ', p_c
+! write(*,*) 'cur_local_edge = ', cur_local_edge
+! write(*,*) 'already defined before = ', mesh%jce_extra(n_complementary, idx_m_new_complementary) /= -1
+! write(*,*) 'cur triangle  = ', n, n_loc_1, n_loc_2, nc
+! write(*,*) 'complementary triangle = ', nc_complementary
+! write(*,*) 'complementary edge = ', n_complementary, n
+! if (mesh%jce_extra(n, mextra) /= mesh%jce_extra(n, mextra)) THEN
+!    stop
+! end if
+!=========== DEBUGGING =========! 
+               ELSE                  !---> new outer cell, i.e resulting from partitioning of older triangle edges
+                  old_e_g = mesh_pk%jce_extra(idx2, m)
+                  IF ((n_loc_1==outer_edges_coarse(idx2, 1))) THEN ! i.e one of the point is one of the old coarse triangle summits
+                     sub_edge = 0
+                  ELSE IF ((n_loc_1==outer_edges_coarse(idx2, 2))) THEN
+                     sub_edge = refine_order - 1
+                  !dummy if refinement of order 2
+                  ELSE
+                     sub_edge = n_loc_2 - outer_edges_coarse(idx2, 3)
+                  END IF
+                  mesh%jce_extra(n, mextra) = old_e_g - mesh_pk%disedge(p_es(idx2)) + 1 & !old local numbering
+                                     + mesh%disedge(p_es(idx2)) - 1 & ! offset by all previous edges for new global numbering
+                                     + sub_edge * mesh_pk%domedge(p_es(idx2)) ! offset related to local numbering at current coarse triangle scale
 
-            cell_l = cell_g - mesh_p2%discell(p_c) + 1
-            mesh%jcc_extra(mextra) = mesh%discell(p_c) - 1 + 4 * (cell_l - 1) + 1 + k
-
-            edges_g = mesh_p2%jce_extra(:, m)
-
-            DO i = 1, nw
-               p_es(i) = mesh_p2%get_proc(edges_g(i), 'medge')
-            END DO
-
-            !===Adding the edges
-            mesh%jce_extra(1, mextra) = mesh%disedge(p_c) - 1 + 2 * mesh_p2%domedge(p_c) + 3 * (cell_l - 1) + k
-
-            DO e_k = 1, 2
-               IF (k < n_ks(e_k)) THEN
-                  mesh%jce_extra(e_k + 1, mextra) = mesh%disedge(p_es(n_ks(MODULO(e_k, 2) + 1))) - 1 + &
-                       edges_g(n_ks(MODULO(e_k, 2) + 1)) - mesh_p2%disedge(p_es(n_ks(MODULO(e_k, 2) + 1))) + 1
-               ELSE
-                  mesh%jce_extra(e_k + 1, mextra) = mesh%disedge(p_es(n_ks(MODULO(e_k, 2) + 1))) - 1 + &
-                       mesh_p2%domedge(p_es(n_ks(MODULO(e_k, 2) + 1))) + edges_g(n_ks(MODULO(e_k, 2) + 1)) &
-                       - mesh_p2%disedge(p_es(n_ks(MODULO(e_k, 2) + 1))) + 1
+!=========== DEBUGGING =========! 
+! if (mesh%jce_extra(n, mextra) /= mesh%jce_extra(n, mextra)) THEN
+!    write(*,*) 'bug in outer edges', mesh%jce_extra(n, mextra), mesh%jce_extra(n, mextra)
+! end if
+!=========== DEBUGGING =========! 
                END IF
-            END DO
-         END DO
-      END DO
+            END DO !end do edge of subcell
+         END DO !end do subcell of coarse triangle
+      END DO !end do coarse extra triangles
 
       !===Constructing the extra cells at interfaces
-      mesh%mes_extra = 2 * mesh_p2%mes_extra
       ALLOCATE(mesh%jjs_extra(nws, mesh%mes_extra))
       ALLOCATE(mesh%rrs_extra(2, nw, mesh%mes_extra))
       ALLOCATE(mesh%sides_extra(mesh%mes_extra), mesh%neighs_extra(mesh%mes_extra))
 
       mextra = 0
-      DO m = 1, mesh_p2%mes_extra
-         !CALL is_on_curved_interface(mesh_p2%sides_extra(m), iso, interface)
-
-         cell_g = mesh_p2%neighs_extra(m)
-         DO m1 = 1, mesh_p2%mextra !find associated extra cell
-            IF (mesh_p2%jcc_extra(m1) == cell_g) EXIT
-         END DO
-
-         p_c = mesh_p2%get_proc(cell_g, 'me')
-         cell_l = cell_g - mesh_p2%discell(p_c) + 1
-
-         DO n = 1, 3 !===find side in cell
-            IF (.NOT.(ANY(mesh_p2%jj_extra(n, m1) == mesh_p2%jjs_extra(:, m)))) THEN
-               EXIT
-            END IF
-            IF (n == 3) CALL error_petsc('BUG in refinement : didnt find face in extra cell for extra edge')
-         ENDDO
-
-         !==cell index of edge
-         n_ks = (/MODULO(n, nw) + 1, MODULO(n + 1, nw) + 1/)
-         IF (n_ks(1)>n_ks(2)) THEN
-            n_ks = (/n_ks(2), n_ks(1)/)
-         END IF
-
-         DO k = 1, nws
-            mextra = mextra + 1
-            mesh%sides_extra(mextra) = mesh_p2%sides_extra(m)
-            mesh%neighs_extra(mextra) = mesh%discell(p_c) - 1 + 4 * (cell_l - 1) + 1 + n_ks(k)
-
-            !!$   VB comment
-            !!$   !! example on n = 2
-            !!$   3
-            !!$   5  4
-            !!$   1  6  2
-            !!$
-            !!$   !! n = 2 ==> rrs receives triangles [1, 5, 6] and [3, 4, 5] (opposite to point nw = n = 2)
-            !!$   !! k = 1 (resp 2) ==> second point considered is nw = 1 (resp nw = 3) => rrs receives triangle ecompassing
-            !!$      edge [1, 5] (resp [3, 5]) => triangle is therefore [1, 5, 6] (resp [3, 4, 5])
-            !!$   VB comment
-
-            IF ((n==1 .AND. k==1) .OR. (n==3 .AND. k==2)) THEN
-               sub_cell = [2, 4, 6]
-            ELSE IF ((n==1 .AND. k==2) .OR. (n==2 .AND. k==2)) THEN
-               sub_cell = [3, 4, 5]
-            ELSE IF ((n==2 .AND. k==1) .OR. (n==3 .AND. k==1)) THEN
-               sub_cell = [1, 5, 6]
-            END IF
-            mesh%rrs_extra(:, :, mextra) = mesh_p2%rrs_extra(:,sub_cell, (mextra+1)/2)
-
-            ! IF (n == 1) THEN
-            !    tab1 = 2
-            !    tab2 = 3
-            ! ELSE IF (n == 3) THEN
-            !    tab1 = 3
-            !    tab2 = 2
-            ! ELSE
-            !    IF (k == 1) THEN
-            !       tab1 = 2
-            !       tab2 = 3
-            !    ELSE
-            !       tab1 = 3
-            !       tab2 = 2
-            !    END IF
-            ! END IF
-            ! mesh%rrs_extra(:, tab1, mextra) = (mesh_p1%rrs_extra(:, n_ks(1), m) + mesh_p1%rrs_extra(:, n_ks(2), m)) / 2
-            ! !            IF (iso) THEN
-            ! !               CALL rescale_to_curved_boundary(mesh%rrs_extra(:, tab1, mextra), interface)
-            ! !            END IF
-            ! mesh%rrs_extra(:, tab2, mextra) = (mesh_p1%rrs_extra(:, n_ks(k), m) + mesh_p1%rrs_extra(:, n, m)) / 2
-
-         END DO
-      END DO
-
-      
-      mextra = 0
-      DO m=1, mesh_p2%mes_extra
+      DO m=1, mesh_pk%mes_extra
          DO i=1, refine_order
             mextra = mextra + 1
-            mesh%jjs_extra(:, mextra) = mesh_p2%jjs_extra(jjs_HL(i, :), (mextra+1)/2)
+            mesh%jjs_extra(:, mextra) = mesh_pk%jjs_extra(jjs_HL(i, :), m)
          END DO
       END DO
 
+      mextra = 0
+      DO m = 1, mesh_pk%mes_extra
+         !global and local numbering of coarse extra cell
+         cell_g = mesh_pk%neighs_extra(m)
+         p_c = mesh_pk%get_proc(cell_g, 'me')
+         cell_l = cell_g - (mesh_pk%discell(p_c) - 1)
+
+         !find associated idx of cell_g/cell_l inside jcc_extra
+         DO m1 = 1, mesh_pk%mextra 
+            IF (mesh_pk%jcc_extra(m1) == cell_g) EXIT
+         END DO
+
+         ! Loop on new subcells
+         DO nc = 1, nb_subcells
+            mextra = mextra + 1
+            mesh%sides_extra(mextra) = mesh_pk%sides_extra(m)
+            pts_jjs = mesh%jjs_extra(:, mextra)
+            ! Find subcell containing new neighs
+            DO idx=1, nb_subcell
+               IF (ANY(pts_jjs(1)==mesh%jj_extra(:, refine_order**2*(m1-1)+idx))) THEN
+                  IF (ANY(pts_jjs(2)==mesh%jj_extra(:, refine_order**2*(m1-1)+idx))) EXIT
+               END IF
+            END DO
+            IF (idx == nb_subcell+1) THEN
+               CALL local_error_petsc("BUG in surface points => did not find corresponding subcell")
+            END IF
+            mesh%neighs_extra(mextra) = refine_order**2*(cell_l-1)+idx & !local numbering on proc containing this point
+                                       + (mesh%discell(p_c) - 1)! shift for global numbering
+
+            mesh%rrs_extra(:, :, mextra) = mesh_pk%rrs_extra(:, jj_HL(idx,:), m)
+!========= DEBUGGING ========!
+! if (mesh%neighs_extra(mextra) /= mesh%neighs_extra(mextra)) THEN
+   ! write(*,*) mextra, mesh%neighs_extra(mextra), mesh%neighs_extra(mextra)
+   ! call error_petsc('wrong neighs_extra')
+! end if
+!========= DEBUGGING ========!
+         END DO !end do nb_subcells
+      END DO !end do coarse mes_extra
 
       !jjs_extra !(extra layer of cells not own by proc but with dofs own by proc)
       !rrs_extra  ! coordinates for cells at interfaces
@@ -933,7 +1058,226 @@ CONTAINS
       !mes_extra
       CALL mesh%build_loc_to_glob
 
-   END SUBROUTINE refinement_iso_grid_distributed_order_2
+   CONTAINS
+
+      SUBROUTINE build_outer_inner_edges(jj_HL, jjs_HL)
+         USE my_util, ONLY: error_petsc, to_str, local_error_petsc
+         IMPLICIT NONE
+         INTEGER, DIMENSION(:,:), INTENT(IN) :: jj_HL
+         INTEGER, DIMENSION(:,:), INTENT(IN) :: jjs_HL
+         INTEGER :: out_new_node_min, out_new_node_max, i, num_edge, old_nc
+         INTEGER, DIMENSION(2)    :: cur_edge
+         INTEGER, DIMENSION(3, 2) :: tab_edges
+
+         ALLOCATE(outer_edges_coarse    (3, refine_order+1                   ))
+         ALLOCATE(outer_edges           (3, refine_order,                   2))
+         ALLOCATE(inner_edges           (3*(refine_order-1)*refine_order/2, 2))
+         ALLOCATE(inner_edges_to_subcell(3*(refine_order-1)*refine_order/2, 2))
+
+
+!========================= EXAMPLE OF THE ARRAYS THAT ARE CONSTRUCTED CONSIDERING THE FOLLOWING JJ_HL AND JJS_HL
+         ! jj_HL(1, :) = [4, 5, 6]
+         ! jj_HL(2, :) = [1, 5, 6]
+         ! jj_HL(3, :) = [2, 4, 6]
+         ! jj_HL(4, :) = [3, 4, 5]
+
+         ! jjs_HL(1, :) = [1, 3]
+         ! jjs_HL(2, :) = [2, 3]
+
+!       outer_edges(1, 1, :) = [2, 4]
+!       outer_edges(1, 2, :) = [3, 4]
+
+!       outer_edges(2, 1, :) = [1, 5]
+!       outer_edges(2, 2, :) = [3, 5]
+
+!       outer_edges(3, 1, :) = [1, 6]
+!       outer_edges(3, 2, :) = [2, 6]
+
+!       offset = 0
+!       outer_edges_coarse(1, 1:2) = [2,3]
+!       outer_edges_coarse(1, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+!       offset = refine_order - 1
+!       outer_edges_coarse(2, 1:2) = [1,3]
+!       outer_edges_coarse(2, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+!       offset = 2 * (refine_order - 1)
+!       outer_edges_coarse(3, 1:2) = [1,2]
+!       outer_edges_coarse(3, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+!       inner_edges(1,:) = [4, 5]
+!       inner_edges(2,:) = [5, 6]
+!       inner_edges(3,:) = [4, 6]
+
+!       inner_edges_to_subcell(1,:) = [1, 4]
+!       inner_edges_to_subcell(2,:) = [1, 2]
+!       inner_edges_to_subcell(3,:) = [1, 3]
+
+!========================= EXAMPLE OF THE ARRAYS THAT ARE CONSTRUCTED CONSIDERING THE FOLLOWING JJ_HL AND JJS_HL
+
+!=== Build arrays containing new fine outer edges
+         out_new_node_min = 3 + 1
+         out_new_node_max = 3 + 1 + (refine_order - 1) - 1
+         outer_edges(1, 1, :) = [2, out_new_node_min]
+         DO i=1, refine_order-2
+            outer_edges(1, i+1, :) = [out_new_node_min+i-1, out_new_node_min+i]
+         END DO
+         outer_edges(1, refine_order, :) = [3, out_new_node_max]
+
+         out_new_node_min = 3 + 1 + (refine_order - 1)
+         out_new_node_max = 3 + 1 + 2*(refine_order - 1) - 1
+         outer_edges(2, 1, :) = [1, out_new_node_min]
+         DO i=1, refine_order-2
+            outer_edges(2, i+1, :) = [out_new_node_min+i-1, out_new_node_min+i]
+         END DO
+         outer_edges(2, refine_order, :) = [3, out_new_node_max]
+
+         out_new_node_min = 3 + 1 + 2*(refine_order - 1)
+         out_new_node_max = 3 + 1 + 3*(refine_order - 1) - 1
+         outer_edges(3, 1, :) = [1, out_new_node_min]
+         DO i=1, refine_order-2
+            outer_edges(3, i+1, :) = [out_new_node_min+i-1, out_new_node_min+i]
+         END DO
+         outer_edges(3, refine_order, :) = [2, out_new_node_max]
+
+
+!=== Build arrays containing old coarse (outer) edges 
+!=== NAME IS MISLEADING AS IT CONTAINS ALL POINTS ON THAT OUTER EDGE
+         offset = 0
+         outer_edges_coarse(1, 1:2) = [2,3]
+         outer_edges_coarse(1, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+         offset = refine_order - 1
+         outer_edges_coarse(2, 1:2) = [1,3]
+         outer_edges_coarse(2, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+         offset = 2 * (refine_order - 1)
+         outer_edges_coarse(3, 1:2) = [1,2]
+         outer_edges_coarse(3, 3:) = [(3+offset+n, n=1, refine_order - 1)]
+
+!=== Build arrays containing new inner edges and the two subcells containing each of them
+         num_edge = 0
+         inner_edges_to_subcell = -1
+         tab_edges(1,:) = [1, 2]
+         tab_edges(2,:) = [2, 3]
+         tab_edges(3,:) = [1, 3]
+         DO nc=1, SIZE(jj_HL, 1) !loop on new subcell
+edge_loop:  DO n=1, ne !loop on edges of each subcell
+               cur_edge = jj_HL(nc, tab_edges(n, :))
+               ! First making sure that the considered edge is indeed an inner edge
+               DO i=1, ne
+                  IF (ANY(outer_edges_coarse(i, :)==cur_edge(1))) THEN
+                     IF (ANY(outer_edges_coarse(i, :)==cur_edge(2))) CYCLE edge_loop
+                  END IF
+               END DO
+               i = 1 !to handle case num_edge = 0
+               DO i=1, num_edge
+                  IF (MAXVAL(ABS(cur_edge-inner_edges(i, :)))==0) THEN 
+                     !cur_edge was already explored, but here we found the second cell containing it, so we update inner_edges_to_subcell
+                     IF (MINVAL(inner_edges_to_subcell(i,:)) /= -1) THEN
+                        CALL error_petsc("BUG in refine_iso_grid/build_edges => how can an edge belong to three different cells???")
+                     END IF
+                     old_nc = inner_edges_to_subcell(i,1)
+                     inner_edges_to_subcell(i, 1) = MIN(nc, old_nc)
+                     inner_edges_to_subcell(i, 2) = MAX(nc, old_nc)
+                     EXIT
+                  END IF
+               END DO
+               IF (i==num_edge+1) THEN !means cur_edge was never explored in previous loops
+                  num_edge = num_edge + 1
+                  inner_edges(num_edge, :) = cur_edge
+                  inner_edges_to_subcell(num_edge, 1) = nc
+               END IF
+            END DO edge_loop
+         END DO
+
+         IF (num_edge /= 3*(refine_order-1)*refine_order/2) THEN
+            CALL error_petsc("BUG in refine_iso/build_edges => did not find all inner edges: found a total of "//&
+            to_str(num_edge)//" while there should be "//to_str(3*(refine_order-1)*refine_order/2)//". List of edges &
+             that were found pts1 = "//to_str(inner_edges(:,1))//", pts2 = "//to_str(inner_edges(:,2)))
+         END IF
+
+         IF (MINVAL(inner_edges_to_subcell) == -1) THEN
+            CALL error_petsc("BUG in refine_iso/build_edges => all inner edges were not correctly attributed their two subcells."&
+            " Subcell 1 = "//to_str(inner_edges_to_subcell(:,1))//", Subcell 2 = "//to_str(inner_edges_to_subcell(:,2)))
+         END IF
+
+      END SUBROUTINE build_outer_inner_edges
+
+      SUBROUTINE get_edge(n, nc, n_ks, n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
+         USE my_util, ONLY: error_petsc, to_str
+         IMPLICIT NONE
+         INTEGER,               INTENT(IN)  :: n, nc
+         INTEGER, DIMENSION(2), INTENT(OUT) :: n_ks
+         INTEGER, INTENT(OUT) :: n_loc_1, n_loc_2
+         INTEGER, INTENT(OUT) :: idx1, idx2
+         LOGICAL, INTENT(OUT) :: is_inner_edge
+
+         n_ks(1) = MODULO(n, ne) + 1
+         n_ks(2) = MODULO(n + 1, ne) + 1
+         IF (n_ks(1)>n_ks(2)) THEN
+            n_ks = (/n_ks(2), n_ks(1)/)
+         END IF
+         ! Determine if edge [n_ks(1), nk_s(2)] is the refinement of an old coarse edge or a brand new inner edge
+         n_loc_1 = jj_HL(nc, n_ks(1))
+         n_loc_2 = jj_HL(nc, n_ks(2))
+         IF (n_loc_1 > n_loc_2) THEN
+            CALL error_petsc("BUG in refinement_iso_grid => your jj_HL might not have &
+            increasing numbering of local nodes: "//to_str(jj_HL(nc,:)))
+         END IF
+
+         CALL find_edge(n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
+      END SUBROUTINE get_edge
+
+      SUBROUTINE find_edge(n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
+         !> subroutine based on correct construction of outer_edges(:,:,:)/inner_edges(:,:)/inner_edges_to_subcell
+         !! Two cases:
+         !!
+         !! is_inner_edge = .TRUE. ==> the edge is inner_edge(idx1, :)
+         !!                            idx2 is dummy
+         !! is_inner_edge = .FALSE. ==> idx1 is the index of the old outer coarse edge, idx2 the local number of the new edge
+         !!                             the edge is outer_edge(idx2, idx1)
+         USE my_util, ONLY: error_petsc, to_str
+         IMPLICIT NONE
+         INTEGER, INTENT(IN)  :: n_loc_1, n_loc_2
+         INTEGER, INTENT(OUT) :: idx1, idx2
+         LOGICAL, INTENT(OUT) :: is_inner_edge
+         INTEGER :: n1, n2
+
+         IF (n_loc_1 >= n_loc_2) THEN
+            CALL error_petsc("BUG in refinement_iso_grid/find_edge => should have n_loc_1 < n_loc_2, values found are: "&
+            //to_str(n_loc_1)//', '//to_str(n_loc_2))
+         END IF
+
+         !Check inside inner_edges first
+         DO n1=1, SIZE(inner_edges,1)
+            IF (n_loc_1==inner_edges(n1,1) .AND. n_loc_2==inner_edges(n1,2)) THEN !this assumes n_loc_1<n_loc_2 and inner_edges(n1,1)<inner_edges(n1,2)
+               is_inner_edge = .TRUE.
+               idx1 = n1
+               idx2 = -1
+               RETURN
+            END IF
+         END DO
+
+         !Finally check outer edges
+         is_inner_edge = .FALSE.
+         DO n2=1, SIZE(outer_edges,1)
+            DO n1=1, SIZE(outer_edges,2)
+               IF (n_loc_1==outer_edges(n2,n1,1) .AND. n_loc_2==outer_edges(n2,n1,2)) THEN !this assumes n_loc_1<n_loc_2 and inner_edges(n1,1)<inner_edges(n1,2)
+                  idx1 = n1
+                  idx2 = n2
+                  RETURN
+               END IF
+            END DO
+         END DO
+
+         CALL error_petsc("BUG in refinement_iso_grid/find_edge => &
+         did not find an edge for (n_loc_1,n_loc_2)=("&
+         //to_str(n_loc_1)//','//to_str(n_loc_2)//')')
+
+      END SUBROUTINE find_edge
+
+   END SUBROUTINE general_refinement_iso_grid_distributed
 
 
    ! ! TODO add back curved boundaries

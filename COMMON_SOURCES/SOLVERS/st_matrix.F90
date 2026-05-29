@@ -341,7 +341,7 @@ CONTAINS
                i2 = mesh%per%perlist(k)%DIL(i)
                njt = nja(i1) + nja(i2)
                IF (njt > kmax * nparm) THEN
-                  CALL error_Petsc('BUG in st_aij_glob_block, SIZE(ja) not large enough')
+                  CALL local_error_petsc('BUG in st_aij_glob_block, SIZE(ja) not large enough')
                END IF
                per_loc(1:nja(i1)) = ja_work(i1, 1:nja(i1))
                per_loc(nja(i1) + 1:nja(i1) + nja(i2)) = ja_work(i2, 1:nja(i2))

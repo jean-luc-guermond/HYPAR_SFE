@@ -9,7 +9,7 @@ CONTAINS
       !! mesh
       !! LA
       !! operation = 'insert'/'add'
-      USE my_util
+      USE my_util, ONLY: error_petsc, local_error_petsc
       IMPLICIT NONE
       TYPE(petsc_csr_LA), INTENT(IN) :: LA
       TYPE(mesh_type), INTENT(IN) :: mesh
@@ -19,7 +19,7 @@ CONTAINS
       INTEGER :: i, ierr
       Vec     :: xx
       IF (mesh%np.NE.SIZE(uu)) THEN
-         CALL error_Petsc('Bug: array_to_petsc_vec, mesh%np>SIZE(uu)')
+         CALL local_error_petsc('Bug: array_to_petsc_vec, mesh%np>SIZE(uu)')
       END IF
       DO i = 1, mesh%np
          idxm(i) = LA%loc_to_glob(1, i) - 1

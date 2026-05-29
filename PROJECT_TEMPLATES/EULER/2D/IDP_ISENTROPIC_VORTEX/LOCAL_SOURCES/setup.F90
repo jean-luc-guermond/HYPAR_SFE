@@ -6,7 +6,7 @@ MODULE setup
 
    PRIVATE
    REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
-   REAL(KIND=8), PARAMETER :: r0=1.d0, x0=0d0, y0=0.0d0
+   REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
    REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
    REAL(KIND=8), PARAMETER :: beta=beta0/(2*pi), chi=((gamma-1)/(2*gamma))*beta**2
 

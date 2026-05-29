@@ -9,6 +9,9 @@ mesh_2
 T
 === Do we read metis partition? (true/false) ===
 F
+================================
+!           MESH SETUP
+================================
 === Type of finite element ===
 2
 === Number of refinement steps ===

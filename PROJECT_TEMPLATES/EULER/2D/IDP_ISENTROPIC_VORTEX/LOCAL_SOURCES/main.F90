@@ -79,7 +79,7 @@ CONTAINS
         CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
         CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
         norm = error/norm_anal
-        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal, norm_anal
+        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
       ELSE
         CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
         IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
