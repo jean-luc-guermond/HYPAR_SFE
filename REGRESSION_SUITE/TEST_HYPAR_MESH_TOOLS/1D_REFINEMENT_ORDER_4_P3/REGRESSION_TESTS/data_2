@@ -27,7 +27,7 @@ F
 === How many pieces of periodic boundary? ===
 1
 === Indices of periodic boundaries and corresponding vectors ===
-0 0 0.d0
+1 2 50.d0
 ======================================
 !           SETUP PARAMETERS
 ======================================

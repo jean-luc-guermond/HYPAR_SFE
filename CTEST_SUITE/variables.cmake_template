@@ -1,6 +1,19 @@
 #==== Mandatory for any application ====
 set(HYPAR_SFE_DIR "path_to_hypar/HYPAR_SFE")
-set(debug_bounds "-Wall -fimplicit-none -fbounds-check -finit-real=snan")
+set(debug_bounds "-Wall \
+-fbounds-check \
+-fimplicit-none \
+-finit-real=snan \
+-finit-integer=-999999 \
+-O0")
+#-Wextra \
+#-Wconversion \
+#-fcheck=all \
+#-ffpe-trap=invalid,zero,overflow \
+#-fbacktrace \
+#-fno-omit-frame-pointer \
+#-g3 \
+
 set(release_bounds "-O3")
 ###set(FE_dim "2")  <=== do not use in CTEST, only for app
 
@@ -15,3 +28,5 @@ set(RUN_POST_PROC "")
 set(PARALLEL_TEST_LEVEL 0) 
 # How many procs tested at most?
 set(MAX_PROC_PARALLEL_TEST 16)
+# Do we use static library? (STRONGLY UNRECOMMENDED FOR CTEST AS THERE CAN BE HUNDREDS OF HEAVY EXECUTABLES)
+set(static_library OFF)

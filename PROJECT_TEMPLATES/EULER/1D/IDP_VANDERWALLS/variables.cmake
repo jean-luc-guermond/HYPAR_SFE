@@ -1,14 +1,14 @@
-# Variables to set for Jean-Zay
-#set(ENV{CC} "icc")
-#set(ENV{CXX} "icpc")
-#set(ENV{FC} "ifort")
-#set(SFEMaNS_DIR "/gpfswork/rech/nor/commun/SFEMaNS_v5.4/SFEMaNS")
-#set(debug_bounds "$ENV(FFLAGS) -O2 -g -traceback -heap-arrays")
-#set(release_bounds "-O3")
+# Variables for Whistler
+#==== Mandatory for any application ====
+set(HYPAR_SFE_DIR "/home/botez/HYPAR_SFE")
+set(debug_bounds "-Wall -Wextra -fimplicit-none -finit-real=snan -finit-integer=-999999 -fbounds-check")
+#set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
+set(release_bounds "-O3")
+set(FE_dim "1") #1 or 2
+set(static_library ON)
 
-# Variables to set for Whistler
-set(HYPAR_SFE_DIR "/home/victor.botez/HYPAR_SFE")
-set(ADDITIONAL_LINKS "-lmetis -lz -L /usr/lib/x86_64-linux-gnu/hdf5/serial")
-set(debug_bounds "-Wall -fimplicit-none -fbounds-check")
-set(release_bounds "-O4")
-set(native_bounds "-march=native -mtune=native -Ofast")
+#==== Specific to CTEST ====
+set(RUN_PRE_PROC "mpirun")
+set(PROC_CALL "-np ")
+set(RUN_POST_PROC "")
+set(PARALLEL_TEST_LEVEL 0)

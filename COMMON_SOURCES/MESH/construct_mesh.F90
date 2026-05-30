@@ -52,6 +52,7 @@ CONTAINS
       SELECT CASE(k_dim)
       CASE(2)
          !===load and re order mesh
+         IF (rank == 0) WRITE(*, *) 'Load mesh_glob'
          CALL load_dg_mesh_free_format(mesh_data_info%directory, mesh_data_info%file_name, &
                list_dom, list_inter, mesh_glob, mesh_data_info%if_mesh_formatted)
          CALL mesh_glob%info%read(opt_name)
@@ -73,10 +74,12 @@ CONTAINS
             END IF
          END IF
 
+         IF (rank == 0) WRITE(*, *) 'Extract mesh_loc'
          CALL extract_mesh(communicator, mesh_glob, part, list_dom, mesh)
          CALL free_mesh(mesh_glob)
          DEALLOCATE(part)
          !===mesh refinements
+         IF (rank == 0) WRITE(*, *) 'Refining mesh_P1'
          DO n = 1, mesh%info%nb_refinement
             !===Create refined mesh
             CALL refinement_iso_grid_distributed(mesh, mesh%info%refine_order)
@@ -92,6 +95,7 @@ CONTAINS
          !      END IF
 
          !===create finite elements polynome on mesh
+         IF (rank == 0) WRITE(*, *) 'Generating mesh_Pk'
          CALL mesh_r%info%copy(mesh%info)
          CALL create_iso_grid_distributed(mesh, mesh_r, mesh%info%type_fe)
          CALL free_mesh(mesh)
@@ -99,6 +103,7 @@ CONTAINS
          CALL free_mesh(mesh_r)
 
          !===(JLG) Added March 21 2026 
+         IF (rank == 0) WRITE(*, *) 'Creating surface elements'
          ALLOCATE(mesh%iis(SIZE(mesh%jjs,1),mesh%mes))
          CALL dirichlet_nodes(mesh%jjs, SPREAD(1,1,mesh%mes), SPREAD(.TRUE.,1,1), mesh%j_s)
          CALL surf_nodes_i(mesh%jjs, mesh%j_s,  mesh%iis)
@@ -108,6 +113,7 @@ CONTAINS
          mesh%rank = rank  !=== petsc convention
          mesh%edge_stab = .false.
          !===gauss points on mesh
+         IF (rank == 0) WRITE(*, *) 'Building Gauss points'
          CALL create_gauss_points_2d(mesh, mesh%info%type_fe)
 
       CASE(1)
@@ -152,6 +158,7 @@ CONTAINS
       ALLOCATE(mesh%per%list_periodic(SIZE(mesh%info%list_periodic,1),SIZE(mesh%info%list_periodic,2)))
       ALLOCATE(mesh%per%vect_e(SIZE(mesh%info%vect_e,1),SIZE(mesh%info%vect_e,2)))
       IF (mesh%per%nb_bords/=0) THEN 
+         IF (rank == 0) WRITE(*, *) 'Generating periodic structures'
          mesh%per%list_periodic = mesh%info%list_periodic
          mesh%per%vect_e = mesh%info%vect_e
          CALL prep_periodic_scal(mesh%per,mesh)
@@ -174,7 +181,6 @@ CONTAINS
          !WRITE(*, *) 'no mesh on this proc'
          RETURN
       END IF
-
       ALLOCATE(e(SIZE(periodic%vect_e, 1)))
 
       IF (periodic%nb_bords .GT. 20) THEN

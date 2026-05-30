@@ -36,7 +36,7 @@ PROGRAM test_lagrange
     dx = 1.d0/(N_max-1)
 
     ALLOCATE(fx(N), tab_xj(N_max))
-    tab_xj = [(dx*i, i=0,N_max-1)]
+    tab_xj = [(dx*REAL(i), i=0,N_max-1)]
 
     test = .TRUE.
     out_do_2: DO m=1, n
@@ -44,8 +44,8 @@ PROGRAM test_lagrange
         DO j=1, N_max
             fx(j) = D_Legendre(tab_xj(j), m)
             !=== estimate derivative with basic function
-            result = (Legendre(tab_xj(j)+epsilon_loose, m) - Legendre(tab_xj(j)-epsilon_loose, m)) / (2*epsilon_loose)
-            err_relat = ABS(fx(j)-result)/ABS(result)
+            result = (Legendre(tab_xj(j)+epsilon_loose, m) - Legendre(tab_xj(j)-epsilon_loose, m)) / (2.d0*epsilon_loose)
+            err_relat = ABS(fx(j)-result)/ABS(result+1.d-15)
             IF (err_relat>epsilon_loose) THEN
                 test = .FALSE.
                 EXIT out_do_2

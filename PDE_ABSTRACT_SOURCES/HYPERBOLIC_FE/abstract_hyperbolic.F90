@@ -206,7 +206,7 @@ CONTAINS
 
    SUBROUTINE one_step_ERK(this,stage,urk,flux_rk_at_dof)
       USE space_dim
-      USE my_util, ONLY : error_petsc
+      USE my_util, ONLY : error_petsc, to_str
       USE cell_limiting_engine_module
       USE sub_plot
       USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
@@ -232,12 +232,12 @@ CONTAINS
 
          !===compute dijL and dt
          CALL this%compute_dij(flux_array,un_temp, bounds)
-         ! IF (stage==2) THEN !< ==Compute time step
+         IF (stage==2) THEN !< ==Compute time step
             CALL this%compute_dt
-            !IF (this%time+this%dt.GE.this%final_time) THEN
+            ! IF (this%time+this%dt.GE.this%final_time) THEN
             !   this%dt = this%final_time-this%time
-            !END IF
-         ! END IF
+            ! END IF
+         END IF
          time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
 
          DO comp = 1, this%syst_dim
@@ -264,9 +264,10 @@ CONTAINS
             CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
             !=== un+1 <-- x3
             CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-
-            CALL this%impose_bc(urk(:,:,stage), this%mesh, time_stage)
          END DO
+
+         CALL this%impose_bc(urk(:,:,stage), this%mesh, time_stage)
+
       CASE('high')
          !===flux_array: flux at l=stage
          DO comp=1, this%syst_dim
@@ -285,9 +286,9 @@ CONTAINS
          !=== dt
          IF (stage==2) THEN !< ==Compute time step only once per ERK step
             CALL this%compute_dt
-            !IF (this%time+this%dt.GE.this%final_time) THEN
+            ! IF (this%time+this%dt.GE.this%final_time) THEN
             !   this%dt = this%final_time-this%time
-            !END IF
+            ! END IF
          END IF
          time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
 
@@ -437,7 +438,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
 
       mesh => this%mesh
-      LA => this%LA
+      LA   => this%LA
 
       !===Compute dijL
       CALL MatZeroEntries(this%matrices%dijL, ierr)

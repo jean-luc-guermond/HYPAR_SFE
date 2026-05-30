@@ -49,17 +49,36 @@ else()
 endif()
 
 foreach(dim IN LISTS DIMS)
-    set(MY_HYPAR_SFE_LIB hypar_lib_F_${dim}D)
+
+    set(MY_HYPAR_SFE_LIB_OBJECT hypar_lib_F_${dim}D_obj)
+    set(MY_HYPAR_SFE_LIB_STATIC hypar_lib_F_${dim}D_static)
+    set(MY_HYPAR_SFE_LIB_DYNAMIC hypar_lib_F_${dim}D_dynamic)
+
     set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${dim}D/mod)
 
-    add_library(${MY_HYPAR_SFE_LIB} SHARED ${hypar_SFE_sources})
-    target_link_libraries(${MY_HYPAR_SFE_LIB} PUBLIC
-        PkgConfig::PETSC PkgConfig::FFTW
-        ${MPI_Fortran_LIBRARIES}
-        ${ZLIB_LIBRARIES}
-        ${ADDITIONAL_LINKS})
-    target_compile_definitions(${MY_HYPAR_SFE_LIB} PUBLIC K_DIM_FE=${dim})
     message(STATUS "HYPAR_SFE_FE_${dim} sources: ${MY_HYPAR_SFE_MODULE_SOURCES}")
-    set_target_properties(${MY_HYPAR_SFE_LIB} PROPERTIES
-        Fortran_MODULE_DIRECTORY ${MY_HYPAR_SFE_MODULE_SOURCES})
+
+    # Define the three libraries
+    set(LIBRARIES "obj" "static" "dynamic")
+    add_library(${MY_HYPAR_SFE_LIB_OBJECT} OBJECT ${hypar_SFE_sources})
+    add_library(${MY_HYPAR_SFE_LIB_STATIC} STATIC $<TARGET_OBJECTS:${MY_HYPAR_SFE_LIB_OBJECT}>)
+    add_library(${MY_HYPAR_SFE_LIB_DYNAMIC} SHARED $<TARGET_OBJECTS:${MY_HYPAR_SFE_LIB_OBJECT}>)
+
+    # Configuring libraries
+    foreach(type_lib IN LISTS LIBRARIES)
+        set(CUR_HYPAR_SFE_LIB hypar_lib_F_${dim}D_${type_lib})
+
+        target_compile_definitions(${CUR_HYPAR_SFE_LIB} PUBLIC K_DIM_FE=${dim})
+        
+        set_target_properties(${CUR_HYPAR_SFE_LIB} PROPERTIES
+            Fortran_MODULE_DIRECTORY ${MY_HYPAR_SFE_MODULE_SOURCES}
+            POSITION_INDEPENDENT_CODE ON)
+        
+        target_link_libraries(${CUR_HYPAR_SFE_LIB} PUBLIC
+            PkgConfig::PETSC PkgConfig::FFTW
+            ${MPI_Fortran_LIBRARIES}
+            ${ZLIB_LIBRARIES}
+            ${ADDITIONAL_LINKS})
+    endforeach()
+
 endforeach()

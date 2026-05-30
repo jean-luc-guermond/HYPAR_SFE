@@ -182,7 +182,7 @@ CONTAINS
         CALL solver(this%my_ksp, this%rhs, this%vec, reinit = .FALSE., verbose = this%my_par%verbose)
 
         !=== Extract from Petsc vector to Fortran array
-        CALL extract_through_ghost(this%vec, this%vec_ghost, 1, 1, this%LA, u_out, 'insert', opt_assemble=.FALSE.)
+        CALL extract_through_ghost(this%vec, 1, 1, this%LA, u_out, opt_assemble=.FALSE.)
 
     END SUBROUTINE solve_laplace
 
