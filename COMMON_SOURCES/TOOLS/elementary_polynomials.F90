@@ -99,7 +99,6 @@ CONTAINS
         REAL(KIND=8), INTENT(IN) :: x
         INTEGER,      INTENT(IN) :: m
 
-        REAL(KIND=8), PARAMETER  :: eps=1.d-12
         REAL(KIND=8)             :: f_k1, f_k2, f_p_k1, f_p_k2, fx, term_k2, term_k1
         INTEGER :: k
 
@@ -144,9 +143,9 @@ CONTAINS
         IMPLICIT NONE
         INTEGER,                                 INTENT(IN) :: k
         REAL(KIND=8), DIMENSION(:), ALLOCATABLE,INTENT(OUT) :: zeros
-        REAL(KIND=8) :: delta, x0, x1, xmid, val0, val1, valmid, dval0, dval1
+        REAL(KIND=8) :: delta, x0, x1, xmid, val0, val1
         REAL(KIND=8) :: pi=ACOS(-1.d0), tol=1.d-13
-        INTEGER :: i, l, it
+        INTEGER      :: i, l
 
 
         ALLOCATE(zeros(k))

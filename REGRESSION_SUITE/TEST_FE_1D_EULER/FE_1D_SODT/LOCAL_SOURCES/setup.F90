@@ -27,7 +27,7 @@ CONTAINS
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      vv = rho * e * (gamma - 1)
+      vv = rho * e * (gamma - 1.d0)
    END FUNCTION pressure
 
 !==========================================================================
@@ -84,6 +84,10 @@ CONTAINS
             END IF
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      xi = this%gamma 
+      !===dummy to avoid warning in compilation===!
    END FUNCTION rho_anal_sodt
 
    FUNCTION press_anal_sodt(this, time, rr) RESULT(vv)
@@ -115,6 +119,10 @@ CONTAINS
             END IF
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      xi = this%gamma 
+      !===dummy to avoid warning in compilation===!
    END FUNCTION press_anal_sodt
 
    FUNCTION vit_anal_sodt(this, comp, time, rr) RESULT(vv)
@@ -147,6 +155,10 @@ CONTAINS
             END IF
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      xi = this%gamma; n = comp
+      !===dummy to avoid warning in compilation===!
    END FUNCTION vit_anal_sodt
 
 END MODULE setup

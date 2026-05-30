@@ -27,13 +27,12 @@ CONTAINS
       USE st_matrix, ONLY: create_my_ghost
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
-      TYPE(mesh_type), INTENT(IN) :: mesh
+      TYPE(mesh_type),    INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      INTEGER :: k, ierr
+      INTEGER                        :: k, ierr
       INTEGER, DIMENSION(:), POINTER :: ifrom
-      real(kind=8) :: norm
-      MPI_Comm       :: communicator
-      IS, DIMENSION(1) :: is
+      MPI_Comm                       :: communicator
+      IS,      DIMENSION(1)          :: is
 
       !===Init global vectors
       IF (.NOT. ALLOCATED(this%cij)) THEN

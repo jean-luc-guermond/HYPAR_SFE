@@ -39,7 +39,7 @@ F
 === Maximum number of iterations ===
 1000000
 === Do we compare with analytical reference? (true/false) ===
-F
+T
 ========================================
 !           Euler 1 PARAMETERS
 ========================================

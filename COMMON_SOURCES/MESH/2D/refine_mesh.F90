@@ -29,6 +29,10 @@ CONTAINS
       INTEGER :: interface
       LOGICAL :: iso
 
+      !=== dummy to avoid warnings (TODO => add curved interfaces)
+      interface = -1
+      !===
+
       CALL mesh%info%copy(mesh_p1%info)
 
       nw = SIZE(mesh_p1%jj, 1)   !===nodes in each volume element (3 in 2D)
@@ -496,22 +500,25 @@ CONTAINS
       USE def_type_mesh
       USE my_util, ONLY: error_petsc, to_str, local_error_petsc
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_pk, mesh
-      INTEGER :: np, me, mes, nw, nws, kd, n, m, k, n_dof, dom_np, e_g, mextra
-      INTEGER :: n1, n2, ms, neigh, k_neigh, n_kneigh1, n_kneigh2, swap, n_loc
-      INTEGER :: i, p_c, m_new, e_k, p_j, ne, nc
-      INTEGER, DIMENSION(3) :: edges_g, edges_l, p_es, sub_cell, nodes_new
-      INTEGER, DIMENSION(4) :: neigh_coarse_triangles
+      TYPE(mesh_type)                        :: mesh_pk, mesh
+      INTEGER, DIMENSION(:,:),   ALLOCATABLE :: jj_HL, jjs_HL
+      INTEGER :: ms, i, p_c, m_new, ne, nc, me, mes, nw, nws, kd, n, m, k, mextra
       INTEGER, DIMENSION(2) :: n_ks, pts_jjs
-      INTEGER :: proc, nb_proc, p, cell_g, cell_l, nb_subcell, nb_subcells, nc_neigh, edge_neigh, cur_local_edge, refine_order
-      INTEGER :: m1, m2, interface, m_center, tab1, tab2, mes_int, n_loc_1, n_loc_2, offset, m_neigh, idx
-      INTEGER :: sub_edge, old_e_g, idx1, idx2, cur_local_edge_offset, new_mes
+      INTEGER, DIMENSION(3) :: edges_g, p_es, nodes_new
+      INTEGER, DIMENSION(4) :: neigh_coarse_triangles
+      INTEGER :: proc, nb_proc, p, cell_g, cell_l, nb_subcell, nb_subcells, nc_neigh, cur_local_edge, refine_order
+      INTEGER :: m1, interface, m_center, mes_int, n_loc_1, n_loc_2, offset, idx
+      INTEGER :: sub_edge, old_e_g, idx1, idx2, cur_local_edge_offset
       INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: outer_edges
-      INTEGER, DIMENSION(:,:), ALLOCATABLE :: inner_edges, inner_edges_to_subcell, outer_edges_coarse
+      INTEGER, DIMENSION(:,:),   ALLOCATABLE :: inner_edges, inner_edges_to_subcell, outer_edges_coarse
       INTEGER :: nc_complementary, m_new_complementary, n_complementary, idx_m_new_complementary
-      INTEGER, DIMENSION(:), ALLOCATABLE :: idx_n_loc_1, idx_n_loc_2, tab_subcell_order, tab_subcells_order
-      LOGICAL :: iso, is_new_edge, is_associated, is_inner_edge
-      INTEGER, DIMENSION(:,:), ALLOCATABLE :: jj_HL, jjs_HL
+      INTEGER, DIMENSION(:),     ALLOCATABLE :: idx_n_loc_1, idx_n_loc_2, tab_subcell_order, tab_subcells_order
+      LOGICAL :: iso, is_inner_edge
+
+      !=== dummy to avoid warning (TODO => add curved boundary)
+      iso = .FALSE.; interface = -1
+      IF (iso) write(*,*) sgn(1.d0)
+      !=== end dummy
 
       refine_order = SIZE(mesh_pk%jjs, 1)-1
 
@@ -555,7 +562,7 @@ CONTAINS
 
       CASE DEFAULT
          CALL error_petsc("BUG in refinement_iso_grid_distributed => order = "//to_str(refine_order)//&
-         " does not have its subcell order defined")
+         &" does not have its subcell order defined")
       END SELECT
 
       CALL build_outer_inner_edges(jj_HL, jjs_HL)
@@ -1192,16 +1199,22 @@ edge_loop:  DO n=1, ne !loop on edges of each subcell
          END DO
 
          IF (num_edge /= 3*(refine_order-1)*refine_order/2) THEN
-            CALL error_petsc("BUG in refine_iso/build_edges => did not find all inner edges: found a total of "//&
-            to_str(num_edge)//" while there should be "//to_str(3*(refine_order-1)*refine_order/2)//". List of edges &
-             that were found pts1 = "//to_str(inner_edges(:,1))//", pts2 = "//to_str(inner_edges(:,2)))
+            CALL error_petsc(&
+            &"BUG in refine_iso/build_edges => did not find all inner edges: found a total of "//&
+            &to_str(num_edge)//" while there should be "//to_str(3*(refine_order-1)*refine_order/2)//". List of edges &
+            &that were found pts1 = "//to_str(inner_edges(:,1))//", pts2 = "//to_str(inner_edges(:,2)))
          END IF
 
          IF (MINVAL(inner_edges_to_subcell) == -1) THEN
-            CALL error_petsc("BUG in refine_iso/build_edges => all inner edges were not correctly attributed their two subcells."&
-            " Subcell 1 = "//to_str(inner_edges_to_subcell(:,1))//", Subcell 2 = "//to_str(inner_edges_to_subcell(:,2)))
+            CALL error_petsc(&
+            &"BUG in refine_iso/build_edges => all inner edges were not correctly attributed their two subcells.&
+            & Subcell 1 = "//to_str(inner_edges_to_subcell(:,1))//", Subcell 2 = "//to_str(inner_edges_to_subcell(:,2)))
          END IF
-
+         
+      !=== dummy to avoid warning unused variable
+         RETURN
+         i = MAXVAL(JJs_HL)
+      !=== dummy to avoid warning unused variable
       END SUBROUTINE build_outer_inner_edges
 
       SUBROUTINE get_edge(n, nc, n_ks, n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
@@ -1223,7 +1236,7 @@ edge_loop:  DO n=1, ne !loop on edges of each subcell
          n_loc_2 = jj_HL(nc, n_ks(2))
          IF (n_loc_1 > n_loc_2) THEN
             CALL error_petsc("BUG in refinement_iso_grid => your jj_HL might not have &
-            increasing numbering of local nodes: "//to_str(jj_HL(nc,:)))
+            &increasing numbering of local nodes: "//to_str(jj_HL(nc,:)))
          END IF
 
          CALL find_edge(n_loc_1, n_loc_2, idx1, idx2, is_inner_edge)
@@ -1245,8 +1258,9 @@ edge_loop:  DO n=1, ne !loop on edges of each subcell
          INTEGER :: n1, n2
 
          IF (n_loc_1 >= n_loc_2) THEN
-            CALL error_petsc("BUG in refinement_iso_grid/find_edge => should have n_loc_1 < n_loc_2, values found are: "&
-            //to_str(n_loc_1)//', '//to_str(n_loc_2))
+            CALL error_petsc(&
+            &"BUG in refinement_iso_grid/find_edge => should have n_loc_1 < n_loc_2, values found are: "&
+            &//to_str(n_loc_1)//', '//to_str(n_loc_2))
          END IF
 
          !Check inside inner_edges first
@@ -1271,9 +1285,10 @@ edge_loop:  DO n=1, ne !loop on edges of each subcell
             END DO
          END DO
 
-         CALL error_petsc("BUG in refinement_iso_grid/find_edge => &
-         did not find an edge for (n_loc_1,n_loc_2)=("&
-         //to_str(n_loc_1)//','//to_str(n_loc_2)//')')
+         CALL error_petsc(&
+         &"BUG in refinement_iso_grid/find_edge => &
+         &did not find an edge for (n_loc_1,n_loc_2)=("&
+         &//to_str(n_loc_1)//','//to_str(n_loc_2)//')')
 
       END SUBROUTINE find_edge
 

@@ -37,10 +37,9 @@ CONTAINS
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
+    CHARACTER(100) :: name
+    INTEGER        :: rank
     PetscErrorCode :: ierr
-    REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
-    CHARACTER(100) :: name = 'Euler 1'
-    INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
 

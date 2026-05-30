@@ -18,7 +18,7 @@ CONTAINS
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      vv = rho * e * (gamma - 1)
+      vv = rho * e * (gamma - 1.d0)
    END FUNCTION pressure
 
 !==========================================================================
@@ -44,7 +44,7 @@ CONTAINS
 
    FUNCTION rho_anal_smooth(this, time, rr) RESULT(vv)
       IMPLICIT NONE
-      CLASS(euler_bc_type), INTENT(INOUT) :: this
+      CLASS(euler_bc_type),         INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
@@ -57,6 +57,10 @@ CONTAINS
             vv(n) = 1 + (2 / (x1 - x0))**6 * (rr(1, n) - time - x0)**3 * (x1 - rr(1, n) + time)**3
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma 
+      !===dummy to avoid warning in compilation===!
    END FUNCTION rho_anal_smooth
 
 END MODULE setup

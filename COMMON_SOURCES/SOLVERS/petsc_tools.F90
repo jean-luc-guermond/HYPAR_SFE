@@ -64,8 +64,8 @@ CONTAINS
 
 
       CASE DEFAULT
-         CALL error_petsc('Wrong option operation '//operation//' in array_to_petsc_vec ==> &
-         should be: add/insert/min/max')
+         CALL error_petsc(&
+         &'Wrong option operation '//operation//' in array_to_petsc_vec ==> should be: add/insert/min/max')
       END SELECT
 
       CALL VecAssemblyBegin(xx, ierr)

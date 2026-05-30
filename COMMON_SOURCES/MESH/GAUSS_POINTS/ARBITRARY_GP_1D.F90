@@ -27,7 +27,6 @@ CONTAINS
         REAL(KIND=8), DIMENSION(   n_ws, l_Gs), INTENT(OUT) :: w
         REAL(KIND=8), DIMENSION(1, n_ws, l_Gs), INTENT(OUT) :: d
         REAL(KIND=8), DIMENSION(l_Gs),          INTENT(OUT) :: p
-        REAL(KIND=8), DIMENSION(l_Gs) :: xx
         REAL(KIND=8), DIMENSION(n_ws) :: tab_nodes
         INTEGER :: i, j, n
         REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: legendre_pts

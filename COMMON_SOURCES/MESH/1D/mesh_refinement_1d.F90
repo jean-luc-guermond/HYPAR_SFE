@@ -11,12 +11,10 @@ CONTAINS
       USE def_type_mesh
       USE my_util, ONLY: to_str, local_error_petsc
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_Pk, mesh_refined
-      REAL(KIND=8) :: dx, x0
-      INTEGER :: n, m, i, n_shift, i_shift, n_loc, other_proc, other_m_loc, p, k, jj_shift, dom_np_diff, np_diff
-      INTEGER :: refinement_order, old_me, old_cell_g, old_cell_l, mextra, new_cell_l
+      TYPE(mesh_type)       :: mesh_Pk, mesh_refined
+      INTEGER :: n, m, i, p, k, refinement_order, old_me, old_cell_g, old_cell_l, mextra, new_cell_l
       INTEGER, DIMENSION(2) :: num_jj
-      LOGICAL :: test
+      LOGICAL               :: test
 
       refinement_order = SIZE(mesh_Pk%jj, 1) - 1
       CALL copy_mesh(mesh_Pk, mesh_refined)
@@ -165,14 +163,14 @@ CONTAINS
       USE my_util, ONLY: local_error_petsc, to_str
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
-      INTEGER :: m, idx
-      INTEGER, DIMENSION(:), ALLOCATABLE :: i
+      INTEGER :: m
 
       IF (ASSOCIATED(mesh%jce)) NULLIFY(mesh%jce)
       ALLOCATE(mesh%jce(1, mesh%medge))
       
-      IF (mesh%me /= mesh%medge) CALL local_error_petsc('BUG in 1D: me(='//to_str(mesh%me)//') /= &
-      medge(='//to_str(mesh%medge)//')??')
+      IF (mesh%me /= mesh%medge) CALL local_error_petsc(&
+      &'BUG in 1D: me(='//to_str(mesh%me)//') /= &
+      &medge(='//to_str(mesh%medge)//')??')
       
       mesh%jce(1, :) = [(m, m=1, mesh%me)] + mesh%disedge(mesh%proc) - 1
 

@@ -8,13 +8,11 @@ MODULE start_setup_MODULE
 
     TYPE argument_setup_data_type
         CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
-        CHARACTER(LEN=rec_length) :: tol_regression     = '=== Tolerance for regression tests ==='
     END TYPE argument_setup_data_type
 
     TYPE setup_data_type
         LOGICAL        :: if_regression_test  = .FALSE.
         LOGICAL        :: if_analytical_ref   = .FALSE.
-        REAL(KIND=8)   :: tol_regression      = 1.d-9
         INTEGER        :: syst_size
     CONTAINS
         PROCEDURE, PUBLIC :: read => read_setup_data
@@ -39,10 +37,9 @@ CONTAINS
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
+    CHARACTER(100) :: name
+    INTEGER        :: rank
     PetscErrorCode :: ierr
-    REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
-    CHARACTER(100) :: name = 'Euler 1'
-    INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
 
@@ -98,9 +95,7 @@ CONTAINS
     !===Regression test
     CALL getarg(1, string)
     IF (trim(adjustl(string))=='regression') THEN
-      this%if_regression_test = .true.
-      !===Tolerance
-      CALL read_data(argument_data%tol_regression, this%tol_regression, opt_add=.FALSE.)
+       this%if_regression_test = .true.
     ELSE
        this%if_regression_test = .false.
     END IF

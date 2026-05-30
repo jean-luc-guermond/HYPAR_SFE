@@ -12,15 +12,10 @@ PROGRAM test_matrix
   IMPLICIT NONE
 
   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhs, exact_solution, un_out
-  REAL(KIND=8) :: error, norm, norm_anal, tps
+  REAL(KIND=8) :: tps
   INTEGER      :: tot_np
   CHARACTER(5) :: char
-! for regression test
-  CHARACTER(100) :: string, name
-  INTEGER :: num_test
-  REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
 
-  MPI_Comm       :: communicator
   PetscErrorCode :: ierr
 
 
@@ -82,9 +77,9 @@ CONTAINS
     USE post_processing_debug_MODULE
     IMPLICIT NONE
 
-    REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
-    REAL(KIND = 8), DIMENSION(setup_data%syst_size) :: tab_norm
-    INTEGER :: n, ierr
+    REAL(KIND=8) :: error, norm, norm_anal
+    REAL(KIND=8), DIMENSION(setup_data%syst_size) :: tab_norm
+    INTEGER      :: n, num_test
 
 !==== Put final processing stuff here ====!
     DO n=1, setup_data%syst_size
@@ -92,10 +87,11 @@ CONTAINS
         CALL ns_l1_PAR(mesh, un_out(:)-exact_solution, error, Laplace%communicator)
         CALL ns_l1_PAR(mesh, exact_solution, norm_anal, Laplace%communicator)
         norm = error/norm_anal
-        IF(Laplace%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+        IF(Laplace%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+        ! IF(Laplace%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
       ELSE
         CALL ns_l1_PAR(mesh, un_out(:), norm, Laplace%communicator)
-        IF(Laplace%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
+        IF(Laplace%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
       END IF
     END DO
 

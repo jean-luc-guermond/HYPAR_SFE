@@ -244,9 +244,10 @@ CONTAINS
             IF (found_interface_pair) EXIT
          END DO
          IF (.NOT.found_interface_pair) THEN
-            CALL local_error_Petsc('BUG in find_interface_pair (part_mesh_M_T_H_phi) &
-                  ==> the declared interface did not find the pair close to (x,y)=('//&
-            to_str(mesh%rr(1,i_loc(ns)))//','//to_str(mesh%rr(2,i_loc(ns)))//')')
+            CALL local_error_Petsc(&
+            &'BUG in find_interface_pair (part_mesh_M_T_H_phi) &
+            &==> the declared interface did not find the pair close to (x,y)=('//&
+            &to_str(mesh%rr(1,i_loc(ns)))//','//to_str(mesh%rr(2,i_loc(ns)))//')')
          END IF
 
       END SUBROUTINE find_interface_pair
@@ -363,9 +364,10 @@ CONTAINS
             END IF
          END DO
          IF (.NOT.found_periodic_pair) THEN
-            CALL local_error_Petsc('BUG in find_periodic_pair (part_mesh_M_T_H_phi), msop not found for pbc &
-            '//to_str(mesh%sides(ms))//&
-            "==> Either required periodicity for given mesh or vect_e, is wrong.")
+            CALL local_error_Petsc(&
+            &'BUG in find_periodic_pair (part_mesh_M_T_H_phi), msop not found for pbc &
+            &'//to_str(mesh%sides(ms))//&
+            &"==> Either required periodicity for given mesh or vect_e, is wrong.")
          END IF
 
       END SUBROUTINE find_periodic_pair

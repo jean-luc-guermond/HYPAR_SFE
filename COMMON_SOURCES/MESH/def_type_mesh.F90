@@ -267,7 +267,7 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER,          INTENT(IN) :: val_glob
       CHARACTER(LEN=*), INTENT(IN) :: char_in
-      INTEGER, DIMENSION(:), ALLOCATABLE :: cumul_over_procs
+      INTEGER, DIMENSION(this%nb_proc+1) :: cumul_over_procs
       INTEGER :: p
 
       SELECT CASE(char_in)
@@ -278,8 +278,9 @@ CONTAINS
       CASE('medge')
          cumul_over_procs = this%disedge
       CASE DEFAULT
-         CALL error_petsc("BUG in get_proc => wrong char_in "//char_in//".&
-         Should be in 'np; me; medge'")
+         CALL error_petsc(&
+         &"BUG in get_proc => wrong char_in "//char_in//".&
+         &Should be in 'np; me; medge'")
       END SELECT
 
       DO p = 1, this%nb_proc

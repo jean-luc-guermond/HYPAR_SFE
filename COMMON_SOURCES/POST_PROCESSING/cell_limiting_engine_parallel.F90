@@ -307,7 +307,7 @@ CONTAINS
       REAL(KIND=8), DIMENSION(SIZE(xx_out))    :: xx_inter
       REAL(KIND=8), DIMENSION(SIZE(this%jj,1)) :: v_loc
       INTEGER, DIMENSION(SIZE(this%jj,1))      :: idxm
-      INTEGER :: m, n, i, nw, me, ierr
+      INTEGER :: m, nw, me, ierr
       nw = SIZE(this%jj,1)
       me = SIZE(this%jj,2)
       xx_inter = 0.d0
@@ -343,7 +343,6 @@ CONTAINS
       REAL(KIND=8), DIMENSION(SIZE(un))      :: alpha, denom
       INTEGER, DIMENSION(SIZE(un)) ::   beta 
       INTEGER      :: i, j, m, me, nw, n, np
-      REAL(KIND=8) :: norm
 
       me = SIZE(jj,2)
       nw = SIZE(jj,1)

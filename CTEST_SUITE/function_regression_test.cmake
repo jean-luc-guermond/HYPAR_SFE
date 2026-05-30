@@ -63,7 +63,6 @@ function(add_regression_test)
 
       # Link with hypar, petsc, fftw, mpi, zlib, and eventually additional libraries
       target_link_libraries(${exe} PRIVATE ${MY_HYPAR_SFE_LIB})
-    #   target_link_libraries(${exe} PRIVATE hypar_lib_F_${LOCAL_FE_DIM}_dynamic)
       target_include_directories(${exe} PRIVATE ${HYPAR_SFE_DIR}/LIBS/BUILD/${LOCAL_FE_DIM}/mod)
       LIST(APPEND MY_CMD ${exe})
     endforeach()
@@ -117,10 +116,6 @@ function(generate_random_procs_list OUT_VAR)
         # Safety check
         math(EXPR range_size "${LOCAL_MAX} - ${LOCAL_MIN} + 1")
         if(N GREATER range_size)
-            message(WARNING
-                "Requested ${N} unique numbers, but range [${LOCAL_MIN}, ${LOCAL_MAX}] "
-                "only contains ${range_size}. Returning full range instead.")
-
             set(result "")
             foreach(i RANGE ${LOCAL_MIN} ${LOCAL_MAX})
                 list(APPEND result ${i})

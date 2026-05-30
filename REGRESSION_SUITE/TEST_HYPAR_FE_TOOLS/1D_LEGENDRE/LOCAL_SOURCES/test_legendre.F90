@@ -3,8 +3,8 @@ PROGRAM test_lagrange
     IMPLICIT NONE
     REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: tab_xj
     REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: fx
-    REAL(KIND=8) :: dx, epsilon=1.d-9, epsilon_loose=1.d-5, numerator, denominator, result, err_relat, ap, am, a
-    INTEGER :: i, j, n, l, m, N_max
+    REAL(KIND=8) :: dx, epsilon=1.d-9, epsilon_loose=1.d-5, result, err_relat
+    INTEGER :: i, j, n, m, N_max
     LOGICAL :: test
 
     n = 50

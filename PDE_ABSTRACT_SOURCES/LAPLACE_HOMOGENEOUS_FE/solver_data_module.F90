@@ -92,8 +92,8 @@ CONTAINS
       my_par%rel_tol = this%rel_tol
       my_par%abs_tol = this%abs_tol
       my_par%verbose = this%verbose
-      my_par%solver  = this%solver
-      my_par%precond = this%precond
+      my_par%solver  = TRIM(ADJUSTL(this%solver))
+      my_par%precond = TRIM(ADJUSTL(this%precond))
 
    END SUBROUTINE set_my_par_solver
 

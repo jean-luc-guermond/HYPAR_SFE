@@ -23,6 +23,10 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
     REAL(KIND = 8) :: kmax=4*ACOS(-1.d0)
     uu = COS(kmax * rr(1, :) +  .7d0 )
+    !=== dummy to avoid warning
+    RETURN
+    uu = this%viscosity
+    !=== dummy
   END FUNCTION ex_sol
 
 END MODULE setup

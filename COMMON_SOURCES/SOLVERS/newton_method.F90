@@ -21,9 +21,9 @@ CONTAINS
             END FUNCTION dpsi_func
         END INTERFACE
         REAL(KIND=8), INTENT(INOUT) :: T
-        REAL(KIND=8)    :: norm_tol
-        REAL(KIND=8) :: v_tol, psi, dp, dv, Tin, psio, To
-        INTEGER :: iter, itermax, j
+        REAL(KIND=8) :: norm_tol
+        REAL(KIND=8) :: psi, dp, dv, Tin, To
+        INTEGER :: iter, itermax
         LOGICAL :: stop_on_neg
         INTEGER, INTENT(IN), OPTIONAL :: opt_iter_max
         LOGICAL, INTENT(IN), OPTIONAL :: opt_stop_on_neg
@@ -54,13 +54,15 @@ CONTAINS
             !write(*,*) 'in Newton iter, iter, psi, psi/tol', psi, ABS(psi)/norm_tol
             !=== DEBUGGING ===!
             IF (iter==itermax) THEN
-                CALL local_error_petsc('Max iter in Newton reached without convergence, &
-                T = '//to_str(T)//', Tin = '//to_str(Tin)//', abs(psi) = '//to_str(ABS(psi))//&
-                ' norm_tol = '//to_str(norm_tol))
+                CALL local_error_petsc(&
+                &'Max iter in Newton reached without convergence, &
+                &T = '//to_str(T)//', Tin = '//to_str(Tin)//', abs(psi) = '//to_str(ABS(psi))//&
+                &' norm_tol = '//to_str(norm_tol))
             END IF
             IF ((T<0) .AND. stop_on_neg) THEN
-                CALL local_error_petsc('Negative T in Newton, T = '//to_str(T)//', Tin = '//to_str(Tin)//&
-                ', abs(psi) = '//to_str(ABS(psi))//' norm_tol = '//to_str(norm_tol))
+                CALL local_error_petsc(&
+                &'Negative T in Newton, T = '//to_str(T)//', Tin = '//to_str(Tin)//&
+                &', abs(psi) = '//to_str(ABS(psi))//' norm_tol = '//to_str(norm_tol))
             END IF
         END DO
     END SUBROUTINE newton

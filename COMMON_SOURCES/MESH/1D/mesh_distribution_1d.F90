@@ -236,8 +236,9 @@ CONTAINS
       !=== DEBUGGING => not supposed to change loc_to_glob
 
       IF (mesh_loc%dom_np /= 0 .AND. mesh_loc%me == 0) THEN
-         CALL local_error_petsc("BUG in extract_mesh_1D: some proc has a single node, but no element. &
-         Think about adding more points or using less parallelization... fyi, domnp per proc = "//to_str(mesh_loc%domnp))
+         CALL local_error_petsc(&
+         &"BUG in extract_mesh_1D: some proc has a single node, but no element. &
+         &Think about adding more points or using less parallelization... fyi, domnp per proc = "//to_str(mesh_loc%domnp))
       END IF
 
    END SUBROUTINE extract_mesh_1d
@@ -246,11 +247,10 @@ CONTAINS
       USE def_type_mesh
       USE my_util, ONLY: error_petsc, to_str, local_error_petsc
       IMPLICIT NONE
-      TYPE(mesh_type) :: mesh_P1, mesh_Pk
-      REAL(KIND=8) :: dx, x0
-      INTEGER :: n, m, i, n_shift, i_shift, n_loc, other_proc, other_m_loc, p, k, jj_shift, dom_np_diff, np_diff
+      TYPE(mesh_type)     :: mesh_P1, mesh_Pk
       INTEGER, INTENT(IN) :: type_fe
-      integer :: ierr, other_n_loc, mextra, cell_l, cell_g
+      REAL(KIND=8) :: dx, x0
+      INTEGER      :: n, m, n_shift, i_shift, n_loc, p, cell_l, cell_g
 
       CALL copy_mesh(mesh_P1, mesh_Pk)
       ! IF (type_fe == 1) RETURN

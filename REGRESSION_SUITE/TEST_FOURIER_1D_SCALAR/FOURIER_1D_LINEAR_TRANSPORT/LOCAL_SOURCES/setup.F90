@@ -37,6 +37,10 @@ CONTAINS
     REAL(KIND = 8), INTENT(IN) :: ul, ur
     REAL(KIND = 8) :: vv
     vv = 1.d0
+    !=== dummy to avoid warning
+    RETURN
+    vv = ul; vv = ur
+    !=== dummy
   END FUNCTION lambda_max
 
   FUNCTION exact_sol_smooth_R(fourier_param,time) RESULT(vv)

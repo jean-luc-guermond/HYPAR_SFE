@@ -103,19 +103,15 @@ MODULE abstract_hyperbolic_module
 CONTAINS
 
    SUBROUTINE init_hyperbolic(this, communicator, name, mesh, LA, times, limiting_functionals)
-      USE space_dim, ONLY: k_dim
       USE my_util, ONLY : error_petsc
       IMPLICIT NONE
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
-      MPI_Comm, INTENT(IN) :: communicator
-      CHARACTER(100), INTENT(IN) :: name
-      TYPE(mesh_type), TARGET, INTENT(IN) :: mesh
+      MPI_Comm,                   INTENT(IN) :: communicator
+      CHARACTER(100),             INTENT(IN) :: name
+      TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
-      INTEGER :: ierr, n
       REAL(KIND = 8), DIMENSION(2) :: times
       TYPE(limiting_functionals_type), DIMENSION(:), TARGET :: limiting_functionals
-
-      this%syst_dim = k_dim + 2
 
       this%name = name
       this%mesh => mesh
@@ -206,7 +202,7 @@ CONTAINS
 
    SUBROUTINE one_step_ERK(this,stage,urk,flux_rk_at_dof)
       USE space_dim
-      USE my_util, ONLY : error_petsc, to_str
+      USE my_util, ONLY : error_petsc
       USE cell_limiting_engine_module
       USE sub_plot
       USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
@@ -219,7 +215,7 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim)         :: flux_array
       REAL(KIND = 8), DIMENSION(this%mesh%np,SIZE(this%limiting_functionals)) :: bounds
       INTEGER, INTENT(IN) :: stage
-      INTEGER :: comp, k, l, ierr, it, stage_prime, stage0
+      INTEGER :: comp, k, l, ierr, stage_prime, stage0
       REAL(KIND = 8) :: time_stage
 
       SELECT CASE(this%method)
@@ -397,16 +393,15 @@ CONTAINS
    SUBROUTINE compute_dt(this)
       IMPLICIT NONE
       CLASS(hyperbolic_type) :: this
-      REAL(KIND = 8), DIMENSION(this%mesh%dom_np) :: dijL_diag
-      REAL(KIND = 8) :: dt_min_loc, dt_min_glob
-      INTEGER :: ierr
+      REAL(KIND = 8)         :: dt_min_glob
+      INTEGER                :: ierr
 
       CALL MatGetDiagonal(this%matrices%dijL, this%x1vec, ierr)
       CALL VecAbs(this%x1vec, ierr)
       CALL VecPointWiseDivide(this%x2vec, this%matrices%lump_mass_vec, this%x1vec, ierr)
       CALL VecMin(this%x2vec, PETSC_NULL_INTEGER, dt_min_glob, ierr)
 
-      this%dt = this%ERK%s * this%CFL * dt_min_glob / 2
+      this%dt = this%ERK%s * this%CFL * dt_min_glob / 2.d0
       !===Notice rescale of time step with this%ERK%s
 
    END SUBROUTINE compute_dt
@@ -425,14 +420,12 @@ CONTAINS
       TYPE(petsc_csr_LA), POINTER :: LA
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim) :: flux_array
       REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-      REAL(KIND = 8), DIMENSION(this%mesh%np) :: arr
-      INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, n_size, nl, comp
+      INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, nl, comp
       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
-      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c
-      REAL(KIND = 8), DIMENSION(1) :: dijH_c
-      REAL(KIND = 8), DIMENSION(2) :: u, rho, ie, p, lambda_max
-      REAL(KIND = 8) :: pstar, max_lambda
+      REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c, dijH_c
+      REAL(KIND = 8), DIMENSION(2) :: lambda_max
+      REAL(KIND = 8) :: max_lambda
       REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
       LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
       REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)

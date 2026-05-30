@@ -17,14 +17,12 @@ CONTAINS
       TYPE(dirichlet_bc),                           INTENT(INOUT):: udotn_bc
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT):: udotn_normal_vtx
       LOGICAL,        DIMENSION(mesh%nps)        :: virgin
-      REAL(KIND = 8), DIMENSION(mesh%nps, k_dim) :: normal_vtx
+      REAL(KIND = 8), DIMENSION(mesh%nps, 2) :: normal_vtx
       REAL(KIND = 8), DIMENSION(mesh%np)         :: dummy_normal_vtx
       INTEGER,        DIMENSION(SIZE(mesh%jjs,1)):: idxms
-      REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: stuff
-      REAL(KIND = 8) :: norm
       INTEGER, DIMENSION(:), POINTER :: ifrom
       INTEGER :: ms, ns, js, n, ierr
-      Vec :: x1vec, x2vec, x2_ghost
+      Vec :: x1vec, x2vec
 
 
       !===Normal at vertices
@@ -84,6 +82,10 @@ CONTAINS
                END IF
             END DO
          END DO
+
+         !=== Cleanup
+         CALL VecDestroy(x1vec, ierr)
+         CALL VecDestroy(x2vec, ierr)
 
 !!$       !===Check normal vector
 !!$       ALLOCATE(stuff(mesh_data_info%k_dim,mesh%np))

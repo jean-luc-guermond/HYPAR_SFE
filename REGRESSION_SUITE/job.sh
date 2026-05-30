@@ -12,7 +12,9 @@ for ((i=1; i<=$3; i++)); do
 
     #=== move the output
     mkdir output_$i
-    mv mesh_name previous_data* data_regression* mesh_part* Mesh_1* *.plt job.sh output_$i
+    shopt -s nullglob #to avoid warning msg
+    mv previous_data* data_regression* mesh_name mesh_part* Mesh_1* *.plt output_$i
+    shopt -u nullglob #to avoid warning msg
 
     #===Clean up
     rm -rf output_$i
