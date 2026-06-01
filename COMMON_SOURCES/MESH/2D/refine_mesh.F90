@@ -532,6 +532,8 @@ CONTAINS
       TYPE(mesh_type)     :: mesh_p1, mesh_pk
       INTEGER, INTENT(IN) :: refine_factor
 
+      IF (refine_factor<2) RETURN
+
       CALL create_iso_grid_distributed(mesh_p1, mesh_pk, refine_factor)
       CALL free_mesh(mesh_p1)
       CALL general_refinement_iso_grid_distributed(mesh_pk, mesh_p1)

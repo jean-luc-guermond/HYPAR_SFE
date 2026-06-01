@@ -141,8 +141,8 @@ CONTAINS
                CYCLE
             ELSE IF (TRIM(ADJUSTL(control(1:8)))=="||||||||") THEN
                CYCLE
-            ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
-               CYCLE
+            ! ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
+            !    CYCLE
             ELSE
                record_size_clean = record_size_clean + 1
                record(record_size_clean) = control
@@ -184,8 +184,9 @@ CONTAINS
       
       CHARACTER(LEN=rec_length) :: control, string
       CHARACTER(LEN=5)   :: fmt
-      INTEGER            :: length_section_name, line_section
+      INTEGER            :: length_section_name
       INTEGER            :: code
+      LOGICAL            :: skip_control
       
       !========== MANDATORY INITIALIZING record_info_from_data AND list_info_for_new_data
       
@@ -232,13 +233,16 @@ CONTAINS
       !========== READING CURRENT INFORMATION FROM DATA FILE
       
       OPEN(UNIT = in_unit, FILE = file_out, FORM = 'formatted', STATUS = 'unknown')
-      
-      line_section = -1
-      
+            
       !===Read data file into record
+      skip_control = .FALSE.
       DO
          READ(in_unit,'(A)',END=100) control
          IF (TRIM(ADJUSTL(control))=='') CYCLE
+         IF (skip_control) THEN
+            skip_control = .FALSE.
+            CYCLE
+         END IF
          record_size = record_size+1
          record_info_from_data(record_size)=control
          IF (PRESENT(raw_section_name)) THEN
@@ -247,6 +251,9 @@ CONTAINS
             IF (string==section_name) THEN
                record_info_from_data(record_size) = ""
                record_size = record_size - 1
+               record_info_from_data(record_size) = ""
+               record_size = record_size - 1
+               skip_control = .TRUE.
             END IF
          END IF
       END DO
