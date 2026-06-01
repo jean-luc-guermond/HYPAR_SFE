@@ -27,8 +27,6 @@ F
 ======================================
 === Do we compare with analytical reference? (true/false) ===
 T
-=== Tolerance for regression tests ===
-1.d-10
 ==================================================
 !           LAPLACE PARAMETERS Laplace 1
 ==================================================

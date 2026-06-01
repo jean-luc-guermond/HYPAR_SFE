@@ -82,8 +82,8 @@ CONTAINS
          IF (rank == 0) WRITE(*, *) 'Refining mesh_P1'
          DO n = 1, mesh%info%nb_refinement
             !===Create refined mesh
-            CALL refinement_iso_grid_distributed(mesh, mesh%info%refine_order)
-            IF(rank == 0) write(*, *) 'refinement of order ', mesh%info%refine_order, ' done', n
+            CALL refinement_iso_grid_distributed(mesh, mesh%info%refine_factor)
+            IF(rank == 0) write(*, *) 'refinement of order ', mesh%info%refine_factor, ' done', n
          END DO
 
          !===special meshes
@@ -127,9 +127,9 @@ CONTAINS
          !=== VB 05/2026
          != new ==> mesh refinement
          DO n = 1, mesh%info%nb_refinement
-            IF ((mesh%info%refine_order > 0)) THEN
-               CALL refinement_P1_mesh_1D(mesh, mesh_r, mesh%info%refine_order)
-               IF(rank == 0) write(*, *) 'refinement order ', mesh%info%refine_order, ' done ', n
+            IF ((mesh%info%refine_factor > 0)) THEN
+               CALL refinement_P1_mesh_1D(mesh, mesh_r, mesh%info%refine_factor)
+               IF(rank == 0) write(*, *) 'refinement order ', mesh%info%refine_factor, ' done ', n
                CALL free_mesh(mesh)
                CALL copy_mesh(mesh_r, mesh)
                CALL free_mesh(mesh_r)

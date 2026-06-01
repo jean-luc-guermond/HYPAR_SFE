@@ -2,22 +2,22 @@
 !           MESH PARAMETERS
 =====================================
 === Name of directory for mesh file ===
-.
+'../../../MESHES'
 === Name of mesh file ===
-"mesh_1"
+unit_sq_0.1.FEM
 === Is the mesh formatted? (True/False) ===
-T
+f
 === Do we read metis partition? (true/false) ===
 F
 ================================
 !           MESH SETUP
 ================================
 === Type of finite element ===
-3
+2
 === Number of refinement steps ===
-3
-=== Order of refinement ===
-4
+2
+=== Factor of refinement ===
+2
 === Number of subdomains in the mesh ===
 1
 === List of subdomains in the mesh ===
@@ -37,9 +37,9 @@ T
 === mass for parabolic Laplace 1 ===
 1.0000000000000000
 === How many pieces of Dirichlet boundaries for bcs on Laplace 1 ===
-2
+4
 === List of Dirichlet boundaries for bcs on Laplace 1 ===
-1 2
+1 2 3 4
 =================================================
 !           SOLVER PARAMETERS Laplace 1
 =================================================
