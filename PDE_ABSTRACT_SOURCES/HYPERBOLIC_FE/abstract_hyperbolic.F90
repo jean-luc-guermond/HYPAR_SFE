@@ -13,38 +13,54 @@ MODULE abstract_hyperbolic_module
    USE space_dim,                            ONLY: k_dim
 !>> limited global uses to avoid unexpected behaviors
 
+   INTEGER, PRIVATE, PARAMETER :: LUMPED_MASS=1, QUASI_CONSISTENT_MASS=2, CONSISTENT_MASS=3
+   CHARACTER(LEN=20), DIMENSION(3), PRIVATE, PARAMETER :: list_mass = &
+               [CHARACTER(LEN=20) :: 'lumped', 'quasi_consistent', 'consistent']
+   INTEGER, PRIVATE, PARAMETER :: METHOD_VISCOUS=1, METHOD_HIGH=2
+   CHARACTER(LEN=20), DIMENSION(2), PRIVATE, PARAMETER  :: list_method = &
+               [CHARACTER(LEN=20) :: 'viscous', 'high']
 
    TYPE argument_hyperbolic_type
-      CHARACTER(LEN=rec_length) :: CFL    = '=== CFL ? ==='
-      CHARACTER(LEN=rec_length) :: method = '=== Which method to solve Euler (viscous, high) ? ==='
-      CHARACTER(LEN=rec_length) :: erk_sv = '=== ERK ? ==='
+      CHARACTER(LEN=rec_length) :: CFL                     = '=== CFL ? ==='
+      CHARACTER(LEN=rec_length) :: char_method             = '=== Which method to solve conservation equation (viscous,high)? ==='
+      CHARACTER(LEN=rec_length) :: if_hybrid_mesh_bounds   = '=== Do we use hybrid Pk/P1 meshes for bounds? ==='
+      CHARACTER(LEN=rec_length) :: if_hybrid_mesh_limiting = '=== Do we use hybrid Pk/P1 meshes for limiting? ==='
+      CHARACTER(LEN=rec_length) :: erk_sv                  = '=== ERK ? ==='
+      CHARACTER(LEN=rec_length) :: char_which_mass         = '=== Which mass matrix: lumped, quasi_consistent, consistent? ==='
+      CHARACTER(LEN=rec_length) :: nb_correction_mass      = '=== For quasi_consistent mass, how many corrections? (0=lumped_mass) ==='
    END TYPE argument_hyperbolic_type
 
    TYPE, ABSTRACT :: hyperbolic_type
       !===Parameters read from data
-      REAL(KIND=8)                 :: CFL       = 0.5d0
-      CHARACTER(LEN=rec_length)    :: method = 'viscous'
-      INTEGER                      :: erk_sv    = -21
+      REAL(KIND=8)                 :: CFL                     = 0.5d0
+      CHARACTER(LEN=rec_length)    :: char_method             = 'viscous'
+      INTEGER                      :: method                  = METHOD_VISCOUS
+      INTEGER                      :: erk_sv                  = -21
+      LOGICAL                      :: if_hybrid_mesh_bounds   = .TRUE.
+      LOGICAL                      :: if_hybrid_mesh_limiting = .TRUE.
+      CHARACTER(LEN=rec_length)    :: char_which_mass         = 'lumped'
+      INTEGER                      :: which_mass              = LUMPED_MASS
+      INTEGER                      :: nb_correction_mass      = 1
       !===Parameters built along way
       MPI_Comm :: communicator
-      Vec          :: x1vec, x2vec, x2_ghost, vec_loc
-      Vec          :: x3vec, x4vec, x5vec
+      Vec          :: x1vec, x2vec, x2_ghost, vec_loc, x3vec
+      Vec          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
       CHARACTER(LEN=:), ALLOCATABLE :: name
       INTEGER                       :: syst_dim
       REAL(KIND = 8) :: dt, time, final_time
       INTEGER, DIMENSION(:), ALLOCATABLE :: tab
-      TYPE(mesh_type),     POINTER :: mesh
-      TYPE(petsc_csr_LA),  POINTER :: LA
+      TYPE(mesh_type),     POINTER :: mesh, mesh_L
+      TYPE(petsc_csr_LA),  POINTER :: LA,   LA_L
       TYPE(BT),             PUBLIC :: ERK
-      TYPE(hyperbolic_matrices_type) :: matrices
+      TYPE(hyperbolic_matrices_type), POINTER :: matrices, matrices_L
       TYPE(limiting_type)            :: limiting
       CLASS(limiting_functionals_type), DIMENSION(:), POINTER :: limiting_functionals
       PROCEDURE(template_eta_commute), NOPASS,        POINTER :: eta_commute
    CONTAINS
       PROCEDURE, PUBLIC   :: init_hyperbolic
-      PROCEDURE, PRIVATE  :: read_hyperbolic_data
+      PROCEDURE, PRIVATE  :: read_hyperbolic_data, init_vectors
       PROCEDURE, PUBLIC   :: update
-      PROCEDURE, PRIVATE  :: compute_dij, compute_dt, commutator, apply_limiting, init_vectors
+      PROCEDURE, PRIVATE  :: compute_dij, compute_dt, invert_mass, commutator, apply_limiting
       PROCEDURE(template_flux),         DEFERRED :: flux
       PROCEDURE(template_lambda),       DEFERRED :: compute_lambda
       PROCEDURE, NOPASS                          :: construct_udotn => construct_udotn
@@ -103,7 +119,12 @@ MODULE abstract_hyperbolic_module
 CONTAINS
 
    SUBROUTINE init_hyperbolic(this, communicator, name, mesh, LA, times, limiting_functionals)
-      USE my_util, ONLY : error_petsc
+      USE my_util,            ONLY: error_petsc, to_str
+      USE space_dim
+      USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
+      USE construct_mesh, ONLY: generate_boundary_structure, refine_mesh_1D2D_Pk2P1, create_gauss_points_1D_2D
+
+
       IMPLICIT NONE
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
       MPI_Comm,                   INTENT(IN) :: communicator
@@ -116,22 +137,41 @@ CONTAINS
       this%name = name
       this%mesh => mesh
       this%communicator = communicator
-      this%LA => LA
+      this%LA   => LA
 
       this%time = times(1) !<==initial_time
       this%final_time = times(2) !<==final_time
 
       CALL this%read_hyperbolic_data("HYPERBOLIC PARAMETERS FOR "//trim(adjustl(this%name)))
 
-      !=== new Butcher module
+      !=== Build ERK structure
       this%ERK%sv = this%erk_sv
       CALL this%ERK%init()
-      !=== end new Butcher module
 
-      this%matrices%method = this%method
-
-      !===Periodic boundary if any
+      !===Matrices
+      ALLOCATE(this%matrices)
+      this%matrices%method     = this%method
+      this%matrices%which_mass = this%which_mass
       CALL this%matrices%construct(this%communicator, this%mesh, this%LA)
+
+      !===Hybrid meshes
+      IF (this%if_hybrid_mesh_bounds .AND. this%method==METHOD_HIGH .AND. mesh%info%type_fe>1) THEN
+         IF (mesh%rank==0) WRITE(*,*) "Building hybrid mesh for ", this%name
+         !=== creating low order stencil
+         CALL refine_mesh_1D2D_Pk2P1(this%mesh, this%mesh_L)
+         !=== generating associated P1 gauss points
+         CALL create_gauss_points_1D_2D(this%mesh_L, 1)
+         !=== adding surface elements (for Dirichlet and periodicity)
+         CALL generate_boundary_structure(this%mesh_L)
+         !=== Generating sparse structures
+         CALL st_aij_csr_glob_block_with_extra_layer(this%communicator, 1, this%mesh_L, this%LA_L)
+         this%matrices_L%method = METHOD_VISCOUS
+         CALL this%matrices_L%construct(this%communicator, this%mesh_L, this%LA_L)
+      ELSE
+         this%mesh_L     => this%mesh
+         this%LA_L       => this%LA
+         this%matrices_L => this%matrices
+      END IF
 
       !===Goshting structures
       CALL this%init_vectors
@@ -140,7 +180,11 @@ CONTAINS
       CALL this%construct_bc(this%mesh, this%LA)
 
       !===Limiting
-      CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
+      IF (this%if_hybrid_mesh_limiting) THEN
+         CALL this%limiting%init(this%communicator, this%name, this%mesh_L, this%LA_L)
+      ELSE
+         CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
+      END IF
       IF (this%limiting%if_limiting) THEN
          this%limiting_functionals => limiting_functionals
       ELSE
@@ -149,40 +193,57 @@ CONTAINS
    END SUBROUTINE init_hyperbolic
 
    SUBROUTINE read_hyperbolic_data(this, section_name)
-     USE read_inputs_module
-     IMPLICIT NONE
-     CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
+      USE read_inputs_module
+      USE my_util, ONLY: get_tab_idx_char
+      IMPLICIT NONE
+      CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: section_name
 
-     CLASS(hyperbolic_type), INTENT(INOUT) :: this
-     TYPE(argument_hyperbolic_type)        :: argument_data
+      CLASS(hyperbolic_type), INTENT(INOUT) :: this
+      TYPE(argument_hyperbolic_type)        :: argument_data
 
 
-     !================
-     !=== MANDATORY Reading all data file
-     !================
-     IF (PRESENT(section_name)) THEN
-        CALL read_data_init_list(section_name)
-     ELSE
-        CALL read_data_init_list()
-     END IF
+      !================
+      !=== MANDATORY Reading all data file
+      !================
+      IF (PRESENT(section_name)) THEN
+         CALL read_data_init_list(section_name)
+      ELSE
+         CALL read_data_init_list()
+      END IF
 
-     !================
-     !=== We now find the relevant information for this specific Euler data
-     !================
-     !===CFL
-     CALL read_data(argument_data%CFL, this%CFL, opt_name=this%name)
+      !================
+      !=== We now find the relevant information for this specific Euler data
+      !================
+      !===CFL
+      CALL read_data(argument_data%CFL, this%CFL, opt_name=this%name)
 
-     !===ERK
-     CALL read_data(argument_data%erk_sv, this%erk_sv, opt_name=this%name)
+      !===ERK
+      CALL read_data(argument_data%erk_sv, this%erk_sv, opt_name=this%name)
 
-     !===Method order
-     CALL read_data(argument_data%method, this%method, opt_name=this%name)
+      !===Method order
+      CALL read_data(argument_data%char_method, this%char_method, opt_name=this%name)
+      CALL get_tab_idx_char(this%char_method, list_method, this%method)
 
-     !================
-     !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
-     !================
+      !===mass matrix
+      CALL read_data(argument_data%char_which_mass, this%char_which_mass, opt_name=this%name)
+      CALL get_tab_idx_char(this%char_which_mass, list_mass, this%which_mass)
 
-     CALL finalize_rewrite_data
+      !===nb_correction_mass
+      CALL read_data(argument_data%nb_correction_mass, this%nb_correction_mass, opt_name=this%name)
+
+      !===if_hybrid_mesh_bounds
+      CALL read_data(argument_data%if_hybrid_mesh_bounds, this%if_hybrid_mesh_bounds, &
+                     opt_name=this%name, opt_add=this%method==METHOD_HIGH)
+
+      !===if_hybrid_mesh_limiting
+      CALL read_data(argument_data%if_hybrid_mesh_limiting, this%if_hybrid_mesh_limiting, &
+                     opt_name=this%name, opt_add=this%method==METHOD_HIGH)
+
+      !================
+      !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections
+      !================
+
+      CALL finalize_rewrite_data
    END SUBROUTINE read_hyperbolic_data
 
    SUBROUTINE update(this,un_in)
@@ -202,7 +263,7 @@ CONTAINS
 
    SUBROUTINE one_step_ERK(this,stage,urk,flux_rk_at_dof)
       USE space_dim
-      USE my_util, ONLY : error_petsc
+      USE my_util, ONLY : error_petsc, to_str
       USE cell_limiting_engine_module
       USE sub_plot
       USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
@@ -219,7 +280,7 @@ CONTAINS
       REAL(KIND = 8) :: time_stage
 
       SELECT CASE(this%method)
-      CASE('viscous')
+      CASE(METHOD_VISCOUS)
          stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
          un_temp = urk(:,:,stage_prime)      !<== Method should work with incremental ERK method
          DO comp=1, this%syst_dim
@@ -253,8 +314,9 @@ CONTAINS
             CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
-            !=== x3 <-- x2 / lumped_mass
-            CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
+            ! !=== x3 <-- x2 / lumped_mass by default in viscous method
+            CALL this%invert_mass(this%x2vec, this%x3vec)
+
             !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
             CALL VecAYPX(this%x3vec, this%ERK%inc_C(stage)*this%dt, this%x1vec, ierr) !<==time step is ERK%inc_C(stage)*this%dt
             CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
@@ -264,7 +326,7 @@ CONTAINS
 
          CALL this%impose_bc(urk(:,:,stage), this%mesh, time_stage)
 
-      CASE('high')
+      CASE(METHOD_HIGH)
          !===flux_array: flux at l=stage
          DO comp=1, this%syst_dim
             flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
@@ -309,7 +371,6 @@ CONTAINS
                CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
             END DO
             CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
-
             !=== rk: sum_l MatRK_(s,l) f_l
             rk =0.d0
             DO l = 1, stage-1
@@ -320,42 +381,12 @@ CONTAINS
             CALL array_to_petsc_vec(rk, this%x3vec, this%mesh, this%LA, 'insert')
             !=== set un(comp) at l=stage' in x1vec to compute viscous contribution
             CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%mesh, this%LA, 'insert') !<== l=stage'
-            !TEST Low order
-!!$           IF (comp==1) THEN
-!!$              CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x4vec, ierr)
-!!$              CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x4vec, this%LA)
-!!$              CALL VecGhostGetLocalForm(this%x4vec, this%x2_ghost, ierr)
-!!$              CALL VecGhostUpdateBegin(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-!!$              CALL VecGhostUpdateEnd(this%x4vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
-!!$              CALL extract(this%x2_ghost, 1, 1, this%LA, rk)
-!!$              rk = rk * this%dt / this%matrices%lumped_mass
-!!$              un(:, comp) = un_temp(:, comp) + rk
-!!$              bounds(:,2) = un(:, 1)
-!!$           END IF
-           !END TEST
+
             !=== add dij un(comp) to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
             !=== Inverting mass matrix and updating un with dt
-!======================== USING LUMPED MASS =========================!
-            ! !=== x3 <-- x2 / lumped_mass
-            ! CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
-            ! !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
-            ! CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
-            ! CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
-            ! !=== un+1 <-- x3
-            ! CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, un(:, comp), opt_assemble=.FALSE.)
-!======================== USING FULL MASS =========================!
-            !=== x2 = rk
-            !=== x3 <-- lump_inv @ rk
-            CALL VecPointWiseDivide(this%x3vec, this%x2vec, this%matrices%lump_mass_vec, ierr)
-            !=== x4 <-- Mass @ x3 (x4 <-- Mass@lump_inv@rk)
-            CALL MatMult(this%matrices%mass, this%x3vec, this%x4vec, ierr)
-            !=== x2 <-- lump_inv @ x4 (x2 <-- lump_inv @ Mass @ lump_inv @ rk)
-            CALL VecPointWiseDivide(this%x2vec, this%x4vec, this%matrices%lump_mass_vec, ierr)
-            !=== x3 <-- 2*x3 - x2 = (2I - lump_inv @ Mass) @ lump_inv @ rk
-            !=== in petsc, VecAXPBY(y_vec, alpha, beta, x_vec) ==> y <-- y*beta + x*alpha ... ...
-            CALL VecAXPBY(this%x3vec, -1.d0, 2.d0, this%x2vec, ierr)
+            CALL this%invert_mass(this%x2vec, this%x3vec)
 
             !=== set un(comp) at l=stage0 in x1vec
             CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%mesh, this%LA, 'insert') !<== Notice un at l=stage0
@@ -371,16 +402,19 @@ CONTAINS
          END IF
          !===Periodicity
          DO comp = 1, this%syst_dim
-            DO k = 1, this%mesh%per%nb_bords
-               urk(this%mesh%per%list(k)%DIL, comp, stage) = urk(this%mesh%per%perlist(k)%DIL, comp, stage)
-            END DO
+            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%mesh, this%LA, 'insert')
+            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
+            CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+            ! DO k = 1, this%mesh%per%nb_bords
+            !    urk(this%mesh%per%list(k)%DIL, comp, stage) = urk(this%mesh%per%perlist(k)%DIL, comp, stage)
+            ! END DO
          END DO
 
          !===Boundary conditions
          CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
       CASE DEFAULT
-         CALL error_petsc('Wrong method '//this%method//' in '//TRIM(ADJUSTL(this%name))//&
-         ' update, should be "viscous" or "high"')
+         CALL error_petsc('Wrong method '//to_str(this%method)//' in '//TRIM(ADJUSTL(this%name))//&
+         ' update, should be "viscous(1)" or "high(2)"')
       END SELECT
 
    END SUBROUTINE one_step_ERK
@@ -396,9 +430,9 @@ CONTAINS
       REAL(KIND = 8)         :: dt_min_glob
       INTEGER                :: ierr
 
-      CALL MatGetDiagonal(this%matrices%dijL, this%x1vec, ierr)
+      CALL MatGetDiagonal(this%matrices_L%dijL, this%x1vec, ierr)
       CALL VecAbs(this%x1vec, ierr)
-      CALL VecPointWiseDivide(this%x2vec, this%matrices%lump_mass_vec, this%x1vec, ierr)
+      CALL VecPointWiseDivide(this%x2vec, this%matrices_L%lump_mass_vec, this%x1vec, ierr)
       CALL VecMin(this%x2vec, PETSC_NULL_INTEGER, dt_min_glob, ierr)
 
       this%dt = this%ERK%s * this%CFL * dt_min_glob / 2.d0
@@ -418,7 +452,7 @@ CONTAINS
       CLASS(hyperbolic_type) :: this
       TYPE(mesh_type), POINTER :: mesh
       TYPE(petsc_csr_LA), POINTER :: LA
-      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim) :: flux_array
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np, k_dim, this%syst_dim) :: flux_array
       REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
       INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, nl, comp
       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
@@ -427,15 +461,15 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(2) :: lambda_max
       REAL(KIND = 8) :: max_lambda
       REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
-      LOGICAL, DIMENSION(this%mesh%medge) :: virgin_edge
-      REAL(KIND = 8), DIMENSION(this%mesh%np)  :: alpha !<==commutator in (0,1)
+      LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np)  :: alpha !<==commutator in (0,1)
 
-      mesh => this%mesh
-      LA   => this%LA
+      mesh => this%mesh_L
+      LA   => this%LA_L
 
       !===Compute dijL
-      CALL MatZeroEntries(this%matrices%dijL, ierr)
-      IF (this%method=='high') THEN
+      CALL MatZeroEntries(this%matrices_L%dijL, ierr)
+      IF (this%method==METHOD_HIGH) THEN
          CALL this%commutator(un, alpha) !! FIXME ==> outside procedure for computing commutator?
          CALL MatZeroEntries(this%matrices%dijH, ierr)
          IF (this%limiting%if_limiting) THEN
@@ -466,14 +500,14 @@ CONTAINS
                j_t = j
 
                CALL this%compute_lambda(un, i, j, lambda_max)
-               CALL MatGetValues(this%matrices%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
+               CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                max_lambda = MAXVAL(lambda_max)
                dijL_c = max_lambda * norm_c
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
                      CALL this%compute_lambda(un, j, i, lambda_max)
-                     CALL MatGetValues(this%matrices%cij_norm_loc, 1, j_t - 1, 1, i_t - 1, norm_c, ierr)
+                     CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, j_t - 1, 1, i_t - 1, norm_c, ierr)
 
                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
@@ -482,12 +516,12 @@ CONTAINS
                idx = LA%loc_to_glob(1, i) - 1
                jdx = LA%loc_to_glob(1, j) - 1
 
-               CALL MatSetValues(this%matrices%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
+               CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
 
-               CALL MatSetValues(this%matrices%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
-               CALL MatSetValues(this%matrices%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
-               IF (this%method=='high') THEN
+               CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
+               CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
+               IF (this%method==METHOD_HIGH) THEN
                   dijH_c = dijL_c*(alpha(i)+alpha(j))/2
                   CALL MatSetValues(this%matrices%dijH, 1, idx, 1, jdx, dijH_c, ADD_VALUES, ierr)
                   CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, idx, dijH_c, ADD_VALUES, ierr)
@@ -496,7 +530,7 @@ CONTAINS
                   !===Compute low-order update to estimate bounds
                   IF (this%limiting%if_limiting) THEN
                      DO k = 1, k_dim
-                        CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
+                        CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
                      END DO
 
                      DO comp=1, this%syst_dim
@@ -515,10 +549,10 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL MatAssemblyBegin(this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
-      CALL MatAssemblyEnd  (this%matrices%dijL, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyBegin(this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
+      CALL MatAssemblyEnd  (this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
 
-      IF (this%method=='high') THEN
+      IF (this%method==METHOD_HIGH) THEN
          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
 
@@ -531,6 +565,39 @@ CONTAINS
       END IF
    END SUBROUTINE compute_dij
 
+   SUBROUTINE invert_mass(this, vec_in, vec_out)
+      USE my_util, ONLY: error_petsc, to_str
+      USE solver_petsc
+      USE fem_rhs
+      IMPLICIT NONE
+      CLASS(hyperbolic_type), INTENT(INOUT) :: this
+      INTEGER :: it, ierr
+      Vec     :: vec_in, vec_out
+
+      SELECT CASE(this%which_mass)
+      CASE(LUMPED_MASS)
+         !=== vec_out <-- vec_in / lumped_mass
+         CALL VecPointWiseDivide(vec_out, vec_in, this%matrices%lump_mass_vec, ierr)
+      CASE(QUASI_CONSISTENT_MASS)
+         CALL VecCopy(vec_in, this%x5vec, ierr)
+         CALL VecCopy(vec_in, vec_out, ierr)
+         !=== Loop on number of corrections
+         DO it=1, this%nb_correction_mass
+            !=== x5 <-- Ar@x5 
+            CALL MatMult(this%matrices%Ar_mass, this%x5vec, this%x4vec, ierr)
+            CALL VecCopy(this%x4vec, this%x5vec, ierr)
+            CALL VecAYPX(vec_out, 1.d0, this%x5vec, ierr)
+         END DO
+         !=== Final division by lumped mass
+         CALL VecPointWiseDivide(vec_out, vec_out, this%matrices%lump_mass_vec, ierr)
+      CASE(CONSISTENT_MASS)
+         CALL solver(this%matrices%ksp_consistent_mass, vec_in, vec_out, &
+                     reinit = .FALSE., verbose = .FALSE.)
+      CASE DEFAULT
+         CALL error_petsc("BUG in hyperbolic%update, invert_mass => wrong value "&
+         &//to_str(this%which_mass)//", should be 1, 2, 3")
+      END SELECT
+   END SUBROUTINE invert_mass
 
    SUBROUTINE commutator(this, un, alpha)
       USE space_dim

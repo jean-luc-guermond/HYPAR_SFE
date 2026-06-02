@@ -1,6 +1,6 @@
 MODULE refine_mesh
    USE mesh_tools
-   PUBLIC :: create_iso_grid_distributed, refinement_iso_grid_distributed
+   PUBLIC :: create_iso_grid_distributed, refinement_iso_grid_distributed, general_refinement_iso_grid_distributed
    PRIVATE
 CONTAINS
 
@@ -526,17 +526,19 @@ CONTAINS
 
    END SUBROUTINE  create_iso_grid_distributed
 
-   SUBROUTINE refinement_iso_grid_distributed(mesh_p1, refine_factor)
+   SUBROUTINE refinement_iso_grid_distributed(mesh_p1_in, mesh_p1_out, refine_factor)
       USE def_type_mesh
       IMPLICIT NONE
-      TYPE(mesh_type)     :: mesh_p1, mesh_pk
+      TYPE(mesh_type)     :: mesh_p1_in, mesh_pk, mesh_p1_out
       INTEGER, INTENT(IN) :: refine_factor
 
-      IF (refine_factor<2) RETURN
+      IF (refine_factor<2) THEN
+         CALL copy_mesh(mesh_p1_in, mesh_p1_out)
+         RETURN
+      END IF
 
-      CALL create_iso_grid_distributed(mesh_p1, mesh_pk, refine_factor)
-      CALL free_mesh(mesh_p1)
-      CALL general_refinement_iso_grid_distributed(mesh_pk, mesh_p1)
+      CALL create_iso_grid_distributed(mesh_p1_in, mesh_pk, refine_factor)
+      CALL general_refinement_iso_grid_distributed(mesh_pk, mesh_p1_out)
       CALL free_mesh(mesh_pk)
    END SUBROUTINE refinement_iso_grid_distributed
 

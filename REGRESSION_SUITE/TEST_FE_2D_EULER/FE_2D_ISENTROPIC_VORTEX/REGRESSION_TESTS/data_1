@@ -54,8 +54,12 @@ T
 0.5d0
 === ERK ? Euler 1 ===
 11
-=== Which method to solve Euler (viscous, high) ? Euler 1 ===
+=== Which method to solve conservation equation (viscous,high)? Euler 1 ===
 viscous
+=== Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===
+lumped
+=== For quasi_consistent mass, how many corrections? (0=lumped_mass) Euler 1 ===
+1
 =========================================================
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================

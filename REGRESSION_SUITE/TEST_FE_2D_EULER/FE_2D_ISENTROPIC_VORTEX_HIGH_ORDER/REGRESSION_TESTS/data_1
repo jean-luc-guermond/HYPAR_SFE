@@ -54,8 +54,16 @@ T
 0.5d0
 === ERK ? Euler 1 ===
 11
-=== Which method to solve Euler (viscous, high) ? Euler 1 ===
+=== Which method to solve conservation equation (viscous,high)? Euler 1 ===
 high
+=== Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===
+quasi_consistent
+=== For quasi_consistent mass, how many corrections? (0=lumped_mass) Euler 1 ===
+1
+=== Do we use hybrid Pk/P1 meshes for bounds? Euler 1 ===
+T
+=== Do we use hybrid Pk/P1 meshes for limiting? Euler 1 ===
+T
 =========================================================
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================

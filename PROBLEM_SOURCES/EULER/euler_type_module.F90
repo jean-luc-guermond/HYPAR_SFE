@@ -179,7 +179,7 @@ CONTAINS
       j_t = j
 
       DO k = 1, k_dim
-         CALL MatGetValues(this%matrices%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
+         CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
       END DO
 
       rho(1) = un(i, 1)

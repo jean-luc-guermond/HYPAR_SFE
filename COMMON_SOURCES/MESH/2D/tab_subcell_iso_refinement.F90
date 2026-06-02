@@ -158,7 +158,7 @@ CONTAINS
             USE my_util, ONLY: error_petsc, to_str
             IMPLICIT NONE
             INTEGER, DIMENSION(3), INTENT(IN) :: n_in
-            INTEGER                           :: i, i_out
+            INTEGER                           :: i_out
 
             DO i_out=1, (refine_factor + 1) * (refine_factor + 2) / 2
                 IF (MAXVAL(ABS(get_n(i_out)-n_in))==0) RETURN

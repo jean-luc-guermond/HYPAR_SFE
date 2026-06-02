@@ -9,6 +9,7 @@ PROGRAM prog
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
+  CHARACTER(LEN=:), ALLOCATABLE :: dir_out
   INTEGER :: n, tot_np, code, num_test
 
 !========================!
@@ -47,10 +48,23 @@ PROGRAM prog
 
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
-     WRITE(*,*) ' tot_np', tot_np, ' time ', euler%time
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n*euler%ERK%s), tps, n
+     WRITE(*,*) ' tot_np', tot_np
+     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
   END IF
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
+  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, euler%bc%rho_anal(euler%time,mesh%rr), 'rho_anal' // TRIM(ADJUSTL(char)) // '.plt')
+
+  dir_out = 'P'//to_str(euler%mesh%info%type_fe)//&
+  &"_np"//to_str(euler%mesh%disp(euler%mesh%nb_proc+1))//&
+  &"_erk"//to_str(euler%erk_sv)//&
+  &"_CFL"//TRIM(ADJUSTL(to_str(euler%CFL, opt_precision=2)))
+
+write(*,*) dir_out
+  IF (euler%mesh%rank==0) THEN
+    CALL system('mkdir -p '//dir_out)
+    CALL system('mkdir -p '//dir_out//'/PLT')
+    CALL system('mv *plt '//dir_out//'/PLT')
+  END IF
 
 !=========================!
 !==== REGRESSION TEST ====!
@@ -69,9 +83,9 @@ CONTAINS
     USE post_processing_debug_MODULE
     IMPLICIT NONE
 
-    REAL(KIND=8) :: error_loc, norm_loc, norm_anal_loc, error, norm, norm_anal
+    REAL(KIND=8) :: error, norm, norm_anal
     REAL(KIND = 8), DIMENSION(size(un, 2)) :: tab_norm
-    INTEGER :: n, code
+    INTEGER :: n
 
 !==== Put final processing stuff here ====!
     DO n=1, SIZE(un,2)
@@ -79,13 +93,22 @@ CONTAINS
         CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
         CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
         norm = error/norm_anal
-        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+        IF(euler%mesh%rank==0) THEN
+          WRITE(*, *) 'Comp ', euler%name_comp(n), '; Relative error, L1-norm = ', error/norm_anal
+        END IF
+        WRITE(13,*) euler%name_comp(n), error/norm_anal
       ELSE
         CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
-        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
+        IF(euler%mesh%rank==0) THEN
+          WRITE(*, *) 'Comp ', euler%name_comp(n), '; no analytical ref, L1-norm = ', norm
+        END IF
+        WRITE(13,*) euler%name_comp(n), norm
       END IF
     END DO
 
+    IF (euler%mesh%rank==0) THEN
+      CALL system('mv fort.13 '//dir_out)
+    END IF
     
 !==== For regression tests ====!
     IF (setup_data%if_regression_test) THEN

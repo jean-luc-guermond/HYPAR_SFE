@@ -47,17 +47,24 @@ ADD_CUSTOM_TARGET(native
 #============ COMPILING AND LINKING WITH HYPAR   =============
 #=============================================================
 
-<<<<<<< HEAD
-set(exe "ref.exe")
-
-=======
 set(exe "a.exe")
->>>>>>> 733407001da433135a1acace1c553dc62ab1409c
 
 
 # Building HYPAR_SFE library
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
-set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
+
+if(NOT DEFINED static_library)
+    set(static_library OFF)
+endif()
+if(static_library)
+    set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D_static)
+    message(STATUS "Linking with STATIC library")
+else()
+    set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D_dynamic)
+    message(STATUS "Linking with DYNAMIC library")
+endif()
+
+# set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
 set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${FE_dim}D/mod)
 
 # Building local sources

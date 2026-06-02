@@ -2,7 +2,7 @@ MODULE my_util
   IMPLICIT NONE
 
   INTERFACE to_str
-      MODULE PROCEDURE to_str_int, to_str_real, to_str_int_array_1D
+      MODULE PROCEDURE to_str_int, to_str_real, to_str_int_array_1D, to_str_char_array_1D
   END INTERFACE to_str
 
   INTERFACE pack_opt
@@ -22,6 +22,19 @@ CONTAINS
       CALL SYSTEM_CLOCK(COUNT, COUNT_RATE, COUNT_MAX)
       time = (1.d0*count)/count_rate
     END FUNCTION user_time
+
+    SUBROUTINE get_tab_idx_char(val_in, tab_in, idx_out)
+      IMPLICIT NONE
+      CHARACTER(LEN=*),               INTENT(IN) :: val_in
+      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN) :: tab_in
+      INTEGER,                       INTENT(OUT) :: idx_out
+      
+      DO idx_out=1, SIZE(tab_in)
+        IF (TRIM(ADJUSTL(tab_in(idx_out)))==TRIM(ADJUSTL(val_in))) RETURN
+      END DO
+      CALL error_petsc("BUG in get_tab_idx => could not find "//val_in//" inside "//to_str(tab_in))
+    END SUBROUTINE get_tab_idx_char
+
 
    !========================================================================
    !=========== write on rank 0 subs =======================================
@@ -132,12 +145,22 @@ CONTAINS
         str = trim(tmp)
     END FUNCTION to_str_int
 
-    FUNCTION to_str_real(i) RESULT (str)
+    FUNCTION to_str_real(i, opt_precision) RESULT (str)
         REAL(KIND=8), INTENT(IN) :: i
         CHARACTER(LEN=:), ALLOCATABLE :: str
         CHARACTER(LEN=32) :: tmp
-
-        WRITE(tmp, '(F0.6)') i
+        INTEGER, INTENT(IN), OPTIONAL :: opt_precision
+        
+        IF (PRESENT(opt_precision)) THEN
+          IF (ABS(i) < 1.d0) THEN
+            WRITE(tmp, '(F'//to_str_int(opt_precision+5)//'.'//to_str_int(opt_precision)//')') i
+          ELSE
+            WRITE(tmp, '(F0.'//to_str_int(opt_precision)//')') i
+          END IF
+        ELSE
+          WRITE(tmp, '(F0.6)') i
+        END IF
+        ! WRITE(tmp, '(F0.6)') i
         str = trim(tmp)
     END FUNCTION to_str_real
 
@@ -157,5 +180,21 @@ CONTAINS
           END IF
         END DO
     END FUNCTION to_str_int_array_1D
+
+    FUNCTION to_str_char_array_1D(i) RESULT (str)
+        CHARACTER(LEN=*), DIMENSION(:), INTENT(IN) :: i
+        INTEGER :: n, size_i
+        CHARACTER(LEN=:), ALLOCATABLE :: str
+        CHARACTER(LEN=32) :: tmp
+
+        size_i = SIZE(i)
+        DO n=1, size_i
+          IF (n==1) THEN
+            str = TRIM(ADJUSTL(tmp))
+          ELSE
+            str = TRIM(ADJUSTL(str)) // ', '//TRIM(ADJUSTL(tmp))
+          END IF
+        END DO
+    END FUNCTION to_str_char_array_1D
 
 END MODULE my_util

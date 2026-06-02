@@ -8,7 +8,7 @@ MODULE solver_data_module
       CHARACTER(len = rec_length) :: rel_tol         = '=== Relative tolerance ==='
       CHARACTER(len = rec_length) :: abs_tol         = '=== Absolute tolerance ==='
       CHARACTER(len = rec_length) :: verbose         = '=== verbose solver? (True/False) ==='
-      CHARACTER(len = rec_length) :: solver          = '=== Which solver? (MUMPS) ==='
+      CHARACTER(len = rec_length) :: solver          = '=== Which solver? (GMRES) ==='
       CHARACTER(len = rec_length) :: precond         = '=== Which precond? (MUMPS) ==='
       ! CHARACTER(len = rec_length) :: strong_thr         = '=== Strong threshold for HYPRE preconditioner ==='
    END TYPE argument_solver_data_type

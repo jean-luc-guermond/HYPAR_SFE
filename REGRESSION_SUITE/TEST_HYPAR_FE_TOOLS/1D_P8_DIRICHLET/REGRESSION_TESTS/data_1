@@ -1,3 +1,5 @@
+=== Which solver? (MUMPS) Laplace 1 ===
+GMRES
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -49,7 +51,7 @@ T
 1.0000000000000001E-018
 === verbose solver? (True/False) Laplace 1 ===
 F
-=== Which solver? (MUMPS) Laplace 1 ===
+=== Which solver? (GMRES) Laplace 1 ===
 GMRES
 === Which precond? (MUMPS) Laplace 1 ===
 MUMPS
