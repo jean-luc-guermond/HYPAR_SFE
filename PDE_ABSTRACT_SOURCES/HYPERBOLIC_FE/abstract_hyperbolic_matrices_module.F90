@@ -9,7 +9,7 @@ MODULE hyperbolic_matrices_module
               ONLY : construct_lumped_mass_vector, construct_cij
    TYPE hyperbolic_matrices_type
       INTEGER                          :: method, which_mass
-      Mat :: mass, dijL, stiffL, cij_norm_loc, Ar_mass
+      Mat :: mass, dijL, stiffL, cij_norm_loc, Al_mass
       Mat :: dijH
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
       Mat, DIMENSION(:,:), ALLOCATABLE :: cij_loc
@@ -174,15 +174,14 @@ CONTAINS
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
       INTEGER :: ierr
-      Vec :: xx
-
+      Vec     :: xx
       CALL VecDuplicate(this%lump_mass_vec, xx, ierr)
       CALL VecSet(xx, 1.d0, ierr)
-      CALL MatDuplicate(this%mass, MAT_COPY_VALUES, this%Ar_mass, ierr)
+      CALL MatDuplicate(this%mass, MAT_COPY_VALUES, this%Al_mass, ierr)
       CALL VecPointWiseDivide(xx, xx, this%lump_mass_vec, ierr)
-      CALL MatDiagonalScale(this%Ar_mass, PETSC_NULL_VEC, xx, ierr)
-      CALL MatScale(this%Ar_mass, -1.d0, ierr)
-      CALL MatShift(this%Ar_mass, 1.d0, ierr)
+      CALL MatDiagonalScale(this%Al_mass, PETSC_NULL_VEC, xx, ierr)
+      CALL MatScale(this%Al_mass, -1.d0, ierr)
+      CALL MatShift(this%Al_mass, 1.d0, ierr)
       CALL VecDestroy(xx, ierr)
    END SUBROUTINE construct_Ar
 

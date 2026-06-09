@@ -8,8 +8,8 @@ MODULE periodic_data_module
       INTEGER                                  :: nb_bords      = 0
       INTEGER, DIMENSION(:, :), POINTER        :: list_periodic
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: vect_e
-      TYPE(dyn_int_line), DIMENSION(20)        :: list
-      TYPE(dyn_int_line), DIMENSION(20)        :: perlist
+      TYPE(dyn_int_line), DIMENSION(:), POINTER :: list
+      TYPE(dyn_int_line), DIMENSION(:), POINTER :: perlist
       INTEGER, POINTER, DIMENSION(:)           :: pnt
    END TYPE periodic_type
 

@@ -274,6 +274,8 @@ CONTAINS
          STOP
       END IF
 
+      ALLOCATE(periodic%list(periodic%nb_bords), periodic%perlist(periodic%nb_bords))
+
       DO n = 1, periodic%nb_bords
 
          side1 = periodic%list_periodic(1, n)

@@ -24,9 +24,18 @@ FE_2D_EULER:
             work to do before converging high order
     FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, ideal gas, analytical solution
             work to do before converging high order
-    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING => 2D, P1, hyperbolic/Euler, high method, limiting on density, avg relaxation, ideal gas, analytical solution
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_LIMITING_AVG => 2D, P1, hyperbolic/Euler, high method, limiting on density, avg relaxation, ideal gas, analytical solution
             work to do before converging high order
             relaxation not included in the hyperbolic%update
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_P2       => 2D, P2, hyperbolic/Euler, ERK31, high method & hybrid mesh, ideal gas, consistent mass, analytical solution
+    FE_2D_ISENTROPIC_VORTEX_HIGH_ORDER_P3       => 2D, P3, hyperbolic/Euler, ERK31, high method & hybrid mesh, ideal gas, quasi_consistent mass & 4 corrections, analytical solution
+
+
+FE_SCALAR_CONSERVATION:
+    FE_1D_LINEAR_TRANSPORT_TRANSLATION  => 1D, P1, hyperbolic/Linear_transport, ERK31, Galerkin method, consistent mass, quasi_consistent mass & 4 corrections, PBC, analytical solution
+    FE_2D_LINEAR_TRANSPORT_ROTATION     => 2D, P1, hyperbolic/Linear_transport, ERK31, Galerkin method, lumped mass, quasi_consistent mass & 1 correction, no BC, analytical solution
+              Paper: "A correction technique for the dispersive effects of mass lumping for transport problems", Comput. Methods Appl. Mech. Engrg. 2013, Guermond & Pasquetti
+    FE_2D_LINEAR_TRANSPORT_TRANSLATION  => 2D, P1, hyperbolic/Linear_transport, ERK31, Galerkin method, quasi_consistent mass & 1 correction, full PBC, analytical solution
 
 TEST_FFT:
     FFT_1D      => fourier_to_real, real_to_fourier, real_derivative
