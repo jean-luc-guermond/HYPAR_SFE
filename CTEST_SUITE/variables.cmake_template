@@ -1,7 +1,7 @@
 #==== Mandatory for any application ====
 set(HYPAR_SFE_DIR "path_to_hypar/HYPAR_SFE")
-set(debug_bounds "-Wall -fbounds-check -fimplicit-none -O0")
-set(release_bounds "-O3")
+set(debug_bounds "-Wall -fbounds-check -fimplicit-none -O0 -ffree-line-length-none")
+set(release_bounds "-O3 -ffree-line-length-none")
 ###set(FE_dim "2")  <=== do not use in CTEST, only for app
 
 #==== Specific to CTEST ====
@@ -32,4 +32,5 @@ set(static_library OFF)
 #-fbacktrace \
 #-fno-omit-frame-pointer \
 #-g3 \
-#-O0")
+#-O0 \
+#-ffree-line-length-none")
