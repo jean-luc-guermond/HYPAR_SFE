@@ -1,8 +1,8 @@
 MODULE fem_rhs
 #include "petsc/finclude/petsc.h"
    USE petsc
- CONTAINS
-
+   CONTAINS
+   
    SUBROUTINE qs_00 (mesh, LA, ff, vect)
       !> transfer of  vect(PETSc projected on test functions) <== ff(HYPAR)
       !! mesh(hypar)
@@ -21,9 +21,9 @@ MODULE fem_rhs
       REAL(KIND = 8) :: fl
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
-
+      
       CALL VecZeroEntries(vect, ierr)
-
+      
       DO m = 1, mesh%me
          jj_loc = mesh%jj(:, m)
          ff_loc = ff(jj_loc)
@@ -32,7 +32,7 @@ MODULE fem_rhs
             iglob = LA%loc_to_glob(1, i)
             idxm(ni) = iglob - 1
          END DO
-
+         
          v_loc = 0.d0
          DO l = 1, mesh%gauss%l_G
             fl = SUM(ff_loc * mesh%gauss%ww(:, l)) * mesh%gauss%rj(l, m)
@@ -44,9 +44,9 @@ MODULE fem_rhs
       ENDDO
       CALL VecAssemblyBegin(vect, ierr)
       CALL VecAssemblyEnd(vect, ierr)
-    END SUBROUTINE qs_00
-
-    SUBROUTINE qs_11 (mesh, LA, ff, vect)
+   END SUBROUTINE qs_00
+   
+   SUBROUTINE qs_11 (mesh, LA, ff, vect)
       !> transfer of vect(PETSc projected on test functions) <== grad(ff)(HYPAR)
       !! mesh(hypar)
       !! LA(petsc_csr_MLA)
@@ -64,9 +64,9 @@ MODULE fem_rhs
       REAL(KIND = 8) :: dfl(mesh%gauss%k_d)
       Vec                                         :: vect
       PetscErrorCode                              :: ierr
-
+      
       CALL VecZeroEntries(vect, ierr)
-
+      
       DO m = 1, mesh%me
          jj_loc = mesh%jj(:, m)
          ff_loc = ff(jj_loc)
@@ -75,11 +75,11 @@ MODULE fem_rhs
             iglob = LA%loc_to_glob(1, i)
             idxm(ni) = iglob - 1
          END DO
-
+         
          v_loc = 0.d0
          DO l = 1, mesh%gauss%l_G
             DO k = 1, mesh%gauss%k_d
-                dfl(k) = SUM(ff_loc * mesh%gauss%dw(k, :, l, m))
+               dfl(k) = SUM(ff_loc * mesh%gauss%dw(k, :, l, m))
             END DO
             dfl = dfl * mesh%gauss%rj(l, m)
             DO ni = 1, mesh%gauss%n_w
@@ -90,6 +90,6 @@ MODULE fem_rhs
       ENDDO
       CALL VecAssemblyBegin(vect, ierr)
       CALL VecAssemblyEnd(vect, ierr)
-    END SUBROUTINE qs_11
-
+   END SUBROUTINE qs_11
+   
 END MODULE fem_rhs

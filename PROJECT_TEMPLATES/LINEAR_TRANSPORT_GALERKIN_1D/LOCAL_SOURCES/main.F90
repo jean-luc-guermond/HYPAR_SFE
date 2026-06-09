@@ -51,8 +51,7 @@ PROGRAM prog
      WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
   END IF
   CALL plot_scalar_field(linear_transport%mesh%jj, linear_transport%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
-  CALL plot_scalar_field(linear_transport%mesh%jj, linear_transport%mesh%rr, un(:, 1)-linear_transport%bc%sol_anal(1, linear_transport%time,mesh%rr),&
-   'err' // TRIM(ADJUSTL(char)) // '.plt')
+  CALL plot_scalar_field(linear_transport%mesh%jj, linear_transport%mesh%rr, linear_transport%bc%sol_anal(1, linear_transport%time,mesh%rr), 'sol_exact' // TRIM(ADJUSTL(char)) // '.plt')
 
 !=========================!
 !==== REGRESSION TEST ====!

@@ -5,14 +5,14 @@ MODULE start_setup_MODULE
   USE linear_transport_type_module
 
   USE read_inputs_module
-  USE setup,           ONLY: init_state_functions, cst_linear_transport
+  USE setup,           ONLY: init_state_functions, my_linear_transport
   USE cell_limiting_engine_parallel_module, ONLY: limiting_functionals_type
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
-     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of iterations ==='
+     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 
@@ -32,7 +32,7 @@ MODULE start_setup_MODULE
 
   TYPE(mesh_type),                   PUBLIC :: mesh
   TYPE(petsc_csr_LA),               PRIVATE :: LA
-  TYPE(cst_linear_transport),        PUBLIC :: linear_transport
+  TYPE(my_linear_transport),        PUBLIC :: linear_transport
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
   TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
@@ -46,6 +46,7 @@ CONTAINS
     USE construct_mesh,     ONLY: get_mesh
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
+    USE limiting_functionals_euler_module, ONLY: psi_rho_min, zero_of_psi_rho_min, psi_rho_max, zero_of_psi_rho_max
     IMPLICIT NONE
     PetscErrorCode :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
@@ -74,13 +75,12 @@ CONTAINS
     CALL linear_transport%init_linear_transport(name)
 
     !=== Define linear_transport limiting bounds (should we put this in PROBLEM_SOURCES instead?)
-    ALLOCATE(limiting_functionals_linear_transport(0))
-    ! ALLOCATE(limiting_functionals_linear_transport(2))
-    ! limiting_functionals_linear_transport(1)%psi => psi_rho_min
-    ! limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
-    ! limiting_functionals_linear_transport(2)%psi => psi_rho_max
-    ! limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
-    ! !=== Define linear_transport limiting bounds
+    ALLOCATE(limiting_functionals_linear_transport(2))
+    limiting_functionals_linear_transport(1)%psi => psi_rho_min
+    limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_linear_transport(2)%psi => psi_rho_max
+    limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
+    !=== Define linear_transport limiting bounds
     
     CALL linear_transport%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_linear_transport)
     CALL init_state_functions(linear_transport)
