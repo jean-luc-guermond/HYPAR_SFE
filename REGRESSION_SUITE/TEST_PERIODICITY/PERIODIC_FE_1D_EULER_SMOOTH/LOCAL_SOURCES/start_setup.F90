@@ -14,7 +14,7 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
-     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of iterations ==='
+     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 

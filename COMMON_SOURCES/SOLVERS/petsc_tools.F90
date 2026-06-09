@@ -21,7 +21,7 @@ CONTAINS
       Vec     :: xx, xx_ghost
 
       IF (mesh%np.NE.SIZE(uu)) THEN
-         CALL error_Petsc('Bug: array_to_petsc_vec, mesh%np>SIZE(uu)')
+         CALL local_error_petsc('Bug: array_to_petsc_vec, mesh%np>SIZE(uu)')
       END IF
       DO i = 1, mesh%np
          idxm(i) = LA%loc_to_glob(1, i) - 1
@@ -64,8 +64,8 @@ CONTAINS
 
 
       CASE DEFAULT
-         CALL error_petsc('Wrong option operation '//operation//' in array_to_petsc_vec ==> &
-         should be: add/insert/min/max')
+         CALL error_petsc(&
+         &'Wrong option operation '//operation//' in array_to_petsc_vec ==> should be: add/insert/min/max')
       END SELECT
 
       CALL VecAssemblyBegin(xx, ierr)

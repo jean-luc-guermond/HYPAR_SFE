@@ -267,7 +267,7 @@ CONTAINS
       CLASS(mesh_type) :: this
       INTEGER,          INTENT(IN) :: val_glob
       CHARACTER(LEN=*), INTENT(IN) :: char_in
-      INTEGER, DIMENSION(:), ALLOCATABLE :: cumul_over_procs
+      INTEGER, DIMENSION(this%nb_proc+1) :: cumul_over_procs
       INTEGER :: p
 
       SELECT CASE(char_in)
@@ -278,8 +278,9 @@ CONTAINS
       CASE('medge')
          cumul_over_procs = this%disedge
       CASE DEFAULT
-         CALL error_petsc("BUG in get_proc => wrong char_in "//char_in//".&
-         Should be in 'np; me; medge'")
+         CALL error_petsc(&
+         &"BUG in get_proc => wrong char_in "//char_in//".&
+         &Should be in 'np; me; medge'")
       END SELECT
 
       DO p = 1, this%nb_proc
@@ -304,6 +305,7 @@ CONTAINS
    SUBROUTINE build_loc_to_glob(this)
       !> subroutine building the loc_to_glob array, provided the construction of:
       !! this%jj, this%proc_np_loc, this%proc, this%np, this%dom_np, cumulative quantities
+      USE my_util, ONLY: local_error_petsc, to_str
       IMPLICIT NONE
       CLASS(mesh_type)    :: this
       LOGICAL, DIMENSION(:), ALLOCATABLE :: virgin
@@ -326,16 +328,15 @@ CONTAINS
          DO n=1, this%dom_np
             IF (virgin(n)) WRITE(*,*) n, 'is virgin (out of) ', this%dom_np, this%np
          END DO
-         WRITE(*,*) 'BUG in def loc_to_glob: how can jj not have all values between 1 and dom_np??'
-         STOP
+         CALL local_error_petsc('BUG in def loc_to_glob: how can jj not have all values between 1 and dom_np??')
       END IF
 
       != nodes owned by other proc
       DEALLOCATE(virgin)
       ALLOCATE(virgin(this%np-this%dom_np), source=.TRUE.)
       IF (SIZE(this%proc_np_loc,2)+this%dom_np /= this%np) THEN
-         WRITE(*,*) 'sizes mismatch in proc_np_loc ',SIZE(this%proc_np_loc,2)+this%dom_np , this%np
-         STOP
+         CALL local_error_petsc('sizes mismatch in proc_np_loc '//to_str(SIZE(this%proc_np_loc,2)+this%dom_np)&
+         &//','//to_str(this%np))
       END IF
       DO n=1, SIZE(this%proc_np_loc,2)
          p = this%proc_np_loc(1, n)
@@ -348,8 +349,8 @@ CONTAINS
          DO n=1, this%np-this%dom_np
             IF (virgin(n)) WRITE(*,*) n, ' is virgin (out of) ', this%dom_np, this%np
          END DO
-         WRITE(*,*) 'BUG in def loc_to_glob: proc_np_loc does not seem to contain all ghost points for proc ', this%proc
-         STOP
+         CALL local_error_petsc('BUG in def loc_to_glob: proc_np_loc does not seem to contain all ghost points for proc '//&
+         &to_str(this%proc))
       END IF
    END SUBROUTINE build_loc_to_glob
 END MODULE def_type_mesh

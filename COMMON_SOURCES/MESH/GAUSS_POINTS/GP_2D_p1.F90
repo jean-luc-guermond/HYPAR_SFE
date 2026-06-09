@@ -123,15 +123,19 @@ CONTAINS
     REAL(KIND=8), DIMENSION(n_ws, n_ws), INTENT(OUT) :: d
     INTEGER :: j
     REAL(KIND=8) ::  one = 1.d0,  two = 2.d0
-    REAL(KIND=8) :: df1, df2, x
+    REAL(KIND=8) :: df1, df2
     REAL(KIND=8), DIMENSION(n_ws) :: xx
-    df1(x) = -one/two
-    df2(x) = one/two
+    df1 = -one/two
+    df2 = one/two
+   !  df1(x) = -one/two
+   !  df2(x) = one/two
     xx(1) = -1.d0
     xx(2) = 1.d0
     DO j = 1, n_ws
-       d(1, j) = df1(xx(j))
-       d(2, j) = df2(xx(j))
+       d(1, j) = df1
+       d(2, j) = df2
+      !  d(1, j) = df1(xx(j))
+      !  d(2, j) = df2(xx(j))
     ENDDO
   END SUBROUTINE element_1d_p1_at_nodes
 END MODULE GP_2d_p1

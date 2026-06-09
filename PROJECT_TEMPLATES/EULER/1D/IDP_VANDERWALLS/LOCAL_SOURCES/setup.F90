@@ -1,67 +1,58 @@
 MODULE setup
-   USE mesh_parameters
-   USE vdw
-   PUBLIC :: sol_anal, init, rho_anal, press_anal, mt_anal, E_anal, impose_bc_euler, init_eos_for_setup
+   USE space_dim, ONLY : k_dim
+   USE euler_bc_arrays, ONLY: euler_bc_type
+   USE euler_bc_arrays, ONLY: mt_anal_rho_times_vit
+   USE euler_type_module, ONLY: euler_type
+   USE euler_eta_commute, ONLY: default_eta_commute
+
+   PUBLIC :: pressure, init_state_functions
+
    PRIVATE
-   REAL(KIND = 8) :: x0, x1
-   INTEGER :: VdW_test_case = 0
+   REAL(KIND = 8), PRIVATE, PARAMETER :: x0=0.d0!, x1
+   INTEGER, PUBLIC :: VdW_test_case
    REAL(KIND = 8) :: rhol, pl, ul
    REAL(KIND = 8) :: rhor, pr, ur
    REAL(KIND = 8) :: long
+
 CONTAINS
 
 !==========================================================================
-!================= INIT EOS FOR SETUP  ====================================
+!================= DEF PRESSURE FOR SETUP =================================
 !==========================================================================
 
-   SUBROUTINE init_eos_for_setup
-      USE eos
+   FUNCTION pressure(rho, e) RESULT(vv)
       USE vdw
       IMPLICIT NONE
-      TYPE(eos_pointer_type) :: eos_type
-
-      eos_type%pressure => pressure_vdw
-      
-      CALL assign_eos(eos_type)
-   END SUBROUTINE init_eos_for_setup
+      REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
+      REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
+      vv = pressure_vdw(rho, e)
+   END FUNCTION pressure
 
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
 
-   SUBROUTINE impose_bc_euler(un, euler_bc, mesh, time)
-      USE euler_bc_arrays
-      USE def_type_mesh
-      TYPE(mesh_type) :: mesh
-      TYPE(euler_bc_type) :: euler_bc
-      REAL(KIND = 8) :: time
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
-      INTEGER :: comp
-
-      DO comp = 1, euler_bc%syst_dim
-         ! SELECT CASE(comp)
-         ! CASE(1)
-         IF (comp == 1) THEN
-            un(euler_bc%rho_bc%jsd, comp) = rho_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! CASE(2:k_dim + 1)
-         ELSE IF (comp > 1 .AND. comp <= mesh_data_info%k_dim + 1) THEN
-            un(euler_bc%rho_bc%jsd, comp) = mt_anal(comp - 1, time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! CASE(k_dim + 2)
-         ELSE IF (comp == mesh_data_info%k_dim + 2) THEN
-            un(euler_bc%rho_bc%jsd, comp) = E_anal(time, mesh%rr(:, euler_bc%rho_bc%jsd))
-         ! END SELECT
-         END IF
-      END DO
-
-   END SUBROUTINE impose_bc_euler
-
-   SUBROUTINE init(un, time, rr)
-      USE def_of_gamma
-      USE lambda_module
+   SUBROUTINE init_state_functions(euler)
       IMPLICIT NONE
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2), mesh_data_info%k_dim + 2), INTENT(OUT) :: un
-      REAL(KIND = 8), INTENT(IN) :: time
+      TYPE(euler_type), INTENT(INOUT) :: euler
+      CALL init_vdw
+
+      euler%pressure => pressure
+
+      euler%bc%mt_anal    => mt_anal_rho_times_vit
+
+      euler%bc%E_anal     => E_anal_vdw
+      euler%bc%rho_anal   => rho_anal_vdw
+      euler%bc%press_anal => press_anal_vdw
+      euler%bc%vit_anal   => vit_anal_vdw
+
+      euler%eta_commute => default_eta_commute
+
+   END SUBROUTINE init_state_functions
+
+   SUBROUTINE init_vdw
+      USE vdw
+      IMPLICIT NONE
       REAL(KIND = 8) :: cl, cr, rho_plus
       REAL(KIND = 8) :: in_state(2), in_data(3), out_state(4)
       SELECT CASE(VdW_test_case)
@@ -110,20 +101,17 @@ CONTAINS
          pl = 2
          pr = 2
       END SELECT
-      WRITE(*, *) avdw, bvdw, gamma_vdw
-      WRITE(*, *) 'rhol', rhol, 'rhor', rhor
-      write(*, *) 'vl', ul, 'vr', ur
-      write(*, *) 'pl', pl, 'pr', pr
-      WRITE (*, *) 'cl', SQRT(gamma_vdw * (pl + avdw * rhol**2) / (rhol * (1 - bvdw * rhol)) - 2 * avdw * rhol)
-      WRITE (*, *) 'cR', SQRT(gamma_vdw * (pr + avdw * rhor**2) / (rhor * (1 - bvdw * rhor)) - 2 * avdw * rhor)
+      ! WRITE(*, *) avdw, bvdw, gamma_vdw
+      ! WRITE(*, *) 'rhol', rhol, 'rhor', rhor
+      ! write(*, *) 'vl', ul, 'vr', ur
+      ! write(*, *) 'pl', pl, 'pr', pr
+      ! WRITE (*, *) 'cl', SQRT(gamma_vdw * (pl + avdw * rhol**2) / (rhol * (1 - bvdw * rhol)) - 2 * avdw * rhol)
+      ! WRITE (*, *) 'cR', SQRT(gamma_vdw * (pr + avdw * rhor**2) / (rhor * (1 - bvdw * rhor)) - 2 * avdw * rhor)
+   END SUBROUTINE init_vdw
 
-      un(:, 1) = rho_anal(time, rr)
-      un(:, 2) = mt_anal(1, time, rr)
-      un(:, 3) = E_anal(time, rr)
-   END SUBROUTINE init
-
-   FUNCTION rho_anal(time, rr) RESULT(vv)
+   FUNCTION rho_anal_vdw(this, time, rr) RESULT(vv)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
@@ -137,10 +125,11 @@ CONTAINS
             vv(n) = rhor
          END IF
       END DO
-   END FUNCTION rho_anal
+   END FUNCTION rho_anal_vdw
 
-   FUNCTION press_anal(time, rr) RESULT(vv)
+   FUNCTION press_anal_vdw(this, time, rr) RESULT(vv)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
@@ -153,10 +142,11 @@ CONTAINS
             vv(n) = pr
          END IF
       END DO
-   END FUNCTION press_anal
+   END FUNCTION press_anal_vdw
 
-   FUNCTION vit_anal(comp, time, rr) RESULT(vv)
+   FUNCTION vit_anal_vdw(this, comp, time, rr) RESULT(vv)
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN) :: comp
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
@@ -170,44 +160,19 @@ CONTAINS
             vv(n) = ur
          END IF
       END DO
-   END FUNCTION vit_anal
+   END FUNCTION vit_anal_vdw
 
-   FUNCTION E_anal(time, rr) RESULT(vv)
+   FUNCTION E_anal_vdw(this, time, rr) RESULT(vv)
+      USE vdw
       IMPLICIT NONE
+      CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = (press_anal(time, rr) + avdw * rho_anal(time, rr)**2) * (1 - bvdw * rho_anal(time, rr)) / (gamma_vdw - 1.d0) &
-           - avdw * rho_anal(time, rr)**2 + rho_anal(time, rr) * (vit_anal(1, time, rr)**2) / 2
-   END FUNCTION E_anal
+      vv = (this%press_anal(time, rr) + avdw * this%rho_anal(time, rr)**2) * &
+                (1 - bvdw * this%rho_anal(time, rr)) / (gamma_vdw - 1.d0) &
+           - avdw * this%rho_anal(time, rr)**2 + this%rho_anal(time, rr) * (this%vit_anal(1, time, rr)**2) / 2
+   END FUNCTION E_anal_vdw
 
-   FUNCTION mt_anal(comp, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = rho_anal(time, rr) * vit_anal(comp, time, rr)
-   END FUNCTION mt_anal
-
-
-   FUNCTION sol_anal(comp, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      INTEGER, INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      SELECT CASE(comp)
-      CASE(1)
-         vv = rho_anal(time, rr)
-      CASE(2)
-         vv = mt_anal(1, time, rr)
-      CASE(3)
-         vv = E_anal(time, rr)
-      CASE DEFAULT
-         WRITE(*, *) ' BUG in sol_anal'
-         STOP
-      END SELECT
-   END FUNCTION sol_anal
 
 END MODULE setup

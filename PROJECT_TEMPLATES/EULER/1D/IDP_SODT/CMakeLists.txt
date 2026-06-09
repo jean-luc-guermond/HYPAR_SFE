@@ -10,7 +10,13 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")
 
 # Define variables for compilation
+set(FE_dim "0")
 include(variables.cmake)
+if(FE_dim EQUAL 0)
+    MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = 0 ==> very likely means you forgot to define it in your variable.cmake")
+elseif(FE_dim GREATER 2)
+    MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
+endif()
 
 #=============================================================
 #============ SETTING VARIABLES FOR COMPILATION  =============
@@ -46,7 +52,19 @@ set(exe "a.exe")
 
 # Building HYPAR_SFE library
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
-set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
+
+if(NOT DEFINED static_library)
+    set(static_library OFF)
+endif()
+if(static_library)
+    set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D_static)
+    message(STATUS "Linking with STATIC library")
+else()
+    set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D_dynamic)
+    message(STATUS "Linking with DYNAMIC library")
+endif()
+
+# set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
 set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${FE_dim}D/mod)
 
 # Building local sources

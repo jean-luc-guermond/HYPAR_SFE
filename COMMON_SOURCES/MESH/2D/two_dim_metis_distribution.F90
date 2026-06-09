@@ -76,8 +76,7 @@ CONTAINS
       CALL reassign_boundary_side_cut(mesh, part)
       !===Search on the boundary whether ms is on a cut.
       IF (SIZE(mesh%jj, 1)/=3) THEN
-         WRITE(*, *) 'SIZE(mesh%jj,1)', SIZE(mesh%jj, 1)
-         CALL error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)/=3')
+         CALL local_error_Petsc('BUG in part_mesh_M_T_H_phi, SIZE(mesh%jj,1)='//to_str(SIZE(mesh%jj, 1))//'/=3')
       END IF
       IF (SIZE(list_of_interfaces)/=0) THEN
          CALL reassign_interfaces(mesh, part, list_of_interfaces)
@@ -245,9 +244,10 @@ CONTAINS
             IF (found_interface_pair) EXIT
          END DO
          IF (.NOT.found_interface_pair) THEN
-            CALL error_Petsc('BUG in find_interface_pair (part_mesh_M_T_H_phi) &
-                  ==> the declared interface did not find the pair close to (x,y)=('//&
-            to_str(mesh%rr(1,i_loc(ns)))//','//to_str(mesh%rr(2,i_loc(ns)))//')')
+            CALL local_error_Petsc(&
+            &'BUG in find_interface_pair (part_mesh_M_T_H_phi) &
+            &==> the declared interface did not find the pair close to (x,y)=('//&
+            &to_str(mesh%rr(1,i_loc(ns)))//','//to_str(mesh%rr(2,i_loc(ns)))//')')
          END IF
 
       END SUBROUTINE find_interface_pair
@@ -364,9 +364,10 @@ CONTAINS
             END IF
          END DO
          IF (.NOT.found_periodic_pair) THEN
-            CALL error_Petsc('BUG in find_periodic_pair (part_mesh_M_T_H_phi), msop not found for pbc &
-            '//to_str(mesh%sides(ms))//&
-            "==> Either required periodicity for given mesh or vect_e, is wrong.")
+            CALL local_error_Petsc(&
+            &'BUG in find_periodic_pair (part_mesh_M_T_H_phi), msop not found for pbc &
+            &'//to_str(mesh%sides(ms))//&
+            &"==> Either required periodicity for given mesh or vect_e, is wrong.")
          END IF
 
       END SUBROUTINE find_periodic_pair
@@ -467,7 +468,7 @@ CONTAINS
                   okay = .TRUE.
                   i_loc = i_loc + 1
                   IF (i_loc - index==2) THEN
-                     CALL error_Petsc('BUG in reassign_per_pts, how is that possible?')
+                     CALL local_error_Petsc('BUG in reassign_per_pts, how is that possible?')
                   END IF
                   list_elmts(i_loc) = mop ! eventually add mop to list_elmts
                END DO
@@ -479,7 +480,7 @@ CONTAINS
                partition(list_elmts(1)) = proc_min
             ELSE ! deux elements du bord periodique touchent le point
                IF (list_elmts(index) /= list_pts(i, 3)) THEN
-                  CALL error_Petsc('BUG in reassign_per_pts, wrong element')
+                  CALL local_error_Petsc('BUG in reassign_per_pts, wrong element')
                END IF
                proc1 = partition(list_elmts(1))
                proc2 = partition(list_elmts(2))
@@ -755,19 +756,6 @@ CONTAINS
       mesh%nis = 0
       ALLOCATE(mesh%isolated_jjs(0), mesh%isolated_interfaces(0, 2))
 
-      ! ALLOCATE(mesh%disp(nb_proc + 1), mesh%domnp(nb_proc))
-      ! ALLOCATE(mesh%discell(nb_proc + 1), mesh%domcell(nb_proc))
-      ! ALLOCATE(mesh%disedge(nb_proc + 1), mesh%domedge(nb_proc))
-
-      ! mesh%disp(1) = 1
-      ! mesh%disp(2) = mesh%np + 1
-      ! mesh%domnp(1) = mesh%np
-      ! mesh%discell(1) = 1
-      ! mesh%discell(2) = mesh%me + 1
-      ! mesh%domcell(1) = mesh%me
-      ! mesh%disedge(1) = 1
-      ! mesh%disedge(2) = mesh%medge + 1
-      ! mesh%domedge(1) = mesh%medge
       CALL create_local_mesh_with_extra_layer(mesh, mesh_loc, me_loc, mes_loc, np_loc)
       CALL free_mesh(mesh)
       DEALLOCATE(list_m, tab, tabs)
@@ -793,7 +781,7 @@ CONTAINS
       INTEGER, DIMENSION(SIZE(mesh%jj, 1)) :: jglob, eglob
       LOGICAL :: test
       INTEGER :: dim, nws, nw, m, ms, mop, ns, msup, minf, dof, proc, m2, &
-           dom_me, nwc, dom_mes, dom_np, n, i, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
+           me, nwc, mes, dom_np, n, i, ierr, dom_np_glob, nb_extra, nb_proc, e_glob, medge, medges, j
 
       dim = SIZE(mesh%rr, 1)
       nws = SIZE(mesh%jjs, 1)
@@ -808,9 +796,7 @@ CONTAINS
          mesh_loc%np = mesh%np
          mesh_loc%mes = mesh%mes
          mesh_loc%mes_int = mesh%mes_int
-         mesh_loc%me = mesh%me
          mesh_loc%dom_np = mesh%np
-         mesh_loc%mes = mesh%mes
          mesh_loc%mextra = 0
          mesh_loc%mes_extra = 0
          mesh_loc%medge = mesh%medge
@@ -872,16 +858,16 @@ CONTAINS
       !==End test if one proc only
 
       !==Create the new mesh
-      dom_me = me_loc(2) - me_loc(1) + 1
-      dom_mes = mes_loc(2) - mes_loc(1) + 1
+      me = me_loc(2) - me_loc(1) + 1
+      mes = mes_loc(2) - mes_loc(1) + 1
       dom_np = np_loc(2) - np_loc(1) + 1
-      mesh_loc%me = dom_me
-      mesh_loc%mes = dom_mes
+      mesh_loc%me = me
+      mesh_loc%mes = mes
       mesh_loc%dom_np = dom_np
       CALL MPI_ALLREDUCE(dom_np, dom_np_glob, 1, MPI_INTEGER, &
            MPI_MIN, mesh_loc%comm, ierr)
       IF (dom_np_glob.LE.0) THEN
-         CALL error_petsc('Pb in create_local_mesh, not enough cells per processors')
+         CALL local_error_petsc('Pb in create_local_mesh, not enough cells per processors')
       END IF
 
       CALL mesh_loc%gather_dom_np
@@ -966,13 +952,13 @@ CONTAINS
       END IF
 
       DO n = 1, nw
-         mesh_loc%jj(n, 1:dom_me) = glob_to_loc(mesh%jj(n, me_loc(1):me_loc(2)))
+         mesh_loc%jj(n, 1:me) = glob_to_loc(mesh%jj(n, me_loc(1):me_loc(2)))
       END DO
       !==End re-order jj
 
       !==Create mesh%loc_to_glob
       IF (MAXVAL(mesh_loc%jj)/=dof) THEN
-         CALL error_Petsc('BUG in create_local_mesh, mesh_loc%jj)/=dof')
+         CALL local_error_petsc('BUG in create_local_mesh, mesh_loc%jj/=dof'//to_str(MAXVAL(mesh_loc%jj))//','//to_str(dof))
       END IF
       mesh_loc%np = dof
       ALLOCATE(mesh_loc%loc_to_glob(mesh_loc%np))
@@ -1141,7 +1127,7 @@ CONTAINS
          END DO
          IF (MAXVAL(jglob) < 0 .AND. MAXVAL(eglob) < 0) CYCLE
          IF (m<me_loc(1)) THEN
-            CALL ERROR_PETSC('BUG  create_local_mesh_with_extra_layer')
+            CALL local_error_petsc('BUG  create_local_mesh_with_extra_layer')
          ELSE IF (me_loc(2)<m) THEN
             nb_extra = nb_extra + 1
             virginss(m) = .FALSE.

@@ -31,7 +31,7 @@
        CALL error_petsc('Wrong polynomial degree for low-order viscosity')
     END IF
 
-    DO m = 1, this%mesh%dom_me
+    DO m = 1, this%mesh%me
        DO n = 1, this%mesh%gauss%n_e
           IF (this%mesh%attr_e(this%mesh%jce(n, m))) THEN
              edge = this%mesh%jce_loc(n, m)
@@ -137,7 +137,7 @@
       PetscErrorCode                              :: ierr
       CALL VecSet(vect, 0.d0, ierr)
       v_glb = 0.d0
-      DO m = 1, this%mesh%dom_me
+      DO m = 1, this%mesh%me
          jj_loc = this%mesh%jj(:, m)
          f_loc = ff(jj_loc,:)
          !<==recompute cij on the fly

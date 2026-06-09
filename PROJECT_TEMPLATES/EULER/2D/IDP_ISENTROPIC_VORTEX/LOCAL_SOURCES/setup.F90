@@ -1,12 +1,14 @@
 MODULE setup
    USE space_dim, ONLY : k_dim
    USE euler_bc_arrays, ONLY: euler_bc_type, mt_anal_rho_times_vit, E_anal_ideal_gas
+   USE euler_type_module, ONLY: euler_type
+   USE euler_eta_commute, ONLY: default_eta_commute
 
    PUBLIC :: pressure, init_state_functions
 
    PRIVATE
    REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
-   REAL(KIND=8), PARAMETER :: r0=1.d0, x0=0d0, y0=0.0d0
+   REAL(KIND=8), PARAMETER :: r0=0.15d0, x0=0d0, y0=0.0d0
    REAL(KIND=8), PARAMETER :: u_infty=0.d0, rho_infty=1.d0, p_infty=1.d0, beta0=5.d0, gamma = 1.4d0
    REAL(KIND=8), PARAMETER :: beta=beta0/(2*pi), chi=((gamma-1)/(2*gamma))*beta**2
 
@@ -20,7 +22,7 @@ MODULE setup
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, e
       REAL(KIND = 8), DIMENSION(SIZE(rho)) :: vv
-      vv = rho * e * (gamma - 1)
+      vv = rho * e * (gamma - 1.d0)
    END FUNCTION pressure
    
 !==========================================================================
@@ -28,22 +30,24 @@ MODULE setup
 !==========================================================================
       
 
-   SUBROUTINE init_state_functions(bc)
+   SUBROUTINE init_state_functions(euler)
       IMPLICIT NONE
-      CLASS(euler_bc_type), INTENT(INOUT) :: bc
+      TYPE(euler_type), INTENT(INOUT) :: euler
 
-      bc%gamma = gamma
+      euler%bc%gamma = gamma
+      euler%pressure => pressure
 
-      bc%mt_anal      => mt_anal_rho_times_vit
-      bc%E_anal       => E_anal_ideal_gas
+      euler%bc%mt_anal      => mt_anal_rho_times_vit
+      euler%bc%E_anal       => E_anal_ideal_gas
 
-      bc%rho_anal     => rho_anal_isentropic
-      bc%vit_anal     => vit_anal_isentropic
-      bc%press_anal   => press_anal_isentropic
+      euler%bc%rho_anal     => rho_anal_isentropic
+      euler%bc%vit_anal     => vit_anal_isentropic
+      euler%bc%press_anal   => press_anal_isentropic
+      euler%eta_commute => default_eta_commute
 
    END SUBROUTINE init_state_functions
 
-   FUNCTION rho_anal_isentropic(this, time,rr) RESULT(vv)
+   FUNCTION rho_anal_isentropic(this, time, rr) RESULT(vv)
       IMPLICIT NONE
       CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND=8), DIMENSION(:,:),         INTENT(IN) :: rr
@@ -56,6 +60,10 @@ MODULE setup
          z(n) = exp(1-rsq/(r0**2))
       END DO
       vv = (1-chi*z)**(1.d0/(gamma-1.d0))
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      z = this%gamma
+      !===dummy to avoid warning in compilation===!
    END FUNCTION rho_anal_isentropic
    
    FUNCTION press_anal_isentropic(this, time,rr) RESULT(vv)
@@ -87,6 +95,10 @@ MODULE setup
       ELSE
          vv = beta*z*(rr(1,:)-x0-u_infty*time)/r0
       END IF
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      z = this%gamma
+      !===dummy to avoid warning in compilation===!
    END FUNCTION vit_anal_isentropic
    
 END MODULE setup

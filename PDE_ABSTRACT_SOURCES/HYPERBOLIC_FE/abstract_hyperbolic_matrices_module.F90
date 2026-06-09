@@ -8,16 +8,20 @@ MODULE hyperbolic_matrices_module
    USE fem_petsc_matrix_factory_module, &
               ONLY : construct_lumped_mass_vector, construct_cij
    TYPE hyperbolic_matrices_type
-      CHARACTER(LEN=200) :: method
-      Mat :: mass, dijL, stiffL, cij_norm_loc
+      INTEGER                          :: method, which_mass
+      Mat :: mass, dijL, stiffL, cij_norm_loc, Al_mass
       Mat :: dijH
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
       Mat, DIMENSION(:,:), ALLOCATABLE :: cij_loc
       Vec                              :: lump_mass_vec
+      KSP                              :: ksp_consistent_mass
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_hyperbolic_matrices
-      PROCEDURE, PRIVATE :: construct_loc_nij
+      PROCEDURE, PRIVATE :: construct_loc_nij, construct_consistent_mass_solver, construct_Ar
    END TYPE hyperbolic_matrices_type
+
+   INTEGER, PRIVATE, PARAMETER :: METHOD_VISCOUS=1, METHOD_HIGH=2
+   INTEGER, PRIVATE, PARAMETER :: LUMPED_MASS=1, QUASI_CONSISTENT_MASS=2, CONSISTENT_MASS=3
 
 CONTAINS
 
@@ -27,13 +31,12 @@ CONTAINS
       USE st_matrix, ONLY: create_my_ghost
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
-      TYPE(mesh_type), INTENT(IN) :: mesh
+      TYPE(mesh_type),    INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      INTEGER :: k, ierr
+      INTEGER                        :: k, ierr
       INTEGER, DIMENSION(:), POINTER :: ifrom
-      real(kind=8) :: norm
-      MPI_Comm       :: communicator
-      IS, DIMENSION(1) :: is
+      MPI_Comm                       :: communicator
+      IS,      DIMENSION(1)          :: is
 
       !===Init global vectors
       IF (.NOT. ALLOCATED(this%cij)) THEN
@@ -51,7 +54,6 @@ CONTAINS
 
       !===Mat construction
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, this%mass)
-      !>>> because this subroutine is designed to solve AX=Y but does not technically periodize A
       CALL periodic_matrix_petsc(mesh%per, LA, this%mass)
       
       CALL create_my_ghost(mesh, LA, ifrom)
@@ -70,10 +72,16 @@ CONTAINS
       CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc, ierr)
       CALL this%construct_loc_nij(mesh)
 
-      IF (TRIM(ADJUSTL(this%method))=='high') THEN
+      IF (this%method==METHOD_HIGH) THEN
          CALL MatDuplicate(this%mass, MAT_DO_NOT_COPY_VALUES, this%dijH, ierr)
          CALL MatDuplicate(this%mass, MAT_DO_NOT_COPY_VALUES, this%stiffL, ierr)
          CALL qs_mass_diff_M (mesh, 0.d0, 1.d0, LA, this%stiffL)
+      END IF
+
+      IF (this%which_mass==CONSISTENT_MASS) THEN
+         CALL this%construct_consistent_mass_solver(communicator)
+      ELSE IF (this%which_mass==QUASI_CONSISTENT_MASS) THEN
+         CALL this%construct_Ar
       END IF
 
    END SUBROUTINE construct_hyperbolic_matrices
@@ -145,5 +153,36 @@ CONTAINS
       CALL MatAssemblyEnd  (this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
 
    END SUBROUTINE construct_loc_nij
+
+   SUBROUTINE construct_consistent_mass_solver(this, communicator)
+      USE solver_petsc
+      IMPLICIT NONE
+      CLASS(hyperbolic_matrices_type) :: this
+      TYPE(solver_param)              :: my_par_solver
+      MPI_Comm                       :: communicator
+
+      !===Create ksp solver
+      my_par_solver%it_max  = 5000
+      my_par_solver%rel_tol = 1.d-10
+      my_par_solver%abs_tol = 1.d-18
+      my_par_solver%verbose = .FALSE.
+      CALL init_solver(my_par_solver, this%ksp_consistent_mass, this%mass, communicator, &
+      solver = "GMRES", precond = 'MUMPS')
+   END SUBROUTINE construct_consistent_mass_solver
+
+   SUBROUTINE construct_Ar(this)
+      IMPLICIT NONE
+      CLASS(hyperbolic_matrices_type) :: this
+      INTEGER :: ierr
+      Vec     :: xx
+      CALL VecDuplicate(this%lump_mass_vec, xx, ierr)
+      CALL VecSet(xx, 1.d0, ierr)
+      CALL MatDuplicate(this%mass, MAT_COPY_VALUES, this%Al_mass, ierr)
+      CALL VecPointWiseDivide(xx, xx, this%lump_mass_vec, ierr)
+      CALL MatDiagonalScale(this%Al_mass, PETSC_NULL_VEC, xx, ierr)
+      CALL MatScale(this%Al_mass, -1.d0, ierr)
+      CALL MatShift(this%Al_mass, 1.d0, ierr)
+      CALL VecDestroy(xx, ierr)
+   END SUBROUTINE construct_Ar
 
 END MODULE hyperbolic_matrices_module

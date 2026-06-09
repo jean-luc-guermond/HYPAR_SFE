@@ -27,6 +27,21 @@ function(add_regression_test)
     ENDIF()
 
     #===================================================
+    # Selecting Hypar library configuration
+    #===================================================
+
+    if(NOT DEFINED static_library)
+        set(static_library OFF)
+    endif()
+    if(static_library)
+        set(MY_HYPAR_SFE_LIB hypar_lib_F_${LOCAL_FE_DIM}_static)
+        message(STATUS "Linking with STATIC library")
+    else()
+        set(MY_HYPAR_SFE_LIB hypar_lib_F_${LOCAL_FE_DIM}_dynamic)
+        message(STATUS "Linking with DYNAMIC library")
+    endif()
+
+    #===================================================
     # Loop over number of regex to generate executables
     #===================================================
     set(MY_CMD /bin/bash "../../../job.sh")
@@ -47,7 +62,7 @@ function(add_regression_test)
       target_compile_definitions(${exe} PRIVATE regex_num=${i})
 
       # Link with hypar, petsc, fftw, mpi, zlib, and eventually additional libraries
-      target_link_libraries(${exe} PRIVATE hypar_lib_F_${LOCAL_FE_DIM})
+      target_link_libraries(${exe} PRIVATE ${MY_HYPAR_SFE_LIB})
       target_include_directories(${exe} PRIVATE ${HYPAR_SFE_DIR}/LIBS/BUILD/${LOCAL_FE_DIM}/mod)
       LIST(APPEND MY_CMD ${exe})
     endforeach()
@@ -101,8 +116,13 @@ function(generate_random_procs_list OUT_VAR)
         # Safety check
         math(EXPR range_size "${LOCAL_MAX} - ${LOCAL_MIN} + 1")
         if(N GREATER range_size)
-        message(FATAL_ERROR
-            "Cannot generate ${N} unique numbers in range [${LOCAL_MIN}, ${LOCAL_MAX}]")
+            set(result "")
+            foreach(i RANGE ${LOCAL_MIN} ${LOCAL_MAX})
+                list(APPEND result ${i})
+            endforeach()
+
+            set(${OUT_VAR} "${result}" PARENT_SCOPE)
+            return()
         endif()
 
         # Decide strategy

@@ -51,6 +51,10 @@ CONTAINS
     REAL(KIND=8) :: time
     REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
     vv = SIN(2*pi*Fourier_param%rr/Fourier_param%Length)
+    !=== dummy to avoid warning
+    RETURN
+    vv = time
+    !=== dummy
   END FUNCTION exact_sol_sine_R
 
   FUNCTION exact_sol_step_R(fourier_param,time) RESULT(vv)
@@ -59,7 +63,6 @@ CONTAINS
     TYPE(fourier_param_type) :: fourier_param
     REAL(KIND=8), DIMENSION(fourier_param%Nmax_real) :: vv
     REAL(KIND=8) :: time
-    REAL(KIND=8), PARAMETER :: pi=ACOS(-1.d0)
     INTEGER :: i
     DO i = 1, Fourier_param%NMax_real
        IF (Fourier_param%rr(i)< Fourier_param%Length/2) THEN

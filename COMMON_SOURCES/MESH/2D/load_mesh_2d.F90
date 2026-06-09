@@ -445,7 +445,6 @@ CONTAINS
       TYPE(mesh_type) :: mesh
       LOGICAL, DIMENSION(mesh%me) :: virgin
       INTEGER :: m, mop, nw, me, n, n1, n2, nmin, nmax, edge, nt, nws, f_dof, nop
-      LOGICAL :: test
       LOGICAL, DIMENSION(:), ALLOCATABLE :: arr_test
       nw = SIZE(mesh%jj, 1)
       nws = SIZE(mesh%jjs, 1)

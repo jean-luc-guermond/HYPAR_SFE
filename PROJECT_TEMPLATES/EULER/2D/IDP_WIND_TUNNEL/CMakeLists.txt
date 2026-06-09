@@ -5,11 +5,48 @@ MESSAGE(STATUS "")
 
 # Project name and version
 project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
+MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 # Define variables for compilation
+set(FE_dim "0")
 include(variables.cmake)
-define_compile_mode()
+if(FE_dim EQUAL 0)
+    MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = 0 ==> very likely means you forgot to define it in your variable.cmake")
+elseif(FE_dim GREATER 2)
+    MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
+endif()
+
+#=============================================================
+#============ SETTING VARIABLES FOR COMPILATION  =============
+#=============================================================
+
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
+set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
+    " Flags used by the compiler during release builds. ")
+set(CMAKE_Fortran_FLAGS_NATIVE ${native_bounds} CACHE STRING
+        " Flags used by the compiler during native builds. ")
+
+ADD_CUSTOM_TARGET(debug
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Debug")
+
+ADD_CUSTOM_TARGET(release
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Release")
+
+ADD_CUSTOM_TARGET(native
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Native ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
+    COMMENT "Switch CMAKE_BUILD_TYPE to Native")
+
+#=============================================================
+#============ COMPILING AND LINKING WITH HYPAR   =============
+#=============================================================
+
 set(exe "a.exe")
 
 

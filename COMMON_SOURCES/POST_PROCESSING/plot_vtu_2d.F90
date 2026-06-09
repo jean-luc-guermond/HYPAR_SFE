@@ -26,8 +26,8 @@ SUBROUTINE make_vtu_file_2D(communicator, mesh_in, header, field_in, field_name,
     CALL MPI_Comm_size(communicator, nb_procs, ierr)
     ALLOCATE(file_list(nb_procs))
 
-    IF (mesh_in%gauss%n_w==10 .AND. mesh_in%gauss%k_d==2) THEN
-       CALL error_petsc('Error in make_vtu_file_2D: P3 elements not programmed')
+    IF (mesh_in%gauss%n_w>=10 .AND. mesh_in%gauss%k_d==2) THEN
+       CALL error_petsc('Error in make_vtu_file_2D: Pk elements not programmed for k > 2')
     ELSE
        field => field_in
        mesh => mesh_in

@@ -1,129 +1,117 @@
 PROGRAM test_matrix
 #include "petsc/finclude/petsc.h"
   USE petsc
-  USE petsc_tools
-  USE construct_mesh
-  USE def_type_mesh
-  USE periodic_data_module
-  USE dirichlet_type_module
-  USE compute_periodic
-  USE solver_petsc
-  USE fem_M
-  USE fem_rhs
-  USE dir_nodes
-  USE dir_nodes_petsc
-  USE st_matrix
+  ! USE my_laplace_module, ONLY: laplace, ex_sol, source
+  USE fem_tn, ONLY: ns_l1_par
+  USE start_setup_MODULE
+
   USE sub_plot
-  USE read_inputs_module
   USE post_processing_debug_MODULE
+  USE setup, ONLY: source, ex_sol
+  USE my_util, ONLY: user_time
   IMPLICIT NONE
-  TYPE(mesh_type)     :: mesh
-  TYPE(petsc_csr_LA)  :: LA
-  TYPE(dirichlet_bc)  :: dir
-  TYPE(solver_param)  :: my_par
-  !TYPE(periodic_type), DIMENSION(1) :: per
-  !INTEGER, POINTER, DIMENSION(:) :: js_d_loc
-  INTEGER, POINTER, DIMENSION(:) :: ifrom
-  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: un
-  REAL(KIND=8) :: error, norm
-  INTEGER :: rank
+
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhs, exact_solution, un_out
+  REAL(KIND=8) :: tps
+  INTEGER      :: tot_np
   CHARACTER(5) :: char
-! for regression test
-  CHARACTER(100) :: string
-  INTEGER :: num_test
-  REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: tab_norm
-! for regression test
-  Mat :: mass
-  Vec :: rhs, sol, ghost_sol
-  KSP :: my_ksp
-  MPI_Comm       :: communicator
+
   PetscErrorCode :: ierr
 
-  !===Start PETSC and MPI (mandatory)=============================================
 
-  CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
-  communicator = PETSC_COMM_WORLD
-  CALL MPI_Comm_rank(communicator, rank, ierr)
+!========================!
+!==== INITIALIZATION ====!
+!========================!
 
-  my_par%it_max = 5000
-  my_par%rel_tol = 1.d-10
-  my_par%abs_tol = 1.d-18
-  my_par%verbose = .FALSE.
-  my_par%solver = 'MUMPS'
-  my_par%precond = 'MUMPS'
-
-  !===read mesh data =================================================
-  CALL clean_data_once
-  CALL get_mesh(communicator, mesh)
-
-  CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
-  CALL dir%set(mesh, "a")
-
-  !===create petsc matrix ============================================
-  CALL create_local_petsc_matrix(PETSC_COMM_WORLD, LA, mass, clean = .FALSE.)
-  CALL qs_mass_diff_M (mesh, 1.d0, 1.d0, LA, mass)
-  CALL periodic_matrix_petsc(mesh%per, LA, mass)
-  CALL Dirichlet_M_parallel(mass, LA%loc_to_glob(1,dir%jsd))
-
-
-  CALL create_my_ghost(mesh, LA, ifrom)
-  CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, PETSC_DETERMINE, SIZE(ifrom), ifrom, sol, ierr)
-  CALL VecDuplicate(sol, rhs, ierr)
-  CALL VecGhostGetLocalForm(sol, ghost_sol, ierr)
-
-  !===set PBC + rhs ==================================================
-  CALL qs_00 (mesh, LA, source(mesh%rr), rhs)
-  CALL periodic_rhs_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, rhs, LA)
-  ! write(*,*) mesh%per%nb_bords, mesh%per%list(1)%DIL, mesh%per%perlist(1)%DIL
-  CALL dirichlet_rhs(LA%loc_to_glob(1, dir%jsd) - 1, ex_sol(mesh%rr(:, dir%jsd)), rhs)
-
-  !===solving linear system ==========================================
-  CALL init_solver(my_par, my_ksp, mass, PETSC_COMM_WORLD, solver = 'MUMPS', precond = 'MUMPS')
-
-  CALL solver(my_ksp, rhs, sol, reinit = .FALSE., verbose = .FALSE.)
-  CALL VecGhostUpdateBegin(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  CALL VecGhostUpdateEnd(sol, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  ALLOCATE(un(mesh%np))
-  CALL extract(sol, 1, 1, LA, un)
-
-  !===post processing =================================================
-  WRITE(char, '(I5)') mesh%rank
-  CALL plot_scalar_field(mesh%jj, mesh%rr, un, 'SOL' // trim(adjustl(char)) // '.plt')
-  CALL plot_scalar_field(mesh%jj, mesh%rr, un-ex_sol(mesh%rr), 'error' // trim(adjustl(char)) // '.plt')
-
-  CALL array_to_petsc_vec(ex_sol(mesh%rr), rhs, mesh, LA, 'insert')
-  CALL VecAssemblyBegin(rhs, ierr)
-  CALL VecAssemblyEnd(rhs, ierr)
-  CALL VecNorm(rhs, NORM_1, norm, ierr)
-  CALL VecAXPY(rhs, -1.d0, sol, ierr)
-  CALL VecNorm(rhs, NORM_1, error, ierr)
-  if(rank==0) WRITE(*, '(A,g12.3)') 'L1 NORM error ', error / norm
-
-  !===regression test =================================================
-  CALL getarg(1, string)
-  IF (trim(adjustl(string))=='regression') THEN
-       ALLOCATE(tab_norm(1))
-       tab_norm(1) = error / norm
-       CALL get_num_test(num_test)
-       CALL regression(tab_norm, opt_num_test=num_test)
+  CALL start_setup
+  ALLOCATE(rhs(Laplace%mesh%np), un_out(Laplace%mesh%np))
+  rhs = source(Laplace%mesh%rr)
+  WRITE(char, '(I5)') Laplace%mesh%rank
+  CALL plot_scalar_field(Laplace%mesh%jj, Laplace%mesh%rr, rhs, 'rhs'//TRIM(ADJUSTL(char))//'.plt')
+  IF (setup_data%if_analytical_ref) THEN
+    ALLOCATE(exact_solution(Laplace%mesh%np))
+    exact_solution = Laplace%dir_bc(Laplace%mesh%rr)
+    CALL plot_scalar_field(Laplace%mesh%jj, Laplace%mesh%rr, exact_solution, 'sol_exact_'//TRIM(ADJUSTL(char))//'.plt')
   END IF
 
+
+!=====================!
+!==== SOLVER LOOP ====!
+!=====================!
+
+  tps = user_time()
+  CALL Laplace%solve(rhs, un_out)
+  tps = user_time() - tps
+
+
+!=========================!
+!==== POST-PROCESSING ====!
+!=========================!
+
+  CALL MPI_ALLREDUCE(Laplace%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,Laplace%communicator,ierr)
+  IF(Laplace%mesh%rank==0) THEN
+     WRITE(*,*) ' tot_np', tot_np
+     WRITE(*,*) ' Time per dof times proc', tps/tot_np, tps
+  END IF
+  CALL plot_scalar_field(Laplace%mesh%jj, Laplace%mesh%rr, un_out(:), 'result_' // TRIM(ADJUSTL(char)) // '.plt')
+  
+  IF (setup_data%if_analytical_ref) THEN
+    CALL plot_scalar_field(mesh%jj, mesh%rr, un_out-exact_solution, 'error' // trim(adjustl(char)) // '.plt')
+  END IF
+
+!=========================!
+!==== REGRESSION TEST ====!
+!=========================!
+
+  CALL errors
+
+!=====================!
+!==== END PROGRAM ====!
+!=====================!
   CALL PetscFinalize(ierr)
 
-CONTAINS
 
-  FUNCTION source(rr) RESULT(uu)
+CONTAINS
+  SUBROUTINE errors
+    USE fem_tn
+    USE post_processing_debug_MODULE
     IMPLICIT NONE
-    REAL(KIND = 8), DIMENSION(:, :) :: rr
-    REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
-    REAL(KIND = 8) :: kxmax=ACOS(-1.d0), kymax=3*ACOS(-1.d0)
-    uu = (1+kxmax**2+kymax**2)*SIN(kxmax * rr(1, :))*SIN(kymax * rr(2, :) + .1d0)
-  END FUNCTION source
-  FUNCTION ex_sol(rr) RESULT(uu)
-    IMPLICIT NONE
-    REAL(KIND = 8), DIMENSION(:, :) :: rr
-    REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: uu
-    REAL(KIND = 8) :: kxmax=ACOS(-1.d0), kymax=3*ACOS(-1.d0)
-    uu = SIN(kxmax * rr(1, :))*SIN(kymax * rr(2, :) + .1d0)
-  END FUNCTION ex_sol
+
+    REAL(KIND=8) :: error, norm, norm_anal
+    REAL(KIND=8), DIMENSION(setup_data%syst_size) :: tab_norm
+    INTEGER      :: n, num_test
+
+!==== Put final processing stuff here ====!
+    DO n=1, setup_data%syst_size
+      IF (setup_data%if_analytical_ref) THEN
+        CALL ns_l1_PAR(mesh, un_out(:)-exact_solution, error, Laplace%communicator)
+        CALL ns_l1_PAR(mesh, exact_solution, norm_anal, Laplace%communicator)
+        norm = error/norm_anal
+        IF(Laplace%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+        ! IF(Laplace%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
+      ELSE
+        CALL ns_l1_PAR(mesh, un_out(:), norm, Laplace%communicator)
+        IF(Laplace%mesh%rank==0) WRITE(*, *) 'Comp = ',n,'; no analytical ref, L1-norm = ', norm
+      END IF
+    END DO
+
+    
+!==== For regression tests ====!
+    IF (setup_data%if_regression_test) THEN
+      DO n=1, setup_data%syst_size
+        IF (setup_data%if_analytical_ref) THEN
+          CALL ns_l1_PAR(mesh, un_out(:)-exact_solution, error, Laplace%communicator)
+          CALL ns_l1_PAR(mesh, exact_solution, norm_anal, Laplace%communicator)
+          norm = error/norm_anal
+        ELSE
+          CALL ns_l1_PAR(mesh, un_out(:), norm, Laplace%communicator)
+        END IF
+        tab_norm(n) = norm
+      END DO
+      CALL get_num_test(num_test)
+      CALL regression(tab_norm, opt_num_test=num_test)
+    END IF
+
+  END SUBROUTINE errors
+
 END PROGRAM test_matrix

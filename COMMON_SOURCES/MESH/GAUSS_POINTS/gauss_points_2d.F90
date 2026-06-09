@@ -194,7 +194,7 @@ CONTAINS
                IF (MINVAL(ABS(js(:, ms) - jj(n, m)))==0) CYCLE
                face = n
             END DO
-            rsd(1:k_d) = rr(:, jj(face, m)) - (rr(:, js(1, ms)) + rr(:, js(2, ms))) / 2
+            rsd(1:k_d) = rr(:, jj(face, m)) - (rr(:, js(1, ms)) + rr(:, js(2, ms))) / 2.d0
             x = SUM(rnorms(:, ls, ms) * rsd(1:k_d))
             IF (x>0) THEN
                rnorms(:, ls, ms) = -rnorms(:, ls, ms)
@@ -236,7 +236,7 @@ CONTAINS
                IF (MINVAL(ABS(js(:, ms) - jj(n, m)))==0) CYCLE
                face = n
             END DO
-            rs = rr(:, jj(face, m)) - (rr(:, js(1, ms)) + rr(:, js(2, ms))) / 2
+            rs = rr(:, jj(face, m)) - (rr(:, js(1, ms)) + rr(:, js(2, ms))) / 2.d0
             x = SUM(mesh%gauss%rnorms_v(:, ns, ms) * rs)
             IF (x>0) THEN
                mesh%gauss%rnorms_v(:, ns, ms) = - mesh%gauss%rnorms_v(:, ns, ms)

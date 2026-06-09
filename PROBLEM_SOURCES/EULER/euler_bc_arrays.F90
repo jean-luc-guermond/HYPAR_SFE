@@ -120,7 +120,7 @@ CONTAINS
       vv = 1.d0
       RETURN
       !===dummy to avoid warning in compilation===!
-      r_dummy = time
+      r_dummy = time; r_dummy = this%gamma 
       !===dummy to avoid warning in compilation===!
    END FUNCTION scal_one
 
@@ -134,7 +134,7 @@ CONTAINS
       vv = 1.d0
       RETURN
       !===dummy to avoid warning in compilation===!
-      r_dummy = time; int_dummy = comp
+      r_dummy = time; int_dummy = comp; r_dummy = this%gamma 
       !===dummy to avoid warning in compilation===!
    END FUNCTION vect_one
 

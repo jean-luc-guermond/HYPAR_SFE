@@ -237,7 +237,7 @@ CONTAINS
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real)   :: r_out
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real,2) :: dijL
     REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real)   :: diag_dijL
-    REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real) :: r_diff, r_flux, umax, umin, alpha, beta, eta, etap
+    REAL(KIND = 8), DIMENSION(nl_scalar_cons%Nmax_real) :: r_diff, r_flux, umax, umin, alpha
     REAL(KIND = 8) :: ul, ur, cij, lambda, uijbar
     INTEGER :: i, j, m, n, np
 
@@ -307,8 +307,9 @@ CONTAINS
                     nl_scalar_cons%glob_max,nl_scalar_cons%jj,r_out,umax,umin)
          END IF
       ELSE
-         WRITE(*,*) 'BUG in compute_dt_viscous_flux_min_max, method should be &
-         "viscous" or "high", not ', nl_scalar_cons%method
+         WRITE(*,*) &
+         &'BUG in compute_dt_viscous_flux_min_max, method should be &
+         &"viscous" or "high", not ', nl_scalar_cons%method
          STOP
       END IF
   END SUBROUTINE compute_dt_viscous_flux_min_max

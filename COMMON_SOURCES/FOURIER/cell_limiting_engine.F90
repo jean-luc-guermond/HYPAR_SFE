@@ -3,7 +3,7 @@ MODULE cell_limiting_engine_module
   TYPE mass_for_limiting
      REAL(KIND=8), DIMENSION(:,:), POINTER :: localized_mass
      REAL(KIND=8), DIMENSION(:),   POINTER :: lumped_mass
-     REAL(KIND=8) :: mass_eps
+     REAL(KIND=8) :: mass_eps=1.d-14 !dummy in Fourier, check in FE
   END TYPE mass_for_limiting
   REAL(KIND=8), PARAMETER, PRIVATE :: epsilon=1.d-14
 CONTAINS
@@ -90,8 +90,8 @@ CONTAINS
           xx(:,m,:) = xx_loc
           CYCLE !===No limiting is possible/or no limiting necessary
        END IF
-       uk_minus = uk_minus/mass_minus
-       uk_plus  = uk_plus/mass_plus
+       uk_minus = uk_minus/(mass_minus+epsilon)
+       uk_plus  = uk_plus/(mass_plus+epsilon)
        DO n = 1, nw
           !===Lambda_minus
           IF (limit_minus(n)==1) THEN
@@ -106,8 +106,8 @@ CONTAINS
        lambda_plus  = MAX(MIN(lambda_plus,1.d0),0.d0)
        Lambda_star_minus = MINVAL(lambda_minus)
        Lambda_star_plus  = MINVAL(lambda_plus)
-       Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/mass_minus)
-       Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/mass_plus)
+       Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/(mass_minus+epsilon))
+       Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/(mass_plus+epsilon))
 
        DO n = 1, nw
           !===P2 fix
@@ -210,8 +210,8 @@ CONTAINS
        IF (iplus*iminus==0) THEN
           CYCLE !===No limiting is possible
        END IF
-       uk_minus = uk_minus/mass_minus
-       uk_plus  = uk_plus/mass_plus
+       uk_minus = uk_minus/(mass_minus+epsilon)
+       uk_plus  = uk_plus/(mass_plus+epsilon)
        DO n = 1, nw
           !===Lambda_minus
           IF (limit_minus(n)==1) THEN
@@ -226,8 +226,8 @@ CONTAINS
        lambda_plus  = MAX(MIN(lambda_plus,1.d0),0.d0)
        Lambda_star_minus = MINVAL(lambda_minus)
        Lambda_star_plus  = MINVAL(lambda_plus)
-       Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/mass_minus)
-       Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/mass_plus)
+       Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/(mass_minus+epsilon))
+       Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/(mass_plus+epsilon))
        !err =0.d0
        DO n = 1, nw
           i = jj(n,m)

@@ -8,11 +8,10 @@ MODULE setup
    PUBLIC :: pressure, init_state_functions
 
    PRIVATE
-   REAL(KIND = 8) :: x0, x1
+   REAL(KIND = 8), PARAMETER :: x0=0.d0
    INTEGER :: VdW_test_case = 0
    REAL(KIND = 8) :: rhol, pl, ul
    REAL(KIND = 8) :: rhor, pr, ur
-   REAL(KIND = 8) :: long
 
 CONTAINS
 
@@ -53,7 +52,7 @@ CONTAINS
    SUBROUTINE init_vdw
       USE vdw
       IMPLICIT NONE
-      REAL(KIND = 8) :: cl, cr, rho_plus
+      REAL(KIND = 8) :: rho_plus!, cl, cr
       REAL(KIND = 8) :: in_state(2), in_data(3), out_state(4)
       SELECT CASE(VdW_test_case)
       CASE(0) !===Convergence test Section 6.1, SISC Vol. 44, No. 1, pp. A444-A470
@@ -125,6 +124,10 @@ CONTAINS
             vv(n) = rhor
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma; vv = time
+      !===dummy to avoid warning in compilation===!
    END FUNCTION rho_anal_vdw
 
    FUNCTION press_anal_vdw(this, time, rr) RESULT(vv)
@@ -142,6 +145,10 @@ CONTAINS
             vv(n) = pr
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma; vv = time
+      !===dummy to avoid warning in compilation===!
    END FUNCTION press_anal_vdw
 
    FUNCTION vit_anal_vdw(this, comp, time, rr) RESULT(vv)
@@ -160,6 +167,10 @@ CONTAINS
             vv(n) = ur
          END IF
       END DO
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma; vv = time; n = comp
+      !===dummy to avoid warning in compilation===!
    END FUNCTION vit_anal_vdw
 
    FUNCTION E_anal_vdw(this, time, rr) RESULT(vv)
@@ -172,6 +183,10 @@ CONTAINS
       vv = (this%press_anal(time, rr) + avdw * this%rho_anal(time, rr)**2) * &
                 (1 - bvdw * this%rho_anal(time, rr)) / (gamma_vdw - 1.d0) &
            - avdw * this%rho_anal(time, rr)**2 + this%rho_anal(time, rr) * (this%vit_anal(1, time, rr)**2) / 2
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma; vv = time
+      !===dummy to avoid warning in compilation===!
    END FUNCTION E_anal_vdw
 
 

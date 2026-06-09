@@ -13,7 +13,6 @@ MODULE read_inputs_module
     INTEGER, PRIVATE :: index_list_info_data, record_size
     LOGICAL, PRIVATE :: data_cleaned = .FALSE., if_regression_test
     INTEGER, PRIVATE :: num_test, num_data_file
-    REAL(KIND=8), PRIVATE :: idx_data_file
     CHARACTER(LEN=:), ALLOCATABLE, PRIVATE :: file_in, file_save, file_out
     CHARACTER(LEN=*), PARAMETER, PRIVATE :: file_in_par = 'data', file_save_par = 'previous_data', file_out_par = 'data'
 
@@ -142,8 +141,8 @@ CONTAINS
                CYCLE
             ELSE IF (TRIM(ADJUSTL(control(1:8)))=="||||||||") THEN
                CYCLE
-            ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
-               CYCLE
+            ! ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
+            !    CYCLE
             ELSE
                record_size_clean = record_size_clean + 1
                record(record_size_clean) = control
@@ -185,20 +184,23 @@ CONTAINS
       
       CHARACTER(LEN=rec_length) :: control, string
       CHARACTER(LEN=5)   :: fmt
-      INTEGER            :: length_section_name, line_section
+      INTEGER            :: length_section_name
       INTEGER            :: code
+      LOGICAL            :: skip_control
       
       !========== MANDATORY INITIALIZING record_info_from_data AND list_info_for_new_data
       
       IF (.NOT. data_cleaned) THEN
-         CALL error_petsc('BUG in character_strings.F90 (read_data_init_list): &
-                 you should have called "clean_data_once" before reading data for the first time')
+         CALL error_petsc(&
+         &'BUG in character_strings.F90 (read_data_init_list): &
+         &you should have called "clean_data_once" before reading data for the first time')
       END IF
       
       IF (ALLOCATED(record_info_from_data) .OR. ALLOCATED(list_info_for_new_data)) THEN
-         CALL error_petsc('BUG in character_strings.F90 (read_data_in_record): &
-      record_info_from_data or list_info_for_new_data is allocated &
-      , you might have forgotten to deallocate (for instance by calling "rewrite_data_from_list_record")')
+         CALL error_petsc(&
+         &'BUG in character_strings.F90 (read_data_in_record): &
+         &record_info_from_data or list_info_for_new_data is allocated &
+         &, you might have forgotten to deallocate (for instance by calling "rewrite_data_from_list_record")')
       ELSE 
          ALLOCATE(record_info_from_data(list_length))
          record_info_from_data = ""
@@ -231,13 +233,16 @@ CONTAINS
       !========== READING CURRENT INFORMATION FROM DATA FILE
       
       OPEN(UNIT = in_unit, FILE = file_out, FORM = 'formatted', STATUS = 'unknown')
-      
-      line_section = -1
-      
+            
       !===Read data file into record
+      skip_control = .FALSE.
       DO
          READ(in_unit,'(A)',END=100) control
          IF (TRIM(ADJUSTL(control))=='') CYCLE
+         IF (skip_control) THEN
+            skip_control = .FALSE.
+            CYCLE
+         END IF
          record_size = record_size+1
          record_info_from_data(record_size)=control
          IF (PRESENT(raw_section_name)) THEN
@@ -246,6 +251,9 @@ CONTAINS
             IF (string==section_name) THEN
                record_info_from_data(record_size) = ""
                record_size = record_size - 1
+               record_info_from_data(record_size) = ""
+               record_size = record_size - 1
+               skip_control = .TRUE.
             END IF
          END IF
       END DO
@@ -307,8 +315,9 @@ CONTAINS
       ! IF (ALLOCATED(argument)) DEALLOCATE(argument)
       
       IF (raw_argument(1:3) /= '===') THEN
-         CALL error_petsc("wrong argument "//TRIM(ADJUSTL(raw_argument))//", &
-         make sure it starts with '==='")
+         CALL error_petsc(&
+         &"wrong argument "//TRIM(ADJUSTL(raw_argument))//", &
+         &make sure it starts with '==='")
       END IF
 
       IF (.NOT. PRESENT(name)) THEN
@@ -321,8 +330,9 @@ CONTAINS
             size2 = last_of_string(TRIM(ADJUSTL(name)))
             size3 = LEN(" ===")
             IF (raw_argument(size1-size3+1:size1) /= " ===") THEN
-               CALL error_petsc("BUG in concatenate_argument_name: wrong argument"//TRIM(ADJUSTL(raw_argument))//&
-               ", it should end with ' ==='")
+               CALL error_petsc(&
+               &"BUG in concatenate_argument_name: wrong argument"//TRIM(ADJUSTL(raw_argument))//&
+               &", it should end with ' ==='")
             END IF
             argument = raw_argument(:size1-size3) // " " // name(:size2) // " ==="
          END IF
@@ -477,8 +487,9 @@ CONTAINS
       CASE(2)
          string_default = "0 0 0.d0 0.d0"
       CASE DEFAULT
-         CALL error_petsc('BUG in read_inputs_module.F90 (read_periodic_data):&
-          k_dim should be 1 or 2 not '//to_str(k_dim))
+         CALL error_petsc(&
+         &'BUG in read_inputs_module.F90 (read_periodic_data):&
+         &k_dim should be 1 or 2 not '//to_str(k_dim))
       END SELECT
 
       okay = .FALSE.

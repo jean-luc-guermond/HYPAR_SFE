@@ -26,7 +26,7 @@ MODULE mesh_data_module
       CHARACTER(len = rec_length) :: list_dom          = '=== List of subdomains in the mesh ==='
       CHARACTER(len = rec_length) :: type_fe           = '=== Type of finite element ==='
       CHARACTER(len = rec_length) :: nb_refinement     = '=== Number of refinement steps ==='
-      CHARACTER(len = rec_length) :: refinement_order  = '=== Order of refinement? (1d) ==='
+      CHARACTER(len = rec_length) :: refine_factor     = '=== Factor of refinement ==='
       CHARACTER(len = rec_length) :: nb_bords          = '=== How many pieces of periodic boundary? ==='
       CHARACTER(len = rec_length) :: list_periodic     = '=== Indices of periodic boundaries and corresponding vectors ==='
    END TYPE argument_mesh_info_type
@@ -36,7 +36,7 @@ MODULE mesh_data_module
       INTEGER, DIMENSION(:), ALLOCATABLE :: list_dom
       INTEGER                        :: type_fe           = 1
       INTEGER                        :: nb_refinement     = 0
-      INTEGER                        :: refinement_order  = 0
+      INTEGER                        :: refine_factor     = 2
       INTEGER                        :: nb_bords          = 0
       INTEGER,        DIMENSION(:, :), ALLOCATABLE :: list_periodic
       REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: vect_e
@@ -101,7 +101,6 @@ CONTAINS
       USE read_inputs_module
       IMPLICIT NONE
 
-      ! CHARACTER(LEN=rec_length), PARAMETER   :: section_name='MESH SETUP'
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL :: opt_name
 
       CLASS(mesh_info_type), INTENT(INOUT) :: this
@@ -109,10 +108,8 @@ CONTAINS
 
       !=== Reading all data file
       IF (PRESENT(opt_name)) THEN
-         ! write(*,*) section_name//" FOR "//opt_name
          CALL read_data_init_list("MESH SETUP FOR "//opt_name)
       ELSE
-         ! write(*,*) section_name
          CALL read_data_init_list("MESH SETUP")
       END IF
       !================
@@ -120,13 +117,13 @@ CONTAINS
       !================
 
       !=== type of finite element
-      CALL read_data(argument_data%type_fe, this%type_fe, opt_name=opt_name)!, opt_add=(k_dim==2))
+      CALL read_data(argument_data%type_fe, this%type_fe, opt_name=opt_name)
 
       !=== number of refinement steps
-      CALL read_data(argument_data%nb_refinement, this%nb_refinement, opt_name=opt_name, opt_add=(k_dim==2))
+      CALL read_data(argument_data%nb_refinement,    this%nb_refinement, opt_name=opt_name)
 
       !=== order refinement
-      CALL read_data(argument_data%refinement_order, this%refinement_order, opt_name=opt_name, opt_add=(k_dim==1))
+      CALL read_data(argument_data%refine_factor, this%refine_factor, opt_add=this%nb_refinement>0, opt_name=opt_name)
 
       !=== number of subdomains in the mesh
       CALL read_data(argument_data%nb_dom, this%nb_dom, opt_name=opt_name)
@@ -160,7 +157,7 @@ CONTAINS
       this%list_dom         = info_bis%list_dom
       this%type_fe          = info_bis%type_fe
       this%nb_refinement    = info_bis%nb_refinement
-      this%refinement_order = info_bis%refinement_order
+      this%refine_factor    = info_bis%refine_factor
       this%nb_bords         = info_bis%nb_bords
       this%list_periodic    = info_bis%list_periodic
       this%vect_e           = info_bis%vect_e

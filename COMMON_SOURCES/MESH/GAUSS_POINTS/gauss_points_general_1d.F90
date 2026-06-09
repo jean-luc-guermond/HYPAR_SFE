@@ -39,9 +39,9 @@ MODULE gauss_points_1d
    END INTERFACE
 
    PROCEDURE(template_element_1d),          POINTER :: element_1d_Pk
-   PROCEDURE(template_element_2d),          POINTER :: element_2d_Pk
-   PROCEDURE(template_element_2d_boundary), POINTER :: element_2d_Pk_boundary
-   PROCEDURE(template_element_1d_at_nodes), POINTER :: element_1d_Pk_at_nodes
+   ! PROCEDURE(template_element_2d),          POINTER :: element_2d_Pk
+   ! PROCEDURE(template_element_2d_boundary), POINTER :: element_2d_Pk_boundary
+   ! PROCEDURE(template_element_1d_at_nodes), POINTER :: element_1d_Pk_at_nodes
 
 CONTAINS
    SUBROUTINE create_gauss_points_1d(mesh, type_fe)
@@ -53,9 +53,8 @@ CONTAINS
       IMPLICIT NONE
       TYPE(mesh_type), TARGET :: mesh
       INTEGER :: type_fe
-      INTEGER, POINTER :: me, mes
+      INTEGER, POINTER :: me
       INTEGER, DIMENSION(:, :), POINTER :: jj
-      INTEGER, DIMENSION(:, :), POINTER :: js
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: rr
       REAL(KIND = 8), DIMENSION(:, :), POINTER :: ww
       REAL(KIND = 8), DIMENSION(:, :, :, :), POINTER :: dw
@@ -64,25 +63,17 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: pp
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: r
       REAL(KIND = 8), DIMENSION(k_d, k_d) :: dr
-      REAL(KIND = 8) :: rjac, rjacs, x
-      INTEGER :: m, l, k, k1, n, n1, n2, ms, ns, ls, face, cote, orient
+      REAL(KIND = 8) :: rjac
+      INTEGER :: m, l, k, k1, n
       INTEGER :: n_w, n_ws, l_G, l_Gs
-      REAL(KIND = 8), DIMENSION(k_d) :: rnor, rsd
 
-      SELECT CASE(type_fe)
-      CASE(1)
-         n_w = 2;  n_ws = 1; l_G = 2; l_Gs = 0
-         element_1d_Pk => element_1d_P1
-      CASE(2)
-         n_w = 3;  n_ws = 1; l_G = 3; l_Gs = 0
-         element_1d_Pk => element_1d_P2
-      CASE(3)
-         n_w = 4; n_ws = 1; l_G = 4; l_Gs = 0
-         element_1d_Pk => element_1d_P3
-      CASE DEFAULT
-         WRITE(*, *) ' FE not programmed yet', type_fe
-         STOP
-      END SELECT
+      n_w = type_fe + 1
+      n_ws = 1
+      l_G = type_fe + 1
+      l_Gs = 0
+
+      element_1d_Pk => reduced_element_1D_Pk
+      
       ALLOCATE(dd(k_d, n_w, l_G), pp(l_G), r(n_w))
 
       me => mesh%me
@@ -125,6 +116,18 @@ CONTAINS
       ENDDO
 
       DEALLOCATE(dd, pp, r)
+
+   CONTAINS
+
+      SUBROUTINE reduced_element_1D_Pk(w, d, p, n_ws, l_Gs)
+         USE arbitrary_GP_1D_module, ONLY: element_1d_arbitrary_pk
+         IMPLICIT NONE
+         INTEGER,                                INTENT(IN)  :: n_ws, l_Gs
+         REAL(KIND=8), DIMENSION(   n_ws, l_Gs), INTENT(OUT) :: w
+         REAL(KIND=8), DIMENSION(1, n_ws, l_Gs), INTENT(OUT) :: d
+         REAL(KIND=8), DIMENSION(l_Gs),          INTENT(OUT) :: p
+         CALL element_1d_arbitrary_pk (w, d, p, n_ws, l_Gs, type_fe)
+      END SUBROUTINE reduced_element_1D_Pk
 
    END SUBROUTINE create_gauss_points_1d
 END MODULE gauss_points_1d
