@@ -12,7 +12,7 @@ MODULE setup
    END TYPE my_linear_transport
 
    PRIVATE
-   REAL(KIND=8), PARAMETER :: x0=0.1d0, rhol = 1.d0, rhor = 2.d0, cx = 1.d0, cy = 0.d0
+   REAL(KIND=8), PARAMETER :: x0=0.05d0, rhol = 1.d0, rhor = 2.d0, cx = 1.d0, cy = 0.d0
 CONTAINS
 
 !==========================================================================
@@ -23,11 +23,20 @@ CONTAINS
       IMPLICIT NONE
       CLASS(linear_transport_type), INTENT(INOUT) :: linear_transport
 
-      !linear_transport%bc%rho_anal   => sine_rho_anal
+      ! linear_transport%bc%rho_anal   => sine_rho_anal
       linear_transport%bc%rho_anal   => step_rho_anal
-      linear_transport%eta_commute   => default_eta_commute
+      linear_transport%eta_commute   => eta_commute
 
    END SUBROUTINE init_state_functions
+
+   FUNCTION eta_commute(un) RESULT(eta)
+        IMPLICIT NONE
+        REAL(KIND=8), DIMENSION(:, :), INTENT(IN)    :: un
+        REAL(KIND=8), DIMENSION(SIZE(un,1))         :: eta
+        eta = 1.d0
+        !eta = un(:,1)
+    END FUNCTION eta_commute
+
 
     FUNCTION step_rho_anal(this, time, rr) RESULT(vv)
        IMPLICIT NONE
@@ -35,10 +44,13 @@ CONTAINS
        REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
        REAL(KIND = 8),                  INTENT(IN) :: time
        REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
-       INTEGER :: n
+       REAL(KIND=8) :: length=1.d0, x_drift
+       INTEGER :: n, k
 
        DO n=1, SIZE(rr,2)
-          IF (abs(rr(1, n)-cx*time-0.5d0) < x0) THEN
+         k = FLOOR(((rr(1, n)-cx*time)/length))
+         x_drift = rr(1, n)-cx*time - k*length
+          IF (abs(x_drift-0.15d0) < x0) THEN
              vv(n) = rhor
           ELSE
              vv(n) = rhol

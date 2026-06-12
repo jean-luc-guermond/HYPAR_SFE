@@ -25,6 +25,16 @@ MODULE setup
       vv = rho * e * (gamma - 1.d0)
    END FUNCTION pressure
    
+   FUNCTION eta_commute(un) RESULT(eta)
+      USE space_dim
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:, :), INTENT(IN)    :: un
+      REAL(KIND=8), DIMENSION(SIZE(un,1))         :: eta, e_tot
+   
+      e_tot = un(:, k_dim+2) - 0.5d0*SUM(un(:, 2:k_dim+1)**2, DIM=2)/un(:, 1)
+      eta = (e_tot * (gamma - 1.d0)) / (un(:, 1))**gamma
+
+   END FUNCTION eta_commute
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
@@ -43,7 +53,8 @@ MODULE setup
       euler%bc%rho_anal     => rho_anal_isentropic
       euler%bc%vit_anal     => vit_anal_isentropic
       euler%bc%press_anal   => press_anal_isentropic
-      euler%eta_commute => default_eta_commute
+      euler%eta_commute => eta_commute
+      ! euler%eta_commute => default_eta_commute
 
    END SUBROUTINE init_state_functions
 
@@ -53,10 +64,14 @@ MODULE setup
       REAL(KIND=8), DIMENSION(:,:),         INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND=8), DIMENSION(SIZE(rr,2))              :: vv, z
+      REAL(kind=8) :: length=2.d0, x_drift
       REAL(KIND=8) :: rsq
-      INTEGER :: n
+      INTEGER :: n, k_x
       DO n = 1, SIZE(rr,2)
-         rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
+         k_x = FLOOR(((rr(1,n)-x0-u_infty*time) + 1)/length)
+         x_drift = rr(1,n)-x0-u_infty*time - k_x*length
+         rsq = (x_drift)**2 + (rr(2,n)-y0)**2
+         ! rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
          z(n) = exp(1-rsq/(r0**2))
       END DO
       vv = (1-chi*z)**(1.d0/(gamma-1.d0))
@@ -81,20 +96,26 @@ MODULE setup
       INTEGER,                             INTENT(IN) :: comp
       REAL(KIND = 8),                      INTENT(IN) :: time
       REAL(KIND=8), DIMENSION(:,:),        INTENT(IN) :: rr
-      REAL(KIND=8), DIMENSION(SIZE(rr,2))             :: vv, z
-      REAL(KIND=8) :: rsq
-      INTEGER :: n
+      REAL(KIND=8), DIMENSION(SIZE(rr,2))             :: vv
+      REAL(KIND=8) :: rsq, z
+      REAL(kind=8) :: length=2.d0, x_drift
+      INTEGER :: n, k_x
       
       DO n = 1, SIZE(rr,2)
-         rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
-         z(n) = exp(0.5d0*(1-rsq/(r0**2)))
+         k_x = FLOOR(((rr(1,n)-x0-u_infty*time) + 1)/length)
+         x_drift = rr(1,n)-x0-u_infty*time - k_x*length
+         rsq = (x_drift)**2 + (rr(2,n)-y0)**2
+         ! rsq = (rr(1,n)-x0-u_infty*time)**2 + (rr(2,n)-y0)**2
+         z = exp(0.5d0*(1-rsq/(r0**2)))
+      
+         IF (comp==1) THEN
+            vv(n) = u_infty - beta*z*(rr(2,n)-y0)/r0
+         ELSE
+            vv(n) = beta*z*(x_drift)/r0
+         END IF
+      
       END DO
       
-      IF (comp==1) THEN
-         vv = u_infty - beta*z*(rr(2,:)-y0)/r0
-      ELSE
-         vv = beta*z*(rr(1,:)-x0-u_infty*time)/r0
-      END IF
       !===dummy to avoid warning in compilation===!
       RETURN
       z = this%gamma

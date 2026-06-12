@@ -79,7 +79,11 @@ lumped
 F
 === How many limiting iterations? Euler 1 ===
 2
-=== Apply bound relaxation for limiting (T/F) ? Euler 1 ===
-F
-=== Relaxation method (avg/minmod) Euler 1 ===
-minmod
+=== Relaxation method (none/avg/minmod) rho min ===
+none
+=== Global bounds for relaxation rho min ===
+-10000000000.000000
+=== Relaxation method (none/avg/minmod) minus rho max ===
+none
+=== Global bounds for relaxation minus rho max ===
+-10000000000.000000

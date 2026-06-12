@@ -79,6 +79,9 @@ foreach(dim IN LISTS DIMS)
             ${MPI_Fortran_LIBRARIES}
             ${ZLIB_LIBRARIES}
             ${ADDITIONAL_LINKS})
+
+        target_include_directories(${CUR_HYPAR_SFE_LIB} PUBLIC ${PETSC_INC})
+
     endforeach()
 
 endforeach()

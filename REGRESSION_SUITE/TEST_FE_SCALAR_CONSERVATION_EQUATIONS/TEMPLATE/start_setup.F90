@@ -6,7 +6,7 @@ MODULE start_setup_MODULE
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions, my_linear_transport
-  USE cell_limiting_engine_parallel_module, ONLY: limiting_functionals_type
+  USE cell_limiting_engine_parallel_module
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
@@ -35,7 +35,7 @@ MODULE start_setup_MODULE
   TYPE(my_linear_transport),        PUBLIC :: linear_transport
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
-  TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
+  TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
   MPI_Comm :: communicator
   PUBLIC :: start_setup
   PRIVATE

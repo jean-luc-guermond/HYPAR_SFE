@@ -1,3 +1,9 @@
+TODO:
+
+        optimization petsc matrices: fill by blocks, maybe several cells at once. cij_norm_loc needs to petsc matrix?
+                                        nij could be numbered using edges instead of nodes and using increasing vertex index enumeration for the orientation
+        
+        Partitionning 2D full periodic; wind tunnel Dirichlet
 
 List of CTEST:
 
@@ -68,3 +74,6 @@ TEST_PERIODICITY:
     PERIODICITY_2D_SCAL_ADV_DIFF => 2D, Laplace equation, P2 & Dirichlet, P3 & Dirichlet & PBC, P2 & full PBC, analytical solution
             Whistler: fails for more than approx 13 procs
     PERIODICITY_FE_1D_EULER_SMOOTH => 1D, P1, hyperbolic/Euler, viscous method, ideal gas, PBC, analytical solution
+
+TEST_PETSC
+        PETSC_MatGet_MatSet => inserting/extracting entries in sparse matrices 

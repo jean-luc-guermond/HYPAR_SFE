@@ -120,28 +120,58 @@ CONTAINS
 
    END FUNCTION flux_linear_transport
 
-
    SUBROUTINE lambda_linear_transport(this, un, i, j, lambda_max)
       USE arbitrary_eos_lambda_module
       USE space_dim
       IMPLICIT NONE
-      CLASS(linear_transport_type),                                 INTENT(INOUT) :: this
+      CLASS(linear_transport_type),                      INTENT(INOUT) :: this
       REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
       INTEGER,                                              INTENT(IN) :: i, j
-      INTEGER :: k
       REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max
 
-      lambda_max = -1.d0
+      INTEGER, DIMENSION(1) :: i_t, j_t
+      INTEGER :: k, ierr
+      REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
+      REAL(KIND = 8), DIMENSION(2)        :: u
+      REAL(KIND = 8), DIMENSION(2, k_dim) :: u_transport
 
-      DO k=1, k_dim
-         lambda_max(1) = MAX(ABS(this%transport(this%mesh%rr(:,i), k)), lambda_max(1))
-         lambda_max(2) = MAX(ABS(this%transport(this%mesh%rr(:,j), k)), lambda_max(2))
+      i_t = i
+      j_t = j
+
+      DO k = 1, k_dim
+         CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
+         u_transport(1, k) = this%transport(this%mesh%rr(:,i), k)
+         u_transport(2, k) = this%transport(this%mesh%rr(:,j), k)
       END DO
-      !=== Dummy to avoid warnings
-      RETURN
-      lambda_max = SUM(un)
-      !=== Dummy to avoid warnings
+
+      u(1) = SUM(u_transport(1, :) * nij_c(1, :))
+      u(2) = SUM(u_transport(2, :) * nij_c(1, :))
+
+      lambda_max = ABS(u)
+
    END SUBROUTINE lambda_linear_transport
+
+   ! SUBROUTINE lambda_linear_transport(this, un, i, j, lambda_max)
+   !    USE arbitrary_eos_lambda_module
+   !    USE space_dim
+   !    IMPLICIT NONE
+   !    CLASS(linear_transport_type),                                 INTENT(INOUT) :: this
+   !    REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
+   !    INTEGER,                                              INTENT(IN) :: i, j
+   !    INTEGER :: k
+   !    REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max
+
+   !    lambda_max = -1.d0
+
+   !    DO k=1, k_dim
+   !       lambda_max(1) = MAX(ABS(this%transport(this%mesh%rr(:,i), k)), lambda_max(1))
+   !       lambda_max(2) = MAX(ABS(this%transport(this%mesh%rr(:,j), k)), lambda_max(2))
+   !    END DO
+   !    !=== Dummy to avoid warnings
+   !    RETURN
+   !    lambda_max = SUM(un)
+   !    !=== Dummy to avoid warnings
+   ! END SUBROUTINE lambda_linear_transport
 
    SUBROUTINE construct_linear_transport_bc(this, mesh, LA)
       USE petsc

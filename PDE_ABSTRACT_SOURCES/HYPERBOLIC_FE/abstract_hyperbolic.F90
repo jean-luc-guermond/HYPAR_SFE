@@ -7,7 +7,7 @@ MODULE abstract_hyperbolic_module
    USE Butcher_tableau
    USE hyperbolic_matrices_module,           ONLY: hyperbolic_matrices_type
    USE hyperbolic_bc_tools,                  ONLY: construct_udotn
-   USE cell_limiting_engine_parallel_module, ONLY: limiting_type, limiting_functionals_type
+   USE cell_limiting_engine_parallel_module, ONLY: limiting_type, limiting_functional_type, limiting_all_functional_type
    USE def_type_mesh,                        ONLY: mesh_type, petsc_csr_LA
    USE read_inputs_module,                   ONLY: rec_length
    USE space_dim,                            ONLY: k_dim
@@ -52,7 +52,8 @@ MODULE abstract_hyperbolic_module
       TYPE(BT),             PUBLIC :: ERK
       TYPE(hyperbolic_matrices_type), POINTER :: matrices, matrices_L
       TYPE(limiting_type)            :: limiting
-      CLASS(limiting_functionals_type), DIMENSION(:), POINTER :: limiting_functionals
+      ! CLASS(limiting_functional_type), DIMENSION(:), POINTER :: limiting_functionals
+      TYPE(limiting_all_functional_type) :: limiting_all_functionals
       PROCEDURE(template_eta_commute), NOPASS,        POINTER :: eta_commute
    CONTAINS
       PROCEDURE, PUBLIC   :: init_hyperbolic
@@ -130,7 +131,7 @@ CONTAINS
       TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
       REAL(KIND = 8), DIMENSION(2) :: times
-      TYPE(limiting_functionals_type), DIMENSION(:), TARGET :: limiting_functionals
+      TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals
 
       this%name = name
       this%mesh => mesh
@@ -186,11 +187,13 @@ CONTAINS
       ELSE
          CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
       END IF
-      IF (this%limiting%if_limiting) THEN
-         this%limiting_functionals => limiting_functionals
-      ELSE
-         ALLOCATE(this%limiting_functionals(0))
-      END IF
+      ! IF (this%limiting%if_limiting) THEN
+      CALL this%limiting_all_functionals%init(limiting_functionals, name, LA, mesh)
+      ! IF (this%limiting%if_limiting) THEN
+         ! this%limiting_functionals => limiting_functionals
+      ! ELSE
+         ! ALLOCATE(this%limiting_functionals(0))
+      ! END IF
    END SUBROUTINE init_hyperbolic
 
    SUBROUTINE read_hyperbolic_data(this, section_name)
@@ -265,16 +268,18 @@ CONTAINS
       USE sub_plot
       USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
       USE st_matrix, ONLY: extract_through_ghost
+      USE fem_tn
       CLASS(hyperbolic_type)                                                :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1)  :: urk
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)    :: flux_rk_at_dof
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
       REAL(KIND = 8), DIMENSION(this%mesh%np)                               :: rk
       REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim)         :: flux_array
-      REAL(KIND = 8), DIMENSION(this%mesh%np,SIZE(this%limiting_functionals)) :: bounds
+      REAL(KIND = 8), DIMENSION(this%mesh%np,this%limiting_all_functionals%nl) :: bounds
       INTEGER, INTENT(IN) :: stage
       INTEGER :: comp, k, l, ierr, stage_prime, stage0
       REAL(KIND = 8) :: time_stage
+      !Real(kind=8) :: mass_before, mass_after
 
       SELECT CASE(this%method)
       CASE(METHOD_GALERKIN)
@@ -471,9 +476,16 @@ CONTAINS
             CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
          END DO
          !===Limiting
+         !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_before, this%communicator)
          IF (this%limiting%if_limiting) THEN
             CALL this%apply_limiting(urk(:,:,stage), bounds)
          END IF
+         !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_after, this%communicator)
+         !IF (this%mesh%rank==0) THEN
+         !   WRITE(*,*) 'mass before limiting = ', mass_before
+         !   WRITE(*,*) 'mass after limiting = ', mass_after
+         !END IF
+
          !===Periodicity
          DO comp = 1, this%syst_dim
             CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%mesh, this%LA, 'insert')
@@ -514,6 +526,132 @@ CONTAINS
 
    END SUBROUTINE compute_dt
 
+!  SUBROUTINE compute_dij(this, flux_array, un, bounds)
+!       USE space_dim
+!       USE petsc
+!       USE def_type_mesh
+!       USE arbitrary_eos_lambda_module
+!       USE compute_periodic
+!       USE st_matrix, ONLY: extract_through_ghost
+!       USE my_util
+!       IMPLICIT NONE
+!       CLASS(hyperbolic_type) :: this
+!       TYPE(mesh_type), POINTER :: mesh
+!       TYPE(petsc_csr_LA), POINTER :: LA
+!       REAL(KIND = 8), DIMENSION(this%mesh_L%np, k_dim, this%syst_dim) :: flux_array
+!       REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
+!       INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, nl, comp
+!       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
+!       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
+!       REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c, dijH_c
+!       REAL(KIND = 8), DIMENSION(2) :: lambda_max
+!       REAL(KIND = 8) :: max_lambda
+!       REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
+!       LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
+!       REAL(KIND = 8), DIMENSION(this%mesh_L%np)  :: alpha !<==commutator in (0,1)
+
+!       mesh => this%mesh_L
+!       LA   => this%LA_L
+
+!       !===Compute dijL
+!       CALL MatZeroEntries(this%matrices_L%dijL, ierr)
+!       IF (this%method==METHOD_HIGH) THEN
+!          CALL this%commutator(un, alpha)
+!          CALL MatZeroEntries(this%matrices%dijH, ierr)
+!          IF (this%limiting%if_limiting) THEN
+!             DO nl=1, Size(this%limiting_functionals)
+!                DO i=1, mesh%np
+!                   bounds(i, nl) = this%limiting_functionals(nl)%psi(un(i, :), 0.d0)
+!                END DO
+!             END DO
+!          END IF
+!       END IF
+
+
+!       virgin_edge = .TRUE.
+!       nw = mesh%gauss%n_w
+
+!       DO m = 1, mesh%me
+!          DO n = 1, mesh%gauss%n_e
+!             IF (mesh%attr_e(mesh%jce(n, m))) THEN
+!                edge = mesh%jce_loc(n, m)
+!                IF (.NOT. virgin_edge(edge)) CYCLE
+!                virgin_edge(edge) = .FALSE.
+
+!                ni = MOD(n, nw) + 1
+!                nj = MOD(n + 1, nw) + 1
+!                i = mesh%jj(ni, m)
+!                j = mesh%jj(nj, m)
+!                i_t = i
+!                j_t = j
+
+!                CALL this%compute_lambda(un, i, j, lambda_max)
+!                CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
+
+!                max_lambda = MAXVAL(lambda_max)
+!                dijL_c = max_lambda * norm_c
+
+!                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
+!                      CALL this%compute_lambda(un, j, i, lambda_max)
+!                      CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, j_t - 1, 1, i_t - 1, norm_c, ierr)
+
+!                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
+!                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
+!                END IF
+
+!                idx = LA%loc_to_glob(1, i) - 1
+!                jdx = LA%loc_to_glob(1, j) - 1
+
+!                CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
+!                CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
+
+!                CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
+!                CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
+!                IF (this%method==METHOD_HIGH) THEN
+!                   dijH_c = dijL_c*(alpha(i)+alpha(j))/2
+!                   CALL MatSetValues(this%matrices%dijH, 1, idx, 1, jdx, dijH_c, ADD_VALUES, ierr)
+!                   CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, idx, dijH_c, ADD_VALUES, ierr)
+!                   CALL MatSetValues(this%matrices%dijH, 1, idx, 1, idx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
+!                   CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
+!                   !===Compute low-order update to estimate bounds
+!                   IF (this%limiting%if_limiting) THEN
+!                      DO k = 1, k_dim
+!                         CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
+!                      END DO
+
+!                      DO comp=1, this%syst_dim
+!                         uijbar(comp) =  (un(i, comp)+un(j, comp))/2 - &
+!                         SUM((flux_array(j, :, comp)-flux_array(i, :, comp))*nij_c(1, :))/(2*max_lambda)
+!                      END DO
+
+!                      DO nl=1, SIZE(this%limiting_functionals)
+!                         bounds(i, nl) = MIN(bounds(i, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
+!                         bounds(j, nl) = MIN(bounds(j, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
+!                      END DO
+
+!                      !===End compute low-order update to estimate bounds
+!                   END IF
+!                END IF
+!             END IF
+!          END DO
+!       END DO
+!       CALL MatAssemblyBegin(this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
+!       CALL MatAssemblyEnd  (this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
+
+!       IF (this%method==METHOD_HIGH) THEN
+!          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+!          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
+
+!          IF (this%limiting%if_limiting) THEN
+!             DO nl=1, SIZE(this%limiting_functionals)
+!                CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%mesh, this%LA, 'min')
+!                CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
+!             END DO
+!          END IF
+!       END IF
+!    END SUBROUTINE compute_dij
+
+
    SUBROUTINE compute_dij(this, flux_array, un, bounds)
       USE space_dim
       USE petsc
@@ -533,6 +671,10 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
       REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c, dijH_c
       REAL(KIND = 8), DIMENSION(2) :: lambda_max
+      REAL(KIND = 8), DIMENSION(this%mesh_L%gauss%n_w,this%mesh_L%gauss%n_w) :: mat_loc, mat_h_loc, norm_c_loc
+      REAL(KIND = 8), DIMENSION(this%mesh_L%gauss%n_w,this%mesh_L%gauss%n_w, k_dim) :: nij_c_loc
+      INTEGER,        DIMENSION(this%mesh_L%gauss%n_w) :: idx_loc, i_t_loc
+
       REAL(KIND = 8) :: max_lambda
       REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
       LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
@@ -547,9 +689,9 @@ CONTAINS
          CALL this%commutator(un, alpha)
          CALL MatZeroEntries(this%matrices%dijH, ierr)
          IF (this%limiting%if_limiting) THEN
-            DO nl=1, Size(this%limiting_functionals)
+            DO nl=1, this%limiting_all_functionals%nl
                DO i=1, mesh%np
-                  bounds(i, nl) = this%limiting_functionals(nl)%psi(un(i, :), 0.d0)
+                  bounds(i, nl) = this%limiting_all_functionals%limiting_functionals(nl)%psi(un(i, :), 0.d0)
                END DO
             END DO
          END IF
@@ -560,6 +702,25 @@ CONTAINS
       nw = mesh%gauss%n_w
 
       DO m = 1, mesh%me
+         mat_loc = 0.d0
+         mat_h_loc = 0.d0
+         DO ni = 1, nw
+            i = mesh%jj(ni, m)
+            idx_loc(ni) = LA%loc_to_glob(1, i) - 1
+         END DO
+
+         i_t_loc = mesh%jj(:, m) - 1
+         CALL MatGetValues(this%matrices_L%cij_norm_loc, nw, i_t_loc , nw, i_t_loc, norm_c_loc, ierr)
+         norm_c_loc = TRANSPOSE(norm_c_loc) ! WARNING <== PETSC transpose conventions 
+                                            !=== Matrices in petsc are row-oriented
+         
+         IF (this%method==METHOD_HIGH .AND. this%limiting%if_limiting) THEN
+            DO k = 1, k_dim
+               CALL MatGetValues(this%matrices_L%nij_loc(k), nw, i_t_loc, nw, i_t_loc, nij_c_loc(:, :, k), ierr)
+               nij_c_loc(:, :, k) = TRANSPOSE(nij_c_loc(:, :, k))
+            END DO
+         END IF
+
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
                edge = mesh%jce_loc(n, m)
@@ -574,64 +735,76 @@ CONTAINS
                j_t = j
 
                CALL this%compute_lambda(un, i, j, lambda_max)
-               CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
 
                max_lambda = MAXVAL(lambda_max)
-               dijL_c = max_lambda * norm_c
+               dijL_c = max_lambda * norm_c_loc(ni, nj) 
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
                      CALL this%compute_lambda(un, j, i, lambda_max)
-                     CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, j_t - 1, 1, i_t - 1, norm_c, ierr)
-
+                     norm_c(1) = norm_c_loc(nj, ni)
                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
                END IF
 
-               idx = LA%loc_to_glob(1, i) - 1
-               jdx = LA%loc_to_glob(1, j) - 1
+               mat_loc(ni, nj) = dijL_c(1)
+               mat_loc(nj, ni) = dijL_c(1)
 
-               CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
-               CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
-
-               CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
-               CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
                IF (this%method==METHOD_HIGH) THEN
                   dijH_c = dijL_c*(alpha(i)+alpha(j))/2
-                  CALL MatSetValues(this%matrices%dijH, 1, idx, 1, jdx, dijH_c, ADD_VALUES, ierr)
-                  CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, idx, dijH_c, ADD_VALUES, ierr)
-                  CALL MatSetValues(this%matrices%dijH, 1, idx, 1, idx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
-                  CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
+                  mat_h_loc(ni, nj) = dijH_c(1)
+                  mat_h_loc(nj, ni) = dijH_c(1)
+
                   !===Compute low-order update to estimate bounds
                   IF (this%limiting%if_limiting) THEN
-                     DO k = 1, k_dim
-                        CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
-                     END DO
+
+                     nij_c(1, :) = nij_c_loc(ni, nj, :)
 
                      DO comp=1, this%syst_dim
                         uijbar(comp) =  (un(i, comp)+un(j, comp))/2 - &
                         SUM((flux_array(j, :, comp)-flux_array(i, :, comp))*nij_c(1, :))/(2*max_lambda)
                      END DO
 
-                     DO nl=1, SIZE(this%limiting_functionals)
-                        bounds(i, nl) = MIN(bounds(i, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
-                        bounds(j, nl) = MIN(bounds(j, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
+                     DO nl=1, this%limiting_all_functionals%nl
+                        bounds(i, nl) = MIN(bounds(i, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, 0.d0))
+                        bounds(j, nl) = MIN(bounds(j, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, 0.d0))
                      END DO
 
                      !===End compute low-order update to estimate bounds
                   END IF
-               END IF
-            END IF
-         END DO
+               END IF ! END METHOD_HIGH
+            END IF ! END mesh_attr
+         END DO ! END mesh%gauss%n_e
+         ! <=== WARNING filling by blocks here works because those blocks are symmetric
+         !=== Matrices in petsc are row-oriented
+         CALL MatSetValues(this%matrices_L%dijL, nw, idx_loc, nw, idx_loc, mat_loc, ADD_VALUES, ierr) 
+         IF (this%method==METHOD_HIGH) THEN
+            ! <=== WARNING filling by blocks here works because those blocks are symmetric
+            !=== Matrices in petsc are row-oriented
+            CALL MatSetValues(this%matrices%dijH, nw, idx_loc, nw, idx_loc, mat_h_loc, ADD_VALUES, ierr)
+         END IF
       END DO
+
       CALL MatAssemblyBegin(this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
+
+      !===add value on diagonal
+      CALL MatGetRowSum(this%matrices_L%dijL, this%x4vec, ierr)
+      CALL VecScale(this%x4vec, -1.d0, ierr)
+      CALL MatDiagonalSet(this%matrices_L%dijL, this%x4vec, ADD_VALUES, ierr)
+      !===add value on diagonal
 
       IF (this%method==METHOD_HIGH) THEN
          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
 
+         !===add value on diagonal
+         CALL MatGetRowSum(this%matrices%dijH, this%x4vec, ierr)
+         CALL VecScale(this%x4vec, -1.d0, ierr)
+         CALL MatDiagonalSet(this%matrices%dijH, this%x4vec, ADD_VALUES, ierr)
+         !===add value on diagonal
+
          IF (this%limiting%if_limiting) THEN
-            DO nl=1, SIZE(this%limiting_functionals)
+            DO nl=1, this%limiting_all_functionals%nl
                CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%mesh, this%LA, 'min')
                CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
             END DO
@@ -753,11 +926,9 @@ CONTAINS
 
       CALL extract_through_ghost(this%x5vec, 1, 1, this%LA_L, rk_norm, opt_assemble=.FALSE.)
 
-
-
       norm_log = norm_log/np_tot
 
-      rk = abs(rk)/max(abs(rk_norm),1.d-1*norm_log)
+      rk = abs(rk)/max(abs(rk_norm),1.d-1*norm_log,1d-30)
       alpha = MIN(10*rk,1.d0)
       alpha = threshold(alpha)
 
@@ -798,14 +969,15 @@ CONTAINS
       IMPLICIT NONE
       CLASS(hyperbolic_type) :: this
       REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: un
-      REAL(KIND = 8), DIMENSION(:,:),       INTENT(IN)    :: bounds
+      REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: bounds
       REAL(KIND = 8), DIMENSION(SIZE(un,1),SIZE(un,2))    :: un_temp
       INTEGER :: it, i
 
       DO i=1, size(bounds, 2)
+         CALL this%limiting_all_functionals%RELAX_BOUNDS(un, bounds(:,i), i)
          DO it = 1, this%limiting%limit_max
             CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,i),&
-               this%limiting_functionals(i), un_temp)
+               this%limiting_all_functionals%limiting_functionals(i), un_temp)
             un(:,:) = un_temp(:,:)
          END DO
       END DO

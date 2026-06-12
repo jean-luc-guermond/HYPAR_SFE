@@ -26,8 +26,9 @@ PROGRAM prog
 !==== SOLVER LOOP ====!
 !=====================!
 
-  tps = user_time()
+  
   n = 0
+  tps = user_time()
   DO WHILE(linear_transport%time < setup_data%final_time)
     CALL linear_transport%update(un)
     n = n + 1
@@ -48,7 +49,7 @@ PROGRAM prog
   CALL MPI_ALLREDUCE(linear_transport%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,linear_transport%communicator,code)
   IF(linear_transport%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
+     WRITE(*,*) ' Time per time step per dof times proc', linear_transport%mesh%nb_proc*tps/(tot_np*n*linear_transport%ERK%s), tps, n
   END IF
   CALL plot_scalar_field(linear_transport%mesh%jj, linear_transport%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
   CALL plot_scalar_field(linear_transport%mesh%jj, linear_transport%mesh%rr, linear_transport%bc%sol_anal(1, linear_transport%time,mesh%rr), 'sol_exact' // TRIM(ADJUSTL(char)) // '.plt')

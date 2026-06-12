@@ -6,7 +6,7 @@ MODULE start_setup_MODULE
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions, my_linear_transport
-  USE cell_limiting_engine_parallel_module, ONLY: limiting_functionals_type
+  USE cell_limiting_engine_parallel_module!, ONLY: limiting_functionals_type
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
@@ -35,7 +35,7 @@ MODULE start_setup_MODULE
   TYPE(my_linear_transport),        PUBLIC :: linear_transport
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
-  TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
+  TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
   MPI_Comm :: communicator
   PUBLIC :: start_setup
   PRIVATE
@@ -66,7 +66,7 @@ CONTAINS
 
     !===Construct LA
     CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
-    
+
     !===Read
     CALL setup_data%init
 
@@ -78,10 +78,12 @@ CONTAINS
     ALLOCATE(limiting_functionals_linear_transport(2))
     limiting_functionals_linear_transport(1)%psi => psi_rho_min
     limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_linear_transport(1)%name = "min"
     limiting_functionals_linear_transport(2)%psi => psi_rho_max
     limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_linear_transport(2)%name = "minus max"
     !=== Define linear_transport limiting bounds
-    
+
     CALL linear_transport%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_linear_transport)
     CALL init_state_functions(linear_transport)
 

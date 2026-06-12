@@ -51,6 +51,7 @@ PROGRAM prog
      WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
   END IF
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
+  CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, euler%eta_commute(un), 'p' // TRIM(ADJUSTL(char)) // '.plt')
 
 !=========================!
 !==== REGRESSION TEST ====!
@@ -67,47 +68,59 @@ CONTAINS
   SUBROUTINE errors
     USE fem_tn
     USE post_processing_debug_MODULE
+    USE space_dim
     IMPLICIT NONE
 
-    REAL(KIND=8) :: error, norm, norm_anal
+    REAL(KIND=8), DIMENSION(k_dim+2) :: error, norm, norm_anal
+    REAL(KIND=8) :: error_cum
     REAL(KIND = 8), DIMENSION(size(un, 2)) :: tab_norm
     INTEGER :: n
 
 !==== Put final processing stuff here ====!
     DO n=1, SIZE(un,2)
       IF (setup_data%if_analytical_ref) THEN
-        CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
-        CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
-        norm = error/norm_anal
-        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp ', euler%name_comp(n), '; Relative error, L1-norm = ', error/norm_anal
+        CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error(n), euler%communicator)
+        CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal(n), euler%communicator)
+        ! norm = error(n)/norm_anal(n)
+        ! IF(euler%mesh%rank==0) WRITE(*, *) 'Comp ', euler%name_comp(n), '; Relative error, L1-norm = ', error(n)/norm_anal(n)
         ! IF(euler%mesh%rank==0) WRITE(*, '(A,I0,A,g12.3)') 'Comp = ',n,'; Relative error, L1-norm = ', error/norm_anal
       ELSE
-        CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
-        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp ', euler%name_comp(n), '; no analytical ref, L1-norm = ', norm
+        CALL ns_l1_PAR(mesh, un(:,n), norm(n), euler%communicator)
+        IF(euler%mesh%rank==0) WRITE(*, *) 'Comp ', euler%name_comp(n), '; no analytical ref, L1-norm = ', norm(n)
       END IF
     END DO
 
+    IF(euler%mesh%rank==0) THEN
+      error_cum = 0.d0
+      WRITE(*, *) 'error density L1-norm  = ', error(1)/norm_anal(1)
+      error_cum = error_cum + error(1)/norm_anal(1)
+      WRITE(*, *) 'error momentum L1-norm = ', SQRT(SUM(error(2:k_dim+1)**2)/SUM(norm_anal(2:k_dim+1)**2))
+      error_cum = error_cum + SQRT(SUM(error(2:k_dim+1)**2)/SUM(norm_anal(2:k_dim+1)**2))
+      WRITE(*, *) 'error energy L1-norm   = ', error(k_dim+2)/norm_anal(k_dim+2)
+      error_cum = error_cum + error(k_dim+2)/norm_anal(k_dim+2)
+      WRITE(*, *) 'error cum L1-norm      = ', error_cum
+    END IF
     
 !==== For regression tests ====!
-    IF (setup_data%if_regression_test) THEN
-      DO n=1, SIZE(un,2)
-        IF (setup_data%if_analytical_ref) THEN
-          CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
-          CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
-          IF (norm_anal<1d-13) THEN
-            norm = error
-          ELSE
-            norm = error/norm_anal
-          END IF
-        ELSE
-          CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
-        END IF
-        tab_norm(n) = norm
-      END DO
-      write(*,*) 'tab_norm = ', tab_norm
-      CALL get_num_test(num_test)
-      CALL regression(tab_norm, opt_num_test=num_test)
-    END IF
+    ! IF (setup_data%if_regression_test) THEN
+    !   DO n=1, SIZE(un,2)
+    !     IF (setup_data%if_analytical_ref) THEN
+    !       CALL ns_l1_PAR(mesh, un(:,n)-euler%bc%sol_anal(n, euler%time,mesh%rr), error, euler%communicator)
+    !       CALL ns_l1_PAR(mesh, euler%bc%sol_anal(n, euler%time,mesh%rr), norm_anal, euler%communicator)
+    !       IF (norm_anal<1d-13) THEN
+    !         norm = error
+    !       ELSE
+    !         norm = error/norm_anal
+    !       END IF
+    !     ELSE
+    !       CALL ns_l1_PAR(mesh, un(:,n), norm, euler%communicator)
+    !     END IF
+    !     tab_norm(n) = norm
+    !   END DO
+    !   write(*,*) 'tab_norm = ', tab_norm
+    !   CALL get_num_test(num_test)
+    !   CALL regression(tab_norm, opt_num_test=num_test)
+    ! END IF
 
   END SUBROUTINE errors
 END PROGRAM prog

@@ -48,10 +48,14 @@ MODULE setup
       IMPLICIT NONE
       CLASS(euler_bc_type), INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
+      REAL(KIND = 8),                  INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
       IF (SIZE(vv)==0) RETURN
       vv = gamma
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma; vv = time
+      !===dummy to avoid warning in compilation===!
    END FUNCTION rho_anal_wind_tunnel
    
    ! FUNCTION press_anal(this, time, rr) RESULT(vv)
@@ -65,15 +69,17 @@ MODULE setup
    ! END FUNCTION press_anal
    
    FUNCTION vit_anal_wind_tunnel(this, comp, time, rr) RESULT(vv)
+      USE my_util, ONLY: error_petsc, to_str
       IMPLICIT NONE
-      CLASS(euler_bc_type), INTENT(INOUT) :: this
-      INTEGER, INTENT(IN) :: comp
+      CLASS(euler_bc_type),         INTENT(INOUT) :: this
+      INTEGER,                         INTENT(IN) :: comp
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
+      REAL(KIND = 8),                  INTENT(IN) :: time
+      REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
       INTEGER :: n
       IF (SIZE(vv)==0) RETURN
-      IF (comp==1) THEN
+      SELECT CASE(comp)
+      CASE(1)
          IF (time<1.d-8) THEN
             vv = 3.d0
             RETURN
@@ -85,32 +91,15 @@ MODULE setup
                vv(n) = 0.d0
             END IF
          END DO
-      ELSE IF (comp==2) THEN
+      CASE(2)
          vv = 0.d0
-      ELSE
-         WRITE(*, *) ' BUG '
-         STOP
-      END IF
+      CASE DEFAULT
+         CALL error_petsc("BUG in vit_anal_wind_tunnel: wrong component "//to_str(comp))
+      END SELECT
+      !===dummy to avoid warning in compilation===!
+      RETURN
+      vv = this%gamma
+      !===dummy to avoid warning in compilation===!
    END FUNCTION vit_anal_wind_tunnel
-   
-   ! FUNCTION E_anal(this, time, rr) RESULT(vv)
-   !    IMPLICIT NONE
-   !    CLASS(euler_bc_type), INTENT(INOUT) :: this
-   !    REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-   !    REAL(KIND = 8), INTENT(IN) :: time
-   !    REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-   !    vv = this%press_anal(time, rr) / (gamma - 1.d0) &
-   !    + this%rho_anal(time, rr) * (this%vit_anal(1, time, rr)**2 + this%vit_anal(2, time, rr)**2) / 2
-   ! END FUNCTION E_anal
-   
-   ! FUNCTION mt_anal(this, comp, time, rr) RESULT(vv)
-   !    IMPLICIT NONE
-   !    CLASS(euler_bc_type), INTENT(INOUT) :: this
-   !    INTEGER, INTENT(IN) :: comp
-   !    REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-   !    REAL(KIND = 8), INTENT(IN) :: time
-   !    REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-   !    vv = this%rho_anal(time, rr) * this%vit_anal(comp, time, rr)
-   ! END FUNCTION mt_anal
    
 END MODULE setup
