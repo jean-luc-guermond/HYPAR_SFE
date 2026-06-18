@@ -53,7 +53,7 @@ T
 === CFL ? Euler 1 ===
 0.5d0
 === ERK ? Euler 1 ===
-11
+31
 === Which method to solve conservation equation (viscous,high,galerkin)? Euler 1 ===
 high
 === Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===

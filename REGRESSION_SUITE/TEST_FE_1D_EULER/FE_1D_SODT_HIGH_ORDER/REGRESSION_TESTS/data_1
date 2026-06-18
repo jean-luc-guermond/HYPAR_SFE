@@ -54,9 +54,9 @@ T
 !           HYPERBOLIC PARAMETERS FOR Euler 1
 =======================================================
 === CFL ? Euler 1 ===
-0.75d0
+0.2d0
 === ERK ? Euler 1 ===
-11
+-31
 === Which method to solve conservation equation (viscous,high,galerkin)? Euler 1 ===
 high
 === Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===
@@ -69,9 +69,9 @@ T
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================
 === How many pieces of Dirichlet boundaries for bcs on density ===
-0
+2
 === List of Dirichlet boundaries for bcs on density ===
-0 0
+1 2
 === How many pieces of Dirichlet boundaries for bcs on ux ===
 0
 === List of Dirichlet boundaries for bcs on ux ===

@@ -17,7 +17,7 @@ MODULE euler_post_proc_module
       k_dim = euler%mesh%gauss%k_d
       
       CALL VecSet(euler%x2vec, 0.d0, ierr)
-      CALL array_to_petsc_vec(un, euler%x1vec, euler%mesh, euler%LA, 'insert')
+      CALL array_to_petsc_vec(un, euler%x1vec, euler%LA, 'insert')
       DO k = 1, k_dim
          CALL MatMult(euler%matrices%cij(k), euler%x1vec, euler%x3vec, ierr)
          CALL VecPointwiseMult(euler%x4vec, euler%x3vec, euler%x3vec, ierr)

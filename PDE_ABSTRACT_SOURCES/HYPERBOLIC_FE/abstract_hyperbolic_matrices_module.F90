@@ -9,6 +9,9 @@ MODULE hyperbolic_matrices_module
               ONLY : construct_lumped_mass_vector, construct_cij
    TYPE hyperbolic_matrices_type
       INTEGER                          :: method, which_mass
+      REAL(KIND=8), DIMENSION(:,:,:),   POINTER :: cij_norm_loc_array
+      REAL(KIND=8), DIMENSION(:,:,:,:), POINTER :: nij_loc_array
+
       Mat :: mass, dijL, stiffL, cij_norm_loc, Al_mass
       Mat :: dijH
       Mat, DIMENSION(:),   ALLOCATABLE :: cij, nij_loc
@@ -70,6 +73,8 @@ CONTAINS
          CALL MatDuplicate(this%cij_loc(1, k), MAT_DO_NOT_COPY_VALUES, this%nij_loc(k), ierr)
       END DO
       CALL MatDuplicate(this%cij_loc(1, 1), MAT_DO_NOT_COPY_VALUES, this%cij_norm_loc, ierr)
+      ALLOCATE(this%cij_norm_loc_array(mesh%gauss%n_w, mesh%gauss%n_w, mesh%me))
+      ALLOCATE(this%nij_loc_array(mesh%gauss%n_w, mesh%gauss%n_w, k_dim, mesh%me))
       CALL this%construct_loc_nij(mesh)
 
       IF (this%method==METHOD_HIGH) THEN
@@ -93,7 +98,8 @@ CONTAINS
       CLASS(hyperbolic_matrices_type) :: this
       TYPE(mesh_type), INTENT(IN) :: mesh
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
-      REAL(KIND = 8), DIMENSION(1, 1) :: norm, nij_c
+      REAL(KIND = 8), DIMENSION(1, 1) :: nij_c, norm
+      REAL(KIND =8) :: xx
       INTEGER, DIMENSION(1) :: i, j
       LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
       INTEGER :: k, m, n, ni, nj, ierr, nw, edge
@@ -151,6 +157,46 @@ CONTAINS
 
       CALL MatAssemblyBegin(this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
       CALL MatAssemblyEnd  (this%cij_norm_loc, MAT_FINAL_ASSEMBLY, ierr)
+
+
+      this%cij_norm_loc_array = 0.d0
+      this%nij_loc_array = 0.d0
+      DO m = 1, mesh%me
+         DO ni = 1, mesh%gauss%n_w
+            DO nj=1, mesh%gauss%n_w
+               IF (ni==nj) CYCLE
+               i = mesh%jj(ni, m)
+               j = mesh%jj(nj, m)
+
+               !=== fill blocks (i, j)
+               xx = 0.d0
+               DO k = 1, k_dim
+                  CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
+                  xx = xx + cij_c(1, k)**2
+               END DO
+               xx = SQRT(xx)
+               this%cij_norm_loc_array(ni, nj, m) = xx
+
+               DO k = 1, k_dim
+                  this%nij_loc_array(ni, nj, k, m) = cij_c(1, k)/xx
+               END DO
+               ! !=== fill blocks (i, j)
+               ! norm = 0.d0
+               ! DO k = 1, k_dim
+               !    CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
+               !    norm = norm + cij_c(1, k)**2
+               ! END DO
+               ! norm = SQRT(norm)
+
+               ! CALL MatSetValues(this%cij_norm_loc, 1, i - 1, 1, j - 1, norm, ADD_VALUES, ierr)
+               ! DO k = 1, k_dim
+               !    nij_c = cij_c(1, k) / norm
+               !    CALL MatSetValues(this%nij_loc(k), 1, i - 1, 1, j - 1, nij_c, ADD_VALUES, ierr)
+               ! END DO
+            END DO
+         END DO
+      END DO
+
 
    END SUBROUTINE construct_loc_nij
 

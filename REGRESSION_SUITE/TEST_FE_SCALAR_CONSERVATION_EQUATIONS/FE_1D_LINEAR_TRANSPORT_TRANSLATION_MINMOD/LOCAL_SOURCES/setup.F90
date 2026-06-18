@@ -8,35 +8,27 @@ MODULE setup
 
    TYPE, EXTENDS(linear_transport_type) :: my_linear_transport
    CONTAINS
-      PROCEDURE :: transport => cst_transport
+      PROCEDURE :: transport => cst_transport 
    END TYPE my_linear_transport
 
    PRIVATE
-   REAL(KIND=8), PARAMETER :: x0=0.05d0, rhol = 1.d0, rhor = 2.d0, cx = 1.d0, cy = 0.d0
+   REAL(KIND=8), PARAMETER :: x0=0.5d0, rhol = 1.d0, rhor = 2.d0, cx = 1.d0, cy = 0.d0
 CONTAINS
 
 !==========================================================================
 !================= ANALYTICAL SOLUTIONS ===================================
 !==========================================================================
-
+   
    SUBROUTINE init_state_functions(linear_transport)
       IMPLICIT NONE
       CLASS(linear_transport_type), INTENT(INOUT) :: linear_transport
 
+      linear_transport%bc%rho_anal   => bump_rho
       ! linear_transport%bc%rho_anal   => sine_rho_anal
       ! linear_transport%bc%rho_anal   => step_rho_anal
-      linear_transport%bc%rho_anal   => bump_rho
-      linear_transport%eta_commute   => eta_commute
-
+      linear_transport%eta_commute   => default_eta_commute
+      
    END SUBROUTINE init_state_functions
-
-   FUNCTION eta_commute(un) RESULT(eta)
-        IMPLICIT NONE
-        REAL(KIND=8), DIMENSION(:, :), INTENT(IN)    :: un
-        REAL(KIND=8), DIMENSION(SIZE(un,1))         :: eta
-        eta = 1.d0
-        !eta = un(:,1)
-    END FUNCTION eta_commute
 
     FUNCTION bump_rho(this, time, rr) RESULT(vv)
        IMPLICIT NONE
@@ -48,8 +40,6 @@ CONTAINS
        INTEGER :: n, k, expo = 4
 
        DO n=1, SIZE(rr,2)
-         ! k = FLOOR(((rr(1, n)-cx*time)/length))
-         ! x_drift = rr(1, n)-cx*time - k*length
          IF (rr(1,n)<pos0+time) THEN
             vv(n) =0.d0
          ELSE IF (rr(1,n)<pos1+time) THEN
@@ -63,51 +53,46 @@ CONTAINS
        RETURN
        vv = SUM(this%rho_bc%jsd)*1.d0
        !=== Dummy to avoid warning
-
-
     END FUNCTION bump_rho
 
-    FUNCTION step_rho_anal(this, time, rr) RESULT(vv)
-       IMPLICIT NONE
-       CLASS(linear_transport_bc_type), INTENT(INOUT) :: this
-       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-       REAL(KIND = 8),                  INTENT(IN) :: time
-       REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
-       REAL(KIND=8) :: length=1.d0, x_drift
-       INTEGER :: n, k
+   ! FUNCTION step_rho_anal(this, time, rr) RESULT(vv)
+   !    IMPLICIT NONE
+   !    CLASS(linear_transport_bc_type), INTENT(INOUT) :: this
+   !    REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
+   !    REAL(KIND = 8),                  INTENT(IN) :: time
+   !    REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
+   !    INTEGER :: n
 
-       DO n=1, SIZE(rr,2)
-         k = FLOOR(((rr(1, n)-cx*time)/length))
-         x_drift = rr(1, n)-cx*time - k*length
-          IF (abs(x_drift-0.15d0) < x0) THEN
-             vv(n) = rhor
-          ELSE
-             vv(n) = rhol
-          END IF
-       END DO
-       !=== Dummy to avoid warning
-       RETURN
-       vv = SUM(this%rho_bc%jsd)*1.d0
-       !=== Dummy to avoid warning
-    END FUNCTION step_rho_anal
+   !    DO n=1, SIZE(rr,2)
+   !       IF (rr(1, n)-cx*time < x0) THEN
+   !          vv(n) = rhol
+   !       ELSE
+   !          vv(n) = rhor
+   !       END IF
+   !    END DO
+   !    !=== Dummy to avoid warning
+   !    RETURN
+   !    vv = SUM(this%rho_bc%jsd)*1.d0
+   !    !=== Dummy to avoid warning
+   ! END FUNCTION step_rho_anal
 
-   FUNCTION sine_rho_anal(this, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      CLASS(linear_transport_bc_type), INTENT(INOUT) :: this
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8),                  INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
-      REAL(KIND = 8),                   PARAMETER :: pi=ACOS(-1.d0)
-      INTEGER                                     :: n
+   ! FUNCTION sine_rho_anal(this, time, rr) RESULT(vv)
+   !    IMPLICIT NONE
+   !    CLASS(linear_transport_bc_type), INTENT(INOUT) :: this
+   !    REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
+   !    REAL(KIND = 8),                  INTENT(IN) :: time
+   !    REAL(KIND = 8), DIMENSION(SIZE(rr, 2))      :: vv
+   !    REAL(KIND = 8),                   PARAMETER :: pi=ACOS(-1.d0)
+   !    INTEGER                                     :: n
 
-      DO n=1, SIZE(rr,2)
-         vv(n) = SIN((rr(1,n)-cx*time)*2*pi) + 2.d0
-      END DO
-      !=== Dummy to avoid warning
-      RETURN
-      vv = SUM(this%rho_bc%jsd)*1.d0
-      !=== Dummy to avoid warning
-   END FUNCTION sine_rho_anal
+   !    DO n=1, SIZE(rr,2)
+   !       vv(n) = SIN((rr(1,n)-cx*time)*2*pi) + 2.d0
+   !    END DO
+   !    !=== Dummy to avoid warning
+   !    RETURN
+   !    vv = SUM(this%rho_bc%jsd)*1.d0
+   !    !=== Dummy to avoid warning
+   ! END FUNCTION sine_rho_anal
 
 
    FUNCTION cst_transport(this, rr, comp) RESULT(vv)

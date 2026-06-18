@@ -4,7 +4,6 @@ MODULE euler_type_module
    USE petsc
    USE abstract_hyperbolic_module, ONLY: hyperbolic_type
    USE euler_bc_arrays, ONLY : euler_bc_type
-   USE petsc_tools,     ONLY : array_to_petsc_vec
    USE Butcher_tableau
    USE cell_limiting_engine_parallel_module, ONLY : limiting_type
    USE def_type_mesh, ONLY : mesh_type, petsc_csr_LA
@@ -159,13 +158,14 @@ CONTAINS
    END FUNCTION flux_euler
 
 
-   SUBROUTINE lambda_euler(this, un, i, j, lambda_max)
+   SUBROUTINE lambda_euler(this, un, i, j, nij, lambda_max)
       USE arbitrary_eos_lambda_module
       USE space_dim
       IMPLICIT NONE
       CLASS(euler_type),                                 INTENT(INOUT) :: this
       REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
       INTEGER,                                              INTENT(IN) :: i, j
+      REAL(KIND = 8), DIMENSION(k_dim),                     INTENT(IN) :: nij
       REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max
 
       INTEGER, DIMENSION(1) :: i_t, j_t
@@ -178,15 +178,13 @@ CONTAINS
       i_t = i
       j_t = j
 
-      DO k = 1, k_dim
-         CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
-      END DO
+
 
       rho(1) = un(i, 1)
       rho(2) = un(j, 1)
 
-      u(1) = SUM(un(i, 2:1 + k_dim) * nij_c(1, :)) / rho(1)
-      u(2) = SUM(un(j, 2:1 + k_dim) * nij_c(1, :)) / rho(2)
+      u(1) = SUM(un(i, 2:1 + k_dim) * nij(:)) / rho(1)
+      u(2) = SUM(un(j, 2:1 + k_dim) * nij(:)) / rho(2)
 
       ie(1) = un(i, k_dim + 2) / rho(1) - 0.5d0 * SUM(un(i, 2:1 + k_dim)**2) / rho(1)**2
       ie(2) = un(j, k_dim + 2) / rho(2) - 0.5d0 * SUM(un(j, 2:1 + k_dim)**2) / rho(2)**2

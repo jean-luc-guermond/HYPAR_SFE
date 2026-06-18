@@ -95,12 +95,14 @@ MODULE abstract_hyperbolic_module
          REAL(KIND = 8), INTENT(IN)                     :: time
       END SUBROUTINE template_impose_bc
 
-      SUBROUTINE template_lambda(this, un, i, j, lambda_max)
+      SUBROUTINE template_lambda(this, un, i, j, nij, lambda_max)
+         USE space_dim
          IMPORT :: hyperbolic_type
          IMPLICIT NONE
          CLASS(hyperbolic_type),                               INTENT(INOUT) :: this
          REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
          INTEGER,                                              INTENT(IN) :: i, j
+         REAL(KIND=8), DIMENSION(k_dim),                       INTENT(IN) :: nij
          REAL(KIND=8), DIMENSION(2),                           INTENT(OUT) :: lambda_max
       END SUBROUTINE template_lambda
 
@@ -183,17 +185,12 @@ CONTAINS
 
       !===Limiting
       IF (this%if_hybrid_mesh_limiting) THEN
-         CALL this%limiting%init(this%communicator, this%name, this%mesh_L, this%LA_L)
+         CALL this%limiting%init(this%name, this%mesh_L, this%LA_L)
+         CALL this%limiting_all_functionals%init(limiting_functionals, name, this%LA_L, this%mesh_L)
       ELSE
-         CALL this%limiting%init(this%communicator, this%name, this%mesh, this%LA)
+         CALL this%limiting%init(this%name, this%mesh, this%LA)
+         CALL this%limiting_all_functionals%init(limiting_functionals, name, this%LA, this%mesh)
       END IF
-      ! IF (this%limiting%if_limiting) THEN
-      CALL this%limiting_all_functionals%init(limiting_functionals, name, LA, mesh)
-      ! IF (this%limiting%if_limiting) THEN
-         ! this%limiting_functionals => limiting_functionals
-      ! ELSE
-         ! ALLOCATE(this%limiting_functionals(0))
-      ! END IF
    END SUBROUTINE init_hyperbolic
 
    SUBROUTINE read_hyperbolic_data(this, section_name)
@@ -320,7 +317,7 @@ CONTAINS
             CALL VecSet(this%x3vec, 0.d0, ierr)
             DO k = 1, k_dim
                !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%mesh, this%LA, 'insert')
+               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
                !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
                CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
                !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
@@ -334,14 +331,14 @@ CONTAINS
             END DO
 
             !=== rk in x3vec
-            CALL array_to_petsc_vec(rk, this%x2vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(rk, this%x2vec, this%LA, 'insert')
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
             !=== Inverting mass matrix and updating un with dt
             CALL this%invert_mass(this%x2vec, this%x3vec)
 
             !=== set un(comp) at l=stage0 in x1vec
-            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%mesh, this%LA, 'insert') !<== Notice un at l=stage0
+            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
             !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
             CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
             !=== Manually make un periodic and extract the result
@@ -351,7 +348,7 @@ CONTAINS
 
          !===Periodicity
          DO comp = 1, this%syst_dim
-            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
             CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
             CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
          END DO
@@ -380,7 +377,7 @@ CONTAINS
             CALL VecZeroEntries(this%x3vec, ierr)
             DO k = 1, k_dim
                !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%mesh, this%LA, 'insert')
+               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
                !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
                CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
                !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
@@ -388,7 +385,7 @@ CONTAINS
             END DO
 
             !=== set un(comp) in x1vec
-            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%LA, 'insert')
             !=== add dij un(comp)to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
             CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
@@ -443,7 +440,7 @@ CONTAINS
             CALL VecSet(this%x3vec, 0.d0, ierr)
             DO k = 1, k_dim
                !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%mesh, this%LA, 'insert')
+               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
                !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
                CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
                !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
@@ -457,9 +454,9 @@ CONTAINS
             END DO
 
             !=== rk in x3vec
-            CALL array_to_petsc_vec(rk, this%x3vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(rk, this%x3vec, this%LA, 'insert')
             !=== set un(comp) at l=stage' in x1vec to compute viscous contribution
-            CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%mesh, this%LA, 'insert') !<== l=stage'
+            CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%LA, 'insert') !<== l=stage'
 
             !=== add dij un(comp) to x3vec in x2vec
             CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
@@ -468,7 +465,7 @@ CONTAINS
             CALL this%invert_mass(this%x2vec, this%x3vec)
 
             !=== set un(comp) at l=stage0 in x1vec
-            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%mesh, this%LA, 'insert') !<== Notice un at l=stage0
+            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
             !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
             CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
             !=== Manually make un periodic and extract the result
@@ -488,12 +485,9 @@ CONTAINS
 
          !===Periodicity
          DO comp = 1, this%syst_dim
-            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%mesh, this%LA, 'insert')
+            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
             CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
             CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-            ! DO k = 1, this%mesh%per%nb_bords
-            !    urk(this%mesh%per%list(k)%DIL, comp, stage) = urk(this%mesh%per%perlist(k)%DIL, comp, stage)
-            ! END DO
          END DO
 
          !===Boundary conditions
@@ -526,132 +520,6 @@ CONTAINS
 
    END SUBROUTINE compute_dt
 
-!  SUBROUTINE compute_dij(this, flux_array, un, bounds)
-!       USE space_dim
-!       USE petsc
-!       USE def_type_mesh
-!       USE arbitrary_eos_lambda_module
-!       USE compute_periodic
-!       USE st_matrix, ONLY: extract_through_ghost
-!       USE my_util
-!       IMPLICIT NONE
-!       CLASS(hyperbolic_type) :: this
-!       TYPE(mesh_type), POINTER :: mesh
-!       TYPE(petsc_csr_LA), POINTER :: LA
-!       REAL(KIND = 8), DIMENSION(this%mesh_L%np, k_dim, this%syst_dim) :: flux_array
-!       REAL(KIND = 8), DIMENSION(:, :) :: un, bounds
-!       INTEGER :: m, ni, nj, nw, n, i, j, k, ierr, edge, nl, comp
-!       INTEGER, DIMENSION(1) :: i_t, j_t, idx, jdx
-!       REAL(KIND = 8), DIMENSION(1, k_dim) :: nij_c
-!       REAL(KIND = 8), DIMENSION(1) :: norm_c, dijL_c, dijH_c
-!       REAL(KIND = 8), DIMENSION(2) :: lambda_max
-!       REAL(KIND = 8) :: max_lambda
-!       REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
-!       LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
-!       REAL(KIND = 8), DIMENSION(this%mesh_L%np)  :: alpha !<==commutator in (0,1)
-
-!       mesh => this%mesh_L
-!       LA   => this%LA_L
-
-!       !===Compute dijL
-!       CALL MatZeroEntries(this%matrices_L%dijL, ierr)
-!       IF (this%method==METHOD_HIGH) THEN
-!          CALL this%commutator(un, alpha)
-!          CALL MatZeroEntries(this%matrices%dijH, ierr)
-!          IF (this%limiting%if_limiting) THEN
-!             DO nl=1, Size(this%limiting_functionals)
-!                DO i=1, mesh%np
-!                   bounds(i, nl) = this%limiting_functionals(nl)%psi(un(i, :), 0.d0)
-!                END DO
-!             END DO
-!          END IF
-!       END IF
-
-
-!       virgin_edge = .TRUE.
-!       nw = mesh%gauss%n_w
-
-!       DO m = 1, mesh%me
-!          DO n = 1, mesh%gauss%n_e
-!             IF (mesh%attr_e(mesh%jce(n, m))) THEN
-!                edge = mesh%jce_loc(n, m)
-!                IF (.NOT. virgin_edge(edge)) CYCLE
-!                virgin_edge(edge) = .FALSE.
-
-!                ni = MOD(n, nw) + 1
-!                nj = MOD(n + 1, nw) + 1
-!                i = mesh%jj(ni, m)
-!                j = mesh%jj(nj, m)
-!                i_t = i
-!                j_t = j
-
-!                CALL this%compute_lambda(un, i, j, lambda_max)
-!                CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, i_t - 1, 1, j_t - 1, norm_c, ierr)
-
-!                max_lambda = MAXVAL(lambda_max)
-!                dijL_c = max_lambda * norm_c
-
-!                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
-!                      CALL this%compute_lambda(un, j, i, lambda_max)
-!                      CALL MatGetValues(this%matrices_L%cij_norm_loc, 1, j_t - 1, 1, i_t - 1, norm_c, ierr)
-
-!                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
-!                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
-!                END IF
-
-!                idx = LA%loc_to_glob(1, i) - 1
-!                jdx = LA%loc_to_glob(1, j) - 1
-
-!                CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, jdx, dijL_c, ADD_VALUES, ierr)
-!                CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, idx, dijL_c, ADD_VALUES, ierr)
-
-!                CALL MatSetValues(this%matrices_L%dijL, 1, idx, 1, idx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
-!                CALL MatSetValues(this%matrices_L%dijL, 1, jdx, 1, jdx, -dijL_c, ADD_VALUES, ierr) !===add value on diagonal
-!                IF (this%method==METHOD_HIGH) THEN
-!                   dijH_c = dijL_c*(alpha(i)+alpha(j))/2
-!                   CALL MatSetValues(this%matrices%dijH, 1, idx, 1, jdx, dijH_c, ADD_VALUES, ierr)
-!                   CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, idx, dijH_c, ADD_VALUES, ierr)
-!                   CALL MatSetValues(this%matrices%dijH, 1, idx, 1, idx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
-!                   CALL MatSetValues(this%matrices%dijH, 1, jdx, 1, jdx, -dijH_c, ADD_VALUES, ierr) !===add value on diagonal
-!                   !===Compute low-order update to estimate bounds
-!                   IF (this%limiting%if_limiting) THEN
-!                      DO k = 1, k_dim
-!                         CALL MatGetValues(this%matrices_L%nij_loc(k), 1, i_t - 1, 1, j_t - 1, nij_c(:, k), ierr)
-!                      END DO
-
-!                      DO comp=1, this%syst_dim
-!                         uijbar(comp) =  (un(i, comp)+un(j, comp))/2 - &
-!                         SUM((flux_array(j, :, comp)-flux_array(i, :, comp))*nij_c(1, :))/(2*max_lambda)
-!                      END DO
-
-!                      DO nl=1, SIZE(this%limiting_functionals)
-!                         bounds(i, nl) = MIN(bounds(i, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
-!                         bounds(j, nl) = MIN(bounds(j, nl), this%limiting_functionals(nl)%psi(uijbar, 0.d0))
-!                      END DO
-
-!                      !===End compute low-order update to estimate bounds
-!                   END IF
-!                END IF
-!             END IF
-!          END DO
-!       END DO
-!       CALL MatAssemblyBegin(this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
-!       CALL MatAssemblyEnd  (this%matrices_L%dijL, MAT_FINAL_ASSEMBLY, ierr)
-
-!       IF (this%method==METHOD_HIGH) THEN
-!          CALL MatAssemblyBegin(this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-!          CALL MatAssemblyEnd  (this%matrices%dijH, MAT_FINAL_ASSEMBLY, ierr)
-
-!          IF (this%limiting%if_limiting) THEN
-!             DO nl=1, SIZE(this%limiting_functionals)
-!                CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%mesh, this%LA, 'min')
-!                CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
-!             END DO
-!          END IF
-!       END IF
-!    END SUBROUTINE compute_dij
-
-
    SUBROUTINE compute_dij(this, flux_array, un, bounds)
       USE space_dim
       USE petsc
@@ -673,10 +541,13 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(2) :: lambda_max
       REAL(KIND = 8), DIMENSION(this%mesh_L%gauss%n_w,this%mesh_L%gauss%n_w) :: mat_loc, mat_h_loc, norm_c_loc
       REAL(KIND = 8), DIMENSION(this%mesh_L%gauss%n_w,this%mesh_L%gauss%n_w, k_dim) :: nij_c_loc
-      INTEGER,        DIMENSION(this%mesh_L%gauss%n_w) :: idx_loc, i_t_loc
+      REAL(KIND = 8), DIMENSION(this%mesh_L%gauss%n_w*this%mesh_L%gauss%n_w, k_dim) :: nij_c_loc_vec
+      INTEGER,        DIMENSION(this%mesh_L%gauss%n_w) :: idx_loc
 
       REAL(KIND = 8) :: max_lambda
-      REAL(KIND = 8), DIMENSION(this%syst_dim) :: uijbar
+      REAL(KIND = 8), DIMENSION(1, this%syst_dim) :: uijbar  !<=== FIXME
+      REAL(KIND = 8), DIMENSION(1), PARAMETER   :: zero=0.d0
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np) :: zero_vec
       LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
       REAL(KIND = 8), DIMENSION(this%mesh_L%np)  :: alpha !<==commutator in (0,1)
 
@@ -689,10 +560,9 @@ CONTAINS
          CALL this%commutator(un, alpha)
          CALL MatZeroEntries(this%matrices%dijH, ierr)
          IF (this%limiting%if_limiting) THEN
+            zero_vec = 0.d0
             DO nl=1, this%limiting_all_functionals%nl
-               DO i=1, mesh%np
-                  bounds(i, nl) = this%limiting_all_functionals%limiting_functionals(nl)%psi(un(i, :), 0.d0)
-               END DO
+               bounds(:, nl) = this%limiting_all_functionals%limiting_functionals(nl)%psi(un(:, :), zero_vec)
             END DO
          END IF
       END IF
@@ -709,17 +579,8 @@ CONTAINS
             idx_loc(ni) = LA%loc_to_glob(1, i) - 1
          END DO
 
-         i_t_loc = mesh%jj(:, m) - 1
-         CALL MatGetValues(this%matrices_L%cij_norm_loc, nw, i_t_loc , nw, i_t_loc, norm_c_loc, ierr)
-         norm_c_loc = TRANSPOSE(norm_c_loc) ! WARNING <== PETSC transpose conventions 
-                                            !=== Matrices in petsc are row-oriented
-         
-         IF (this%method==METHOD_HIGH .AND. this%limiting%if_limiting) THEN
-            DO k = 1, k_dim
-               CALL MatGetValues(this%matrices_L%nij_loc(k), nw, i_t_loc, nw, i_t_loc, nij_c_loc(:, :, k), ierr)
-               nij_c_loc(:, :, k) = TRANSPOSE(nij_c_loc(:, :, k))
-            END DO
-         END IF
+         norm_c_loc(:,:) = this%matrices_L%cij_norm_loc_array(:,:,m)
+         nij_c_loc(:, :, :) = this%matrices_L%nij_loc_array(:,:,:,m)
 
          DO n = 1, mesh%gauss%n_e
             IF (mesh%attr_e(mesh%jce(n, m))) THEN
@@ -734,13 +595,13 @@ CONTAINS
                i_t = i
                j_t = j
 
-               CALL this%compute_lambda(un, i, j, lambda_max)
+               CALL this%compute_lambda(un, i, j, nij_c_loc(ni, nj, :), lambda_max)
 
                max_lambda = MAXVAL(lambda_max)
                dijL_c = max_lambda * norm_c_loc(ni, nj) 
 
                IF (mesh%side_edge(n, m)) THEN !=== if on the boundary, switch i for j
-                     CALL this%compute_lambda(un, j, i, lambda_max)
+                     CALL this%compute_lambda(un, j, i, nij_c_loc(nj, ni, :), lambda_max)
                      norm_c(1) = norm_c_loc(nj, ni)
                      dijL_c = MAX(dijL_c, MAXVAL(lambda_max) * norm_c)
                      max_lambda = MAX(max_lambda,MAXVAL(lambda_max))
@@ -760,13 +621,13 @@ CONTAINS
                      nij_c(1, :) = nij_c_loc(ni, nj, :)
 
                      DO comp=1, this%syst_dim
-                        uijbar(comp) =  (un(i, comp)+un(j, comp))/2 - &
+                        uijbar(1,comp) =  (un(i, comp)+un(j, comp))/2 - &
                         SUM((flux_array(j, :, comp)-flux_array(i, :, comp))*nij_c(1, :))/(2*max_lambda)
                      END DO
 
                      DO nl=1, this%limiting_all_functionals%nl
-                        bounds(i, nl) = MIN(bounds(i, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, 0.d0))
-                        bounds(j, nl) = MIN(bounds(j, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, 0.d0))
+                        bounds(i:i, nl) = MIN(bounds(i, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, zero))
+                        bounds(j:j, nl) = MIN(bounds(j, nl), this%limiting_all_functionals%limiting_functionals(nl)%psi(uijbar, zero))
                      END DO
 
                      !===End compute low-order update to estimate bounds
@@ -805,7 +666,7 @@ CONTAINS
 
          IF (this%limiting%if_limiting) THEN
             DO nl=1, this%limiting_all_functionals%nl
-               CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%mesh, this%LA, 'min')
+               CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%LA, 'min')
                CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
             END DO
          END IF
@@ -853,6 +714,7 @@ CONTAINS
       USE space_dim
       USE sub_plot
       USE st_matrix, ONLY: extract_through_ghost
+      USE fem_tn
       IMPLICIT NONE
       CLASS(hyperbolic_type) :: this
       REAL(KIND = 8), DIMENSION(:,:), INTENT(IN) :: un
@@ -861,66 +723,67 @@ CONTAINS
       INTEGER :: k, ierr, np_tot
       REAL(KIND = 8) :: norm_diff, norm_log
       CHARACTER(5) :: char
+      LOGICAL :: if_commutator_H=.FALSE.
       PetscReal :: norm
       CALL VecGetSize(this%x5vec, np_tot, ierr)
       !===
       CALL VecSet(this%x4vec, 0.d0, ierr)
       CALL VecSet(this%x5vec, 0.d0, ierr)
-      !eta = pressure_from_state(this, un)/un(:,1)**1.4
-      !eta = pressure_from_state(this, un)
       eta = this%eta_commute(un)
-      ! eta = un(:,1)
       logeta = log(abs(eta))
       norm_diff = 0.d0
       norm_log = 0.d0
 
-      ! DO k = 1, k_dim
-      !    CALL array_to_petsc_vec(logeta, this%x1vec, this%mesh, this%LA, 'insert') !<==v1 = log(eta)
-      !    CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr) !<==v2 = dk(log(eta))
+      IF (if_commutator_H) THEN
+         DO k = 1, k_dim
+            CALL array_to_petsc_vec(logeta, this%x1vec, this%LA, 'insert') !<==v1 = log(eta)
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr) !<==v2 = dk(log(eta))
 
-      !    CALL array_to_petsc_vec(eta,    this%x1vec, this%mesh, this%LA, 'insert') !<==v1 = eta
-      !    CALL VecPointwiseMult(this%x3vec,  this%x1vec, this%x2vec, ierr) !<==v3 = eta*dk(log(eta))
+            CALL array_to_petsc_vec(eta,    this%x1vec, this%LA, 'insert') !<==v1 = eta
+            CALL VecPointwiseMult(this%x3vec,  this%x1vec, this%x2vec, ierr) !<==v3 = eta*dk(log(eta))
 
-      !    CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)          !<==v2 = dk(eta))
-      !    CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr) !<==v3 = eta*dk(log(eta)) - dk(eta)
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)          !<==v2 = dk(eta))
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr) !<==v3 = eta*dk(log(eta)) - dk(eta)
 
-      !    CALL VecNorm(this%x3vec, Norm_1, norm, ierr)
-      !    norm_diff = norm_diff + norm
+            CALL VecNorm(this%x3vec, Norm_1, norm, ierr)
+            norm_diff = norm_diff + norm
 
-      !    CALL VecNorm(this%x2vec, Norm_1, norm, ierr)
-      !    norm_log = norm_log + norm
+            CALL VecNorm(this%x2vec, Norm_1, norm, ierr)
+            norm_log = norm_log + norm
 
-      !    CALL VecAbs(this%x3vec,ierr)
-      !    CALL VecAXPY(this%x4vec, 1.d0, this%x3vec, ierr) !<==v4 = sum_k |dk(eta)-eta*dk(log(eta))|
+            CALL VecAbs(this%x3vec,ierr)
+            CALL VecAXPY(this%x4vec, 1.d0, this%x3vec, ierr) !<==v4 = sum_k |dk(eta)-eta*dk(log(eta))|
 
-      !    CALL VecAbs(this%x2vec,ierr)
-      !    CALL VecAXPY(this%x5vec, 1.d0, this%x2vec, ierr) !<==v5 = sum_k |dk(eta)
-      ! END DO
-      ! CALL extract_through_ghost(this%x4vec, 1, 1, this%LA, rk, opt_assemble=.FALSE.)
+            CALL VecAbs(this%x2vec,ierr)
+            CALL VecAXPY(this%x5vec, 1.d0, this%x2vec, ierr) !<==v5 = sum_k |dk(eta)
+         END DO
+         CALL extract_through_ghost(this%x4vec, 1, 1, this%LA, rk, opt_assemble=.FALSE.)
 
-      ! CALL extract_through_ghost(this%x5vec, 1, 1, this%LA, rk_norm, opt_assemble=.FALSE.)
-      DO k = 1, k_dim
-         CALL array_to_petsc_vec(logeta, this%x1vec, this%mesh_L, this%LA_L, 'insert') !<==v1 = log(eta)
-         CALL MatMult(this%matrices_L%cij(k), this%x1vec, this%x2vec, ierr) !<==v2 = dk(log(eta))
+         CALL extract_through_ghost(this%x5vec, 1, 1, this%LA, rk_norm, opt_assemble=.FALSE.)
+      ELSE
+         DO k = 1, k_dim
+            CALL array_to_petsc_vec(logeta, this%x1vec, this%LA_L, 'insert') !<==v1 = log(eta)
+            CALL MatMult(this%matrices_L%cij(k), this%x1vec, this%x2vec, ierr) !<==v2 = dk(log(eta))
 
-         CALL array_to_petsc_vec(eta,    this%x1vec, this%mesh_L, this%LA_L, 'insert') !<==v1 = eta
-         CALL VecPointwiseMult(this%x3vec,  this%x1vec, this%x2vec, ierr) !<==v3 = eta*dk(log(eta))
+            CALL array_to_petsc_vec(eta,    this%x1vec, this%LA_L, 'insert') !<==v1 = eta
+            CALL VecPointwiseMult(this%x3vec,  this%x1vec, this%x2vec, ierr) !<==v3 = eta*dk(log(eta))
 
-         CALL MatMult(this%matrices_L%cij(k), this%x1vec, this%x2vec, ierr)          !<==v2 = dk(eta))
-         CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr) !<==v3 = eta*dk(log(eta)) - dk(eta)
+            CALL MatMult(this%matrices_L%cij(k), this%x1vec, this%x2vec, ierr)          !<==v2 = dk(eta))
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr) !<==v3 = eta*dk(log(eta)) - dk(eta)
 
-         CALL VecNorm(this%x3vec, Norm_1, norm, ierr)
-         norm_diff = norm_diff + norm
+            CALL VecNorm(this%x3vec, Norm_1, norm, ierr)
+            norm_diff = norm_diff + norm
 
-         CALL VecNorm(this%x2vec, Norm_1, norm, ierr)
-         norm_log = norm_log + norm
+            CALL VecNorm(this%x2vec, Norm_1, norm, ierr)
+            norm_log = norm_log + norm
 
-         CALL VecAbs(this%x3vec,ierr)
-         CALL VecAXPY(this%x4vec, 1.d0, this%x3vec, ierr) !<==v4 = sum_k |dk(eta)-eta*dk(log(eta))|
+            CALL VecAbs(this%x3vec,ierr)
+            CALL VecAXPY(this%x4vec, 1.d0, this%x3vec, ierr) !<==v4 = sum_k |dk(eta)-eta*dk(log(eta))|
 
-         CALL VecAbs(this%x2vec,ierr)
-         CALL VecAXPY(this%x5vec, 1.d0, this%x2vec, ierr) !<==v5 = sum_k |dk(eta)
-      END DO
+            CALL VecAbs(this%x2vec,ierr)
+            CALL VecAXPY(this%x5vec, 1.d0, this%x2vec, ierr) !<==v5 = sum_k |dk(eta)
+         END DO
+      END IF
 
       CALL extract_through_ghost(this%x4vec, 1, 1, this%LA_L, rk, opt_assemble=.FALSE.)
 
@@ -929,8 +792,11 @@ CONTAINS
       norm_log = norm_log/np_tot
 
       rk = abs(rk)/max(abs(rk_norm),1.d-1*norm_log,1d-30)
-      alpha = MIN(10*rk,1.d0)
+      alpha = MIN(1*rk,1.d0)
       alpha = threshold(alpha)
+
+      ! CALL ns_l1_PAR(this%mesh, alpha, norm, this%mesh%comm)
+      ! WRITE(*,*) 'norm commutator = ', norm
 
       !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
       IF (this%time+1.5*this%dt>this%final_time) THEN
@@ -970,10 +836,18 @@ CONTAINS
       CLASS(hyperbolic_type) :: this
       REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: un
       REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: bounds
+real(kind = 8), DIMENSION(SIZE(bounds, 1)) :: loc_min_bis
       REAL(KIND = 8), DIMENSION(SIZE(un,1),SIZE(un,2))    :: un_temp
       INTEGER :: it, i
 
       DO i=1, size(bounds, 2)
+!TESTTTTTT
+!          loc_min_bis = bounds(:,i)
+!          CALL this%limiting_all_functionals%RELAX_BOUNDS(un, loc_min_bis, i)
+! ! WRITE(*,*) "after", loc_min
+! ! WRITE(*,*) "MAXVAL DIFF", SUM(ABS(loc_min_bis-bounds(:,i)))/SUM(ABS(bounds(:,i)))
+! bounds(:,i) = loc_min_bis 
+!TESTTTTTT
          CALL this%limiting_all_functionals%RELAX_BOUNDS(un, bounds(:,i), i)
          DO it = 1, this%limiting%limit_max
             CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,i),&
