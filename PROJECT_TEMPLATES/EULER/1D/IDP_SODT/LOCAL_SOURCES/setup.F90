@@ -48,10 +48,19 @@ CONTAINS
       euler%bc%press_anal => press_anal_sodt
       euler%bc%vit_anal   => vit_anal_sodt
 
-      euler%eta_commute => default_eta_commute
+      !euler%eta_commute => default_eta_commute
+      euler%eta_commute => eta_commute
 
-      
    END SUBROUTINE init_state_functions
+
+
+   FUNCTION eta_commute(un) RESULT(eta)
+      IMPLICIT NONE
+      REAL(KIND=8), DIMENSION(:, :), INTENT(IN)    :: un
+      REAL(KIND=8), DIMENSION(SIZE(un,1))         :: eta
+      eta = (un(:,k_dim+2) - 0.5d0*SUM(un(:,2:k_dim+1)**2,dim=2)/un(:,1))/un(:,1)**gamma
+   END FUNCTION eta_commute
+
 
    FUNCTION rho_anal_sodt(this, time, rr) RESULT(vv)
       IMPLICIT NONE

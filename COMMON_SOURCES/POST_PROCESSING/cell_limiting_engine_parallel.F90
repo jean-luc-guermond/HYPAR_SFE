@@ -527,12 +527,12 @@ CONTAINS
       REAL(KIND=8), DIMENSION(:,:),         INTENT(IN) :: state
       INTEGER,                              INTENT(IN) :: nth_fonctional
       REAL(KIND=8), DIMENSION(:),       INTENT(INOUT)  :: psi_min
-real(kind=8) :: norm
+      REAL(KIND=8) :: norm
       ! REAL(KIND=8), INTENT(IN)               :: glob_min, glob_max
       REAL(KIND=8), DIMENSION(SIZE(state, 1)) :: alpha, denom, denom_ref, mask
       INTEGER,      DIMENSION(SIZE(state, 1)) ::   beta
       REAL(KIND=8), DIMENSION(SIZE(state, 1)) ::   un 
-real(kind=8), dimension(SIZE(state, 1)) :: dummy
+      REAL(kind=8), DIMENSION(SIZE(state, 1)) :: dummy
       INTEGER      :: i, j, j_loc, p, ni, nj, m, me, nw, n, np, dom_np, ierr
 
       IF(this%limiting_functionals(nth_fonctional)%relaxation_method == RELAX_NONE) THEN
@@ -541,9 +541,6 @@ real(kind=8), dimension(SIZE(state, 1)) :: dummy
       END IF
 
       np = SIZE(state, 1)
-      ! DO i=1, np
-      !    un(i) = this%limiting_functionals(nth_fonctional)%psi(state(i, :), 0.d0)
-      ! END DO
       dummy = 0.d0
       un(:) = this%limiting_functionals(nth_fonctional)%psi(state(:, :), dummy)
 
@@ -551,18 +548,6 @@ real(kind=8), dimension(SIZE(state, 1)) :: dummy
       nw = SIZE(this%mesh%jj,1)
       alpha = 0.d0
       beta = 0
-      ! DO m = 1, me
-      !    DO n = 1, nw
-      !       i = jj(n,m)
-      !       DO np = 1, nw
-      !          IF (n==np) CYCLE
-      !          j = jj(np,m)
-      !          alpha(i) = alpha(i) + (un(i) - un(j))
-      !          beta(i) = beta(i) + 1
-      !       END DO
-      !    END DO
-      ! END DO
-      ! alpha = alpha/beta
       CALL array_to_petsc_vec(un, this%xvect1, this%LA, "insert")
       CALL MatMult(this%stiffness, this%xvect1, this%xvect2, ierr)
       CALL VecPointWiseDivide(this%xvect2, this%xvect2, this%stiffness_RowSumAbs, ierr)
@@ -570,23 +555,6 @@ real(kind=8), dimension(SIZE(state, 1)) :: dummy
 
       SELECT CASE(this%limiting_functionals(nth_fonctional)%relaxation_method)
       CASE(RELAX_AVG) !==Average
-         !denom = 0.d0
-         ! denom = alpha
-         ! beta = 0
-         ! DO m = 1, me
-         !    DO n = 1, nw
-         !       i = this%jj(n,m)
-         !       DO np = 1, nw
-         !          IF (n==np) CYCLE
-         !          j = this%jj(np,m) 
-         !          !denom(i) = denom(i) + alpha(i) + alpha(j)
-         !          denom(i) = denom(i) + alpha(j)
-         !          beta(i) = beta(i) + 1
-         !       END DO
-         !    END DO
-         ! END DO
-         ! !denom = denom/(2*beta)
-         ! denom = denom/(beta)
          CALL MatMult(this%avg, this%xvect2, this%xvect1, ierr)
          CALL VecPointWiseDivide(this%xvect1, this%xvect1, this%avg_row_sum, ierr)
          CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, denom, opt_assemble=.FALSE.)
@@ -604,21 +572,6 @@ real(kind=8), dimension(SIZE(state, 1)) :: dummy
          !TESTTTT
       CASE(RELAX_MINMOD) !===Minmod
          dom_np = SIZE(this%LA%ia)-1
-!TESTTTT
-         ! CALL extract_through_ghost(this%xvect2, 1, 1, this%LA, alpha, opt_assemble=.FALSE.)
-         ! denom_ref = alpha    
-         ! DO i=0, dom_np-1
-         !    DO p = this%LA%ia(i), this%LA%ia(i+1) - 1
-         !       j = this%LA%ja(p) + 1
-         !       ! IF (i+1==j) CYCLE
-         !       IF (denom_ref(i+1)*alpha(j).LE.0.d0) THEN
-         !          denom_ref(i+1) = 0.d0
-         !       ELSE IF (ABS(denom_ref(i+1)) > ABS(alpha(j))) THEN
-         !          denom_ref(i+1) = alpha(j)
-         !       END IF
-         !    END DO
-         ! END DO
-!TESTTTT
          CALL extract_through_ghost(this%xvect2, 1, 1, this%LA, alpha, opt_assemble=.FALSE.)
          CALL VecNorm(this%xvect2, NORM_1, norm, ierr) 
          norm = norm * 1.d-30 ! <=== epsilon
@@ -632,55 +585,21 @@ real(kind=8), dimension(SIZE(state, 1)) :: dummy
          CALL extract_through_ghost(this%xvect3, 1, 1, this%LA, mask, opt_assemble=.FALSE.)
 
          !TEST
-         DO i = 1, np
-            IF (ABS(mask(i))>1.d-1) THEN
-               mask(i) = 0d0
-            ELSE
-               mask(i) = 1.d0
-            END IF
-         ENDDO
+         WHERE(ABS(mask)>1.d-1)
+            mask = 0.d0
+         ELSEWHERE
+            mask = 1.d0
+         ENDWHERE
          denom = ABS(alpha)
          DO m = 1, me
             DO ni = 1, nw
                i = this%mesh%jj(ni,m)
-               !denom(i) = MIN(denom(i),MINVAL(ABS(alpha(this%mesh%jj(:,m)))))
-               DO nj = 1, nw
-                  IF (ni==nj) CYCLE
-                  j = this%mesh%jj(nj,m)
-                  denom(i) = MIN(denom(i),ABS(alpha(j)))
-               END DO
+               denom(i) = MIN(denom(i),MINVAL(ABS(alpha(this%mesh%jj(:,m)))))
             END DO
          END DO
          denom = denom*mask
-
-         ! denom = 1.d0
-         ! DO i = 0, dom_np-1
-         !    IF (ABS(mask(i+1))>1.d-1) THEN
-         !       denom(i+1) = 0.d0
-         !    ELSE
-         !       denom(i+1) = ABS(alpha(i+1))
-         !       DO p=this%LA%ia(i), this%LA%ia(i+1)-1
-         !          j = this%LA%ja(p)
-         !          j_loc = j - this%mesh%disp(this%mesh%proc) + 2
-         !          IF (1.LE.j_loc .AND. j_loc.LE.np) THEN
-         !             denom(i+1) = MIN(ABS(alpha(j_loc)), denom(i+1))
-         !          END IF
-         !       END DO
-         !    END IF
-         ! END DO
-         !TEST
-         !denom = 1.d0
-         !DO i = 1, dom_np
-         !    denom(i)=abs(mask(i)) 
-         !END DO
-         !TEST
          CALL array_to_petsc_vec(denom, this%xvect3, this%LA, "min")
          CALL extract_through_ghost(this%xvect3, 1, 1, this%LA, denom, opt_assemble=.FALSE.)
-
-         ! DO i=1, SIZE(mask)
-         !    WRITE(*,*) i, denom(i), denom_ref(i), 'alpha, mask', alpha(i), mask(i)
-         ! END DO
-         !  WRITE(*,*) 'sum diff = ', SUM(ABS(denom- denom_ref))
       CASE DEFAULT
          WRITE(*,*) ' BUG in relax, method not implemented: ', TRIM(ADJUSTL(this%limiting_functionals(nth_fonctional)%char_relaxation_method))
          STOP

@@ -13,6 +13,7 @@ MODULE abstract_hyperbolic_module
    USE space_dim,                            ONLY: k_dim
 !>> limited global uses to avoid unexpected behaviors
 
+   IMPLICIT NONE
    INTEGER, PRIVATE, PARAMETER :: LUMPED_MASS=1, QUASI_CONSISTENT_MASS=2, CONSISTENT_MASS=3
    CHARACTER(LEN=20), DIMENSION(3), PRIVATE, PARAMETER :: list_mass = &
                [CHARACTER(LEN=20) :: 'lumped', 'quasi_consistent', 'consistent']
@@ -23,6 +24,7 @@ MODULE abstract_hyperbolic_module
    TYPE argument_hyperbolic_type
       CHARACTER(LEN=rec_length) :: CFL                     = '=== CFL ? ==='
       CHARACTER(LEN=rec_length) :: char_method             = '=== Which method to solve conservation equation (viscous,high,galerkin)? ==='
+      CHARACTER(LEN=rec_length) :: which_high_method       = '=== Which high order method (1/2)? ==='
       CHARACTER(LEN=rec_length) :: if_hybrid_mesh_limiting = '=== Do we use hybrid Pk/P1 meshes for limiting? ==='
       CHARACTER(LEN=rec_length) :: erk_sv                  = '=== ERK ? ==='
       CHARACTER(LEN=rec_length) :: char_which_mass         = '=== Which mass matrix: lumped, quasi_consistent, consistent? ==='
@@ -34,6 +36,7 @@ MODULE abstract_hyperbolic_module
       REAL(KIND=8)                 :: CFL                     = 0.5d0
       CHARACTER(LEN=rec_length)    :: char_method             = 'viscous'
       INTEGER                      :: method                  = METHOD_VISCOUS
+      INTEGER                      :: which_high_method       = 1
       INTEGER                      :: erk_sv                  = -21
       LOGICAL                      :: if_hybrid_mesh_limiting = .TRUE.
       CHARACTER(LEN=rec_length)    :: char_which_mass         = 'lumped'
@@ -225,6 +228,10 @@ CONTAINS
       CALL read_data(argument_data%char_method, this%char_method, opt_name=this%name)
       CALL get_tab_idx_char(this%char_method, list_method, this%method)
 
+      !===which high order method
+      CALL read_data(argument_data%which_high_method, this%which_high_method, opt_name=this%name, &
+                     opt_add=this%method==METHOD_HIGH)
+
       !===mass matrix
       CALL read_data(argument_data%char_which_mass, this%char_which_mass, opt_name=this%name)
       CALL get_tab_idx_char(this%char_which_mass, list_mass, this%which_mass)
@@ -259,6 +266,33 @@ CONTAINS
    END SUBROUTINE update
 
    SUBROUTINE one_step_ERK(this,stage,urk,flux_rk_at_dof)
+      USE my_util, ONLY : error_petsc, to_str
+      IMPLICIT NONE
+      CLASS(hyperbolic_type)                                                :: this
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1)  :: urk
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)    :: flux_rk_at_dof
+      INTEGER, INTENT(IN) :: stage
+
+      SELECT CASE(this%method)
+      CASE(METHOD_GALERKIN)
+         CALL one_step_ERK_galerkin(this,stage,urk,flux_rk_at_dof)
+      CASE(METHOD_VISCOUS)
+         CALL one_step_ERK_viscous(this,stage,urk)
+      CASE(METHOD_HIGH)
+         SELECT CASE(this%which_high_method)
+         CASE(1)
+            CALL one_step_ERK_high(this,stage,urk,flux_rk_at_dof)
+         CASE(2)
+            CALL one_step_ERK_high_2(this,stage,urk,flux_rk_at_dof)
+         CASE DEFAULT
+            CALL error_petsc("Bug in one_step_ERK: wrong high order method "//to_str(this%which_high_method))
+         END SELECT
+      CASE DEFAULT
+         CALL error_petsc("wrong method in one_step_ERK")
+      END SELECT
+   END SUBROUTINE one_step_ERK
+
+   SUBROUTINE one_step_ERK_galerkin(this,stage,urk,flux_rk_at_dof)
       USE space_dim
       USE my_util, ONLY : error_petsc, to_str
       USE cell_limiting_engine_module
@@ -266,6 +300,7 @@ CONTAINS
       USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
       USE st_matrix, ONLY: extract_through_ghost
       USE fem_tn
+      IMPLICIT NONE
       CLASS(hyperbolic_type)                                                :: this
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1)  :: urk
       REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)    :: flux_rk_at_dof
@@ -276,228 +311,388 @@ CONTAINS
       INTEGER, INTENT(IN) :: stage
       INTEGER :: comp, k, l, ierr, stage_prime, stage0
       REAL(KIND = 8) :: time_stage
-      !Real(kind=8) :: mass_before, mass_after
 
-      SELECT CASE(this%method)
-      CASE(METHOD_GALERKIN)
-         !===flux_array: flux at l=stage
-         DO comp=1, this%syst_dim
-            flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
+      !===flux_array: flux at l=stage
+      DO comp=1, this%syst_dim
+         flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
+      END DO
+
+      DO comp = 1, this%syst_dim
+         !=== flux_rk_at_dof(:,comp,stage-1): -sum_j(f(uj(stage)) cj) and store in flux_rk_at_dof(stage)
+         CALL VecSet(this%x3vec, 0.d0, ierr)
+         DO k = 1, k_dim
+            !=== set flux_k in x1vec
+            CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
+            !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+            !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
          END DO
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
+      END DO
 
-         !=== dij
-         stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
-         IF (stage-1 .NE. stage_prime) THEN
-            DO comp=1, this%syst_dim
-               flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage_prime)) !<== Notice: Flux at l=stage'
-            END DO
-         END IF
-         
-         !=== dt
-         IF (stage==2) THEN !< ==Compute time step only once per ERK step
-            CALL this%compute_dij(flux_array,urk(:,:,stage_prime), bounds) !<== Notice: State at l=stage'
-            CALL this%compute_dt
-            ! IF (this%time+this%dt.GE.this%final_time) THEN
-            !   this%dt = this%final_time-this%time
-            ! END IF
-         END IF
-         time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
-
-         !=== stage0
-         IF (this%ERK%sv<0) THEN
-            stage0 = stage_prime
-         ELSE
-            stage0 = 1
-         END IF
-
-         !=== ERK update for each component
-         DO comp = 1, this%syst_dim
-
-            !=== flux_rk_at_dof(:,comp,stage-1): -sum_j(f(uj(stage)) cj) and store in flux_rk_at_dof(stage)
-            CALL VecSet(this%x3vec, 0.d0, ierr)
-            DO k = 1, k_dim
-               !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
-               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
-               CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
-               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
-            END DO
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
-            !=== rk: sum_l MatRK_(s,l) f_l
-            rk =0.d0
-            DO l = 1, stage-1
-               rk =  rk + this%ERK%MatRK(stage,l)*flux_rk_at_dof(:,comp,l)
-            END DO
-
-            !=== rk in x3vec
-            CALL array_to_petsc_vec(rk, this%x2vec, this%LA, 'insert')
-            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-
-            !=== Inverting mass matrix and updating un with dt
-            CALL this%invert_mass(this%x2vec, this%x3vec)
-
-            !=== set un(comp) at l=stage0 in x1vec
-            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
-            !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
-            CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
-            !=== Manually make un periodic and extract the result
-            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-         END DO
-
-         !===Periodicity
-         DO comp = 1, this%syst_dim
-            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
-            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
-            CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-         END DO
-
-         !===Boundary conditions
-         CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
-
-      CASE(METHOD_VISCOUS)
-         stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
-         un_temp = urk(:,:,stage_prime)      !<== Method should work with incremental ERK method
-         DO comp=1, this%syst_dim
-            flux_array(:, :, comp) = this%flux(comp, un_temp)
-         END DO
-
-         !===compute dijL and dt
-         CALL this%compute_dij(flux_array,un_temp, bounds)
-         IF (stage==2) THEN !< ==Compute time step
-            CALL this%compute_dt
-            ! IF (this%time+this%dt.GE.this%final_time) THEN
-            !   this%dt = this%final_time-this%time
-            ! END IF
-         END IF
-         time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
-
-         DO comp = 1, this%syst_dim
-            CALL VecZeroEntries(this%x3vec, ierr)
-            DO k = 1, k_dim
-               !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
-               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
-               CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
-               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
-            END DO
-
-            !=== set un(comp) in x1vec
-            CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%LA, 'insert')
-            !=== add dij un(comp)to x3vec in x2vec
-            CALL MatMultAdd(this%matrices%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
-            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-
-            ! !=== x3 <-- x2 / lumped_mass by default in viscous method
-            CALL this%invert_mass(this%x2vec, this%x3vec)
-
-            !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
-            CALL VecAYPX(this%x3vec, this%ERK%inc_C(stage)*this%dt, this%x1vec, ierr) !<==time step is ERK%inc_C(stage)*this%dt
-            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
-            !=== un+1 <-- x3
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-         END DO
-
-         CALL this%impose_bc(urk(:,:,stage), this%mesh, time_stage)
-
-      CASE(METHOD_HIGH)
-         !===flux_array: flux at l=stage
-         DO comp=1, this%syst_dim
-            flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
-         END DO
-
-         !=== dij
-         stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
-         IF (stage-1 .NE. stage_prime) THEN
-            DO comp=1, this%syst_dim
-               flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage_prime)) !<== Notice: Flux at l=stage'
-            END DO
-         END IF
+      !=== dt
+      IF (stage==2) THEN !< ==Compute time step only once per ERK step
          CALL this%compute_dij(flux_array,urk(:,:,stage_prime), bounds) !<== Notice: State at l=stage'
+         CALL this%compute_dt
+         ! IF (this%time+this%dt.GE.this%final_time) THEN
+         !   this%dt = this%final_time-this%time
+         ! END IF
+      END IF
+      time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
 
-         !=== dt
-         IF (stage==2) THEN !< ==Compute time step only once per ERK step
-            CALL this%compute_dt
-            ! IF (this%time+this%dt.GE.this%final_time) THEN
-            !   this%dt = this%final_time-this%time
-            ! END IF
-         END IF
-         time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
+      !=== stage0
+      IF (this%ERK%sv<0) THEN
+         stage0 = stage_prime
+      ELSE
+         stage0 = 1
+      END IF
 
-         !=== stage0
-         IF (this%ERK%sv<0) THEN
-            stage0 = stage_prime
-         ELSE
-            stage0 = 1
-         END IF
+      !=== ERK update for each component
+      DO comp = 1, this%syst_dim
 
-         !=== ERK update for each component
-         DO comp = 1, this%syst_dim
-
-            !=== flux_rk_at_dof(:,comp,stage-1): -sum_j(f(uj(stage)) cj) and store in flux_rk_at_dof(stage)
-            CALL VecSet(this%x3vec, 0.d0, ierr)
-            DO k = 1, k_dim
-               !=== set flux_k in x1vec
-               CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
-               !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
-               CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
-               !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
-               CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
-            END DO
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
-            !=== rk: sum_l MatRK_(s,l) f_l
-            rk =0.d0
-            DO l = 1, stage-1
-               rk =  rk + this%ERK%MatRK(stage,l)*flux_rk_at_dof(:,comp,l)
-            END DO
-
-            !=== rk in x3vec
-            CALL array_to_petsc_vec(rk, this%x3vec, this%LA, 'insert')
-            !=== set un(comp) at l=stage' in x1vec to compute viscous contribution
-            CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%LA, 'insert') !<== l=stage'
-
-            !=== add dij un(comp) to x3vec in x2vec
-            CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
-            CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
-            !=== Inverting mass matrix and updating un with dt
-            CALL this%invert_mass(this%x2vec, this%x3vec)
-
-            !=== set un(comp) at l=stage0 in x1vec
-            CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
-            !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
-            CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
-            !=== Manually make un periodic and extract the result
-            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
-         END DO
-         !===Limiting
-         !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_before, this%communicator)
-         IF (this%limiting%if_limiting) THEN
-            CALL this%apply_limiting(urk(:,:,stage), bounds)
-         END IF
-         !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_after, this%communicator)
-         !IF (this%mesh%rank==0) THEN
-         !   WRITE(*,*) 'mass before limiting = ', mass_before
-         !   WRITE(*,*) 'mass after limiting = ', mass_after
-         !END IF
-
-         !===Periodicity
-         DO comp = 1, this%syst_dim
-            CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
-            CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
-            CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+         !=== rk: sum_l MatRK_(s,l) f_l
+         rk =0.d0
+         DO l = 1, stage-1
+            rk =  rk + this%ERK%MatRK(stage,l)*flux_rk_at_dof(:,comp,l)
          END DO
 
-         !===Boundary conditions
-         CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
-      CASE DEFAULT
-         CALL error_petsc('Wrong method '//to_str(this%method)//' in '//TRIM(ADJUSTL(this%name))//&
-         ' update, should be "viscous(1)" or "high(2)"')
-      END SELECT
+         !=== rk in x3vec
+         CALL array_to_petsc_vec(rk, this%x2vec, this%LA, 'insert')
+         CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
 
-   END SUBROUTINE one_step_ERK
+         !=== Inverting mass matrix and updating un with dt
+         CALL this%invert_mass(this%x2vec, this%x3vec, this%which_mass)
+
+         !=== set un(comp) at l=stage0 in x1vec
+         CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
+         !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
+         CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+         !=== Manually make un periodic and extract the result
+         CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+
+      !===Boundary conditions
+      CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
+   END SUBROUTINE one_step_ERK_galerkin
+
+   SUBROUTINE one_step_ERK_viscous(this,stage,urk)
+      USE space_dim
+      USE my_util, ONLY : error_petsc, to_str
+      USE cell_limiting_engine_module
+      USE sub_plot
+      USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
+      USE st_matrix, ONLY: extract_through_ghost
+      USE fem_tn
+      IMPLICIT NONE
+      CLASS(hyperbolic_type)                                                :: this
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np, this%syst_dim, this%ERK%s+1)  :: urk
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np, this%syst_dim)                :: un_temp
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np)                               :: rk
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np, k_dim, this%syst_dim)         :: flux_array
+      REAL(KIND = 8), DIMENSION(this%mesh_L%np,this%limiting_all_functionals%nl) :: bounds
+      INTEGER, INTENT(IN) :: stage
+      INTEGER :: comp, k, l, ierr, stage_prime, stage0
+      REAL(KIND = 8) :: time_stage
+
+      stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
+      un_temp = urk(:,:,stage_prime)      !<== Method should work with incremental ERK method
+      DO comp=1, this%syst_dim
+         flux_array(:, :, comp) = this%flux(comp, un_temp)
+      END DO
+
+      !===compute dijL and dt
+      CALL this%compute_dij(flux_array,un_temp, bounds)
+      IF (stage==2) THEN !< ==Compute time step
+         CALL this%compute_dt
+         ! IF (this%time+this%dt.GE.this%final_time) THEN
+         !   this%dt = this%final_time-this%time
+         ! END IF
+      END IF
+      time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
+
+      DO comp = 1, this%syst_dim
+         CALL VecZeroEntries(this%x3vec, ierr)
+         DO k = 1, k_dim
+            !=== set flux_k in x1vec
+            CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA_L, 'insert')
+            !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+            CALL MatMult(this%matrices_L%cij(k), this%x1vec, this%x2vec, ierr)
+            !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
+         END DO
+
+         !=== set un(comp) in x1vec
+         CALL array_to_petsc_vec(un_temp(:, comp), this%x1vec, this%LA_L, 'insert')
+         !=== add dij un(comp)to x3vec in x2vec
+         CALL MatMultAdd(this%matrices_L%dijL, this%x1vec, this%x3vec, this%x2vec, ierr)
+         CALL periodic_rhs_petsc(this%mesh_L%per%nb_bords, this%mesh_L%per%list, this%mesh_L%per%perlist, this%x2vec, this%LA_L)
+
+         ! !=== x3 <-- x2 / lumped_mass by default in viscous method
+         CALL this%invert_mass(this%x2vec, this%x3vec, LUMPED_MASS)
+
+         !=== x3 <-- un + x3*dt   (x1 <-- un few lines above)
+         CALL VecAYPX(this%x3vec, this%ERK%inc_C(stage)*this%dt, this%x1vec, ierr) !<==time step is ERK%inc_C(stage)*this%dt
+         CALL periodic_vector_petsc(this%mesh_L%per%nb_bords, this%mesh_L%per%list, this%mesh_L%per%perlist, this%x3vec, this%LA_L)
+         !=== un+1 <-- x3
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA_L, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+
+      CALL this%impose_bc(urk(:,:,stage), this%mesh_L, time_stage)
+
+   END SUBROUTINE one_step_ERK_viscous
+
+   SUBROUTINE one_step_ERK_high(this,stage,urk,flux_rk_at_dof)
+      USE space_dim
+      USE my_util, ONLY : error_petsc, to_str
+      USE cell_limiting_engine_module
+      USE sub_plot
+      USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
+      USE st_matrix, ONLY: extract_through_ghost
+      USE fem_tn
+      IMPLICIT NONE
+      CLASS(hyperbolic_type)                                                :: this
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1)  :: urk
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)    :: flux_rk_at_dof
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp
+      REAL(KIND = 8), DIMENSION(this%mesh%np)                               :: rk
+      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim)         :: flux_array
+      REAL(KIND = 8), DIMENSION(this%mesh%np,this%limiting_all_functionals%nl) :: bounds
+      INTEGER, INTENT(IN) :: stage
+      INTEGER :: comp, k, l, ierr, stage_prime, stage0
+      REAL(KIND = 8) :: time_stage
+
+      !===flux_array: flux at l=stage
+      DO comp=1, this%syst_dim
+         flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
+      END DO
+
+      DO comp = 1, this%syst_dim
+         !=== flux_rk_at_dof(:,comp,stage-1): -sum_j(f(uj(stage)) cj) and store in flux_rk_at_dof(stage)
+         CALL VecSet(this%x3vec, 0.d0, ierr)
+         DO k = 1, k_dim
+            !=== set flux_k in x1vec
+            CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
+            !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+            !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
+         END DO
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
+      END DO
+      !=== dij
+      stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
+      IF (stage-1 .NE. stage_prime) THEN
+         DO comp=1, this%syst_dim
+            flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage_prime)) !<== Notice: Flux at l=stage'
+         END DO
+      END IF
+      CALL this%compute_dij(flux_array,urk(:,:,stage_prime), bounds) !<== Notice: State at l=stage'
+
+      !=== dt
+      IF (stage==2) THEN !< ==Compute time step only once per ERK step
+         CALL this%compute_dt
+         ! IF (this%time+this%dt.GE.this%final_time) THEN
+         !   this%dt = this%final_time-this%time
+         ! END IF
+      END IF
+      time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
+
+      !=== stage0
+      IF (this%ERK%sv<0) THEN
+         stage0 = stage_prime
+      ELSE
+         stage0 = 1
+      END IF
+
+      !=== ERK update for each component
+      DO comp = 1, this%syst_dim
+         !=== rk: sum_l MatRK_(s,l) f_l
+         rk =0.d0
+         DO l = 1, stage-1
+            rk =  rk + this%ERK%MatRK(stage,l)*flux_rk_at_dof(:,comp,l)
+         END DO
+
+         !=== rk in x3vec
+         CALL array_to_petsc_vec(rk, this%x3vec, this%LA, 'insert')
+         !=== set un(comp) at l=stage' in x1vec to compute viscous contribution
+         CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%LA, 'insert') !<== l=stage'
+
+         !=== add dij un(comp) to x3vec in x2vec
+         CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
+         CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
+         !=== Inverting mass matrix and updating un with dt
+         CALL this%invert_mass(this%x2vec, this%x3vec, this%which_mass)
+
+         !=== set un(comp) at l=stage0 in x1vec
+         CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
+         !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
+         CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+         !=== Manually make un periodic and extract the result
+         CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+      !===Limiting
+      !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_before, this%communicator)
+      IF (this%limiting%if_limiting) THEN
+         CALL this%apply_limiting(urk(:,:,stage), bounds)
+      END IF
+      !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_after, this%communicator)
+      !IF (this%mesh%rank==0) THEN
+      !   WRITE(*,*) 'mass before limiting = ', mass_before
+      !   WRITE(*,*) 'mass after limiting = ', mass_after
+      !END IF
+
+      !===Periodicity
+      DO comp = 1, this%syst_dim
+         CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
+         CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
+         CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+
+      !===Boundary conditions
+      CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
+   END SUBROUTINE one_step_ERK_high
+
+
+   SUBROUTINE one_step_ERK_high_2(this,stage,urk,flux_rk_at_dof)
+      USE space_dim
+      USE my_util, ONLY : error_petsc, to_str
+      USE cell_limiting_engine_module
+      USE sub_plot
+      USE compute_periodic, ONLY : periodic_rhs_petsc, periodic_vector_petsc
+      USE st_matrix, ONLY: extract_through_ghost
+      USE fem_tn
+      IMPLICIT NONE
+      CLASS(hyperbolic_type)                                                :: this
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1)  :: urk
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)    :: flux_rk_at_dof
+      REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim)                :: un_temp, u_L
+      REAL(KIND = 8), DIMENSION(this%mesh%np)                               :: rk, zero_vec
+      REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim, this%syst_dim)         :: flux_array
+      REAL(KIND = 8), DIMENSION(this%mesh%np,this%limiting_all_functionals%nl) :: bounds
+      REAL(KIND = 8), DIMENSION(this%mesh%np) :: temp_bounds, min_bounds
+      INTEGER, INTENT(IN) :: stage
+      INTEGER :: comp, k, l, ierr, stage_prime, stage0, nl, ni, nj, i, m, me, nw
+      REAL(KIND = 8) :: time_stage
+
+      !=== Bounds computations using u_L
+      CALL one_step_ERK_viscous(this,stage,urk)
+      u_L = urk(:, :, stage)
+      IF (this%limiting%if_limiting) THEN
+         zero_vec = 0.d0
+         DO nl=1, this%limiting_all_functionals%nl
+            temp_bounds = this%limiting_all_functionals%limiting_functionals(nl)%psi(u_L(:, :), zero_vec)
+            
+            min_bounds = temp_bounds
+            me = this%mesh_L%me
+            nw = this%mesh_L%gauss%n_w
+            DO m = 1, me
+               DO ni = 1, nw
+                  i = this%mesh_L%jj(ni,m)
+                  min_bounds(i) = MIN(min_bounds(i),MINVAL(temp_bounds(this%mesh_L%jj(:,m))))
+               END DO
+            END DO
+            CALL array_to_petsc_vec(min_bounds, this%x3vec, this%LA, "min")
+            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
+         END DO
+      END IF
+      !=== Bounds computations using u_L
+         
+      !===flux_array: flux at l=stage
+      DO comp=1, this%syst_dim
+         flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage-1)) !<== Notice: Flux at l=stage
+      END DO
+
+      DO comp = 1, this%syst_dim
+         !=== flux_rk_at_dof(:,comp,stage-1): -sum_j(f(uj(stage)) cj) and store in flux_rk_at_dof(stage)
+         CALL VecSet(this%x3vec, 0.d0, ierr)
+         DO k = 1, k_dim
+            !=== set flux_k in x1vec
+            CALL array_to_petsc_vec(flux_array(:, k, comp), this%x1vec, this%LA, 'insert')
+            !=== compute sum_j (cij_k * fluxj_k) and store into x2vec
+            CALL MatMult(this%matrices%cij(k), this%x1vec, this%x2vec, ierr)
+            !=== compute sum_k (sum_j (cij_k * flux_k)) and store into x3vec
+            CALL VecAXPY(this%x3vec, -1.d0, this%x2vec, ierr)
+         END DO
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, flux_rk_at_dof(:,comp,stage-1), opt_assemble=.FALSE.) !<== Store sum_j(f(uj)cij) at l=stage
+      END DO
+      !===flux_array: flux at l=stage
+
+      ! !=== dij
+      ! IF (stage-1 .NE. stage_prime) THEN
+      !    DO comp=1, this%syst_dim
+      !       flux_array(:, :, comp) = this%flux(comp, urk(:,:,stage_prime)) !<== Notice: Flux at l=stage'
+      !    END DO
+      ! END IF
+      ! CALL this%compute_dij(flux_array,urk(:,:,stage_prime), bounds) !<== Notice: State at l=stage'
+      ! !=== dij
+      
+      !=== dt
+      stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
+      IF (stage==2) THEN !< ==Compute time step only once per ERK step
+         CALL this%compute_dt
+         ! IF (this%time+this%dt.GE.this%final_time) THEN
+         !   this%dt = this%final_time-this%time
+         ! END IF
+      END IF
+      time_stage = this%time+this%ERK%C(stage)*this%dt !<== Wait for dt to be computed
+
+      !=== stage0
+      IF (this%ERK%sv<0) THEN
+         stage0 = stage_prime
+      ELSE
+         stage0 = 1
+      END IF
+
+      !=== ERK update for each component
+      DO comp = 1, this%syst_dim
+         !=== rk: sum_l MatRK_(s,l) f_l
+         rk =0.d0
+         DO l = 1, stage-1
+            rk =  rk + this%ERK%MatRK(stage,l)*flux_rk_at_dof(:,comp,l)
+         END DO
+
+         !=== rk in x3vec
+         CALL array_to_petsc_vec(rk, this%x3vec, this%LA, 'insert')
+         !=== set un(comp) at l=stage' in x1vec to compute viscous contribution
+         CALL array_to_petsc_vec(urk(:,comp,stage_prime), this%x1vec, this%LA, 'insert') !<== l=stage'
+         !=== add dij un(comp) to x3vec in x2vec
+         CALL MatMultAdd(this%matrices%dijH, this%x1vec, this%x3vec, this%x2vec, ierr)
+         CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x2vec, this%LA)
+         !=== Inverting mass matrix and updating un with dt
+         CALL this%invert_mass(this%x2vec, this%x3vec, this%which_mass)
+
+         !=== set un(comp) at l=stage0 in x1vec
+         CALL array_to_petsc_vec(urk(:,comp,stage0), this%x1vec, this%LA, 'insert') !<== Notice un at l=stage0
+         !=== x3 <-- dt*x3 + un (x1 <-- un a few lines above)
+         CALL VecAYPX(this%x3vec, this%dt, this%x1vec, ierr)
+         !=== Manually make un periodic and extract the result
+         CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x3vec, this%LA)
+         CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+      !===Limiting
+      !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_before, this%communicator)
+      IF (this%limiting%if_limiting) THEN
+         CALL this%apply_limiting(urk(:,:,stage), bounds)
+      END IF
+      !CALL ns_mass_PAR(this%mesh, urk(:,1,stage), mass_after, this%communicator)
+      !IF (this%mesh%rank==0) THEN
+      !   WRITE(*,*) 'mass before limiting = ', mass_before
+      !   WRITE(*,*) 'mass after limiting = ', mass_after
+      !END IF
+
+      !===Periodicity
+      DO comp = 1, this%syst_dim
+         CALL array_to_petsc_vec(urk(:,comp,stage), this%x1vec, this%LA, 'insert')
+         CALL periodic_vector_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%x1vec, this%LA)
+         CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, urk(:, comp, stage), opt_assemble=.FALSE.)
+      END DO
+
+      !===Boundary conditions
+      CALL this%impose_bc(urk(:,:,stage), this%mesh, this%time)
+   END SUBROUTINE one_step_ERK_high_2
 
 !========================================================
 !========== PRIVATE PROCEDURES ==========================
@@ -559,7 +754,7 @@ CONTAINS
       IF (this%method==METHOD_HIGH) THEN
          CALL this%commutator(un, alpha)
          CALL MatZeroEntries(this%matrices%dijH, ierr)
-         IF (this%limiting%if_limiting) THEN
+         IF (this%limiting%if_limiting .AND. this%which_high_method==1) THEN
             zero_vec = 0.d0
             DO nl=1, this%limiting_all_functionals%nl
                bounds(:, nl) = this%limiting_all_functionals%limiting_functionals(nl)%psi(un(:, :), zero_vec)
@@ -616,7 +811,7 @@ CONTAINS
                   mat_h_loc(nj, ni) = dijH_c(1)
 
                   !===Compute low-order update to estimate bounds
-                  IF (this%limiting%if_limiting) THEN
+                  IF (this%limiting%if_limiting .AND. this%which_high_method==1) THEN
 
                      nij_c(1, :) = nij_c_loc(ni, nj, :)
 
@@ -651,7 +846,7 @@ CONTAINS
       !===add value on diagonal
       CALL MatGetRowSum(this%matrices_L%dijL, this%x4vec, ierr)
       CALL VecScale(this%x4vec, -1.d0, ierr)
-      CALL MatDiagonalSet(this%matrices_L%dijL, this%x4vec, ADD_VALUES, ierr)
+      CALL MatDiagonalSet(this%matrices_L%dijL, this%x4vec, INSERT_VALUES, ierr)
       !===add value on diagonal
 
       IF (this%method==METHOD_HIGH) THEN
@@ -661,10 +856,10 @@ CONTAINS
          !===add value on diagonal
          CALL MatGetRowSum(this%matrices%dijH, this%x4vec, ierr)
          CALL VecScale(this%x4vec, -1.d0, ierr)
-         CALL MatDiagonalSet(this%matrices%dijH, this%x4vec, ADD_VALUES, ierr)
+         CALL MatDiagonalSet(this%matrices%dijH, this%x4vec, INSERT_VALUES, ierr)
          !===add value on diagonal
 
-         IF (this%limiting%if_limiting) THEN
+         IF (this%limiting%if_limiting .AND. this%which_high_method==1) THEN
             DO nl=1, this%limiting_all_functionals%nl
                CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%LA, 'min')
                CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
@@ -673,16 +868,17 @@ CONTAINS
       END IF
    END SUBROUTINE compute_dij
 
-   SUBROUTINE invert_mass(this, vec_rhs, vec_lhs)
+   SUBROUTINE invert_mass(this, vec_rhs, vec_lhs, which_mass)
       USE my_util,          ONLY: error_petsc, to_str
       USE solver_petsc,     ONLY: solver
       USE compute_periodic, ONLY: periodic_vector_petsc
       IMPLICIT NONE
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
+      INTEGER, INTENT(IN) :: which_mass
       INTEGER :: it, ierr
       Vec     :: vec_rhs, vec_lhs
 
-      SELECT CASE(this%which_mass)
+      SELECT CASE(which_mass)
       CASE(LUMPED_MASS)
          !=== vec_lhs <-- vec_rhs / lumped_mass
          CALL VecPointWiseDivide(vec_lhs, vec_rhs, this%matrices%lump_mass_vec, ierr)
@@ -706,7 +902,7 @@ CONTAINS
                      reinit = .FALSE., verbose = .FALSE.)
       CASE DEFAULT
          CALL error_petsc("BUG in hyperbolic%update, invert_mass => wrong value "&
-         &//to_str(this%which_mass)//", should be 1, 2, 3")
+         &//to_str(which_mass)//", should be 1, 2, 3")
       END SELECT
    END SUBROUTINE invert_mass
 
