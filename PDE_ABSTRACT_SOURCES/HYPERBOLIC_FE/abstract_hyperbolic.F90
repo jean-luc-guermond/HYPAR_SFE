@@ -332,6 +332,7 @@ CONTAINS
       END DO
 
       !=== dt
+      stage_prime = this%ERK%lp_of_l(stage) !<== Method should work with incremental ERK method
       IF (stage==2) THEN !< ==Compute time step only once per ERK step
          CALL this%compute_dij(flux_array,urk(:,:,stage_prime), bounds) !<== Notice: State at l=stage'
          CALL this%compute_dt

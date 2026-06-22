@@ -373,18 +373,14 @@ CONTAINS
       PROCEDURE(template_psi_vec)        , POINTER :: psi
       REAL(KIND=8), DIMENSION(:,:),                         INTENT(IN) :: xx_in
       REAL(KIND=8), DIMENSION(SIZE(xx_in,1),SIZE(xx_in,2)), INTENT(OUT):: xx_out
-
-      REAL(KIND=8), DIMENSION(:)   :: loc_min
-      REAL(KIND=8), DIMENSION(SIZE(loc_min)) :: loc_min_bis
+      REAL(KIND=8), DIMENSION(:)             :: loc_min
       REAL(KIND=8), DIMENSION(SIZE(xx_in,2))               :: uk_minus, uk_plus
-      REAL(KIND=8), DIMENSION(SIZE(xx_in,1))               :: psi_x
       REAL(KIND=8), DIMENSION(k_dim+1,SIZE(this%jj,2),SIZE(xx_in,2))    :: xx
       REAL(KIND=8), DIMENSION(k_dim+1,SIZE(xx_in,2))    :: xx_loc, UU, PP
       REAL(KIND=8), DIMENSION(k_dim+1) :: lambda_minus, lambda_plus
       REAL(KIND=8), DIMENSION(k_dim+1) :: loc_min_loc, loc_min_up_vec, loc_min_down_vec
-
       INTEGER,      DIMENSION(k_dim+1) :: jloc
-      INTEGER,      DIMENSION(k_dim+1) :: limit_zero, limit_plus, limit_minus
+      INTEGER,      DIMENSION(k_dim+1) :: limit_plus, limit_minus
       INTEGER :: k, m, n, me, nw, syst_size, iminus, iplus, comp, np, i
       LOGICAL, DIMENSION(k_dim+1) :: mask_up, mask_down
       REAL(KIND=8) :: mass_plus, mass_minus, &
@@ -402,7 +398,6 @@ CONTAINS
       DO m = 1, me
          limit_plus = 0
          limit_minus = 0
-         limit_zero = 0
          jloc = this%jj(:,m)
          DO k = 1, syst_size
             xx_loc(:,k) = xx_in(jloc,k)
@@ -419,12 +414,7 @@ CONTAINS
             limit_minus(:) = 1
          ELSEWHERE(mask_up)
             limit_plus(:) = 1
-         ELSEWHERE
-            limit_zero(:) = 1
          ENDWHERE
-
-         iplus = SUM(limit_minus)
-         iminus = SUM(limit_plus)
 
          DO k = 1, syst_size
             uk_minus(k)=SUM(this%localized_mass(:,m)*xx_loc(:,k)*limit_minus)
@@ -440,13 +430,19 @@ CONTAINS
             UU(:,k) = uk_plus(k)
             PP(:,k) = xx_loc(:,k)-uk_plus(k)
          END DO
-         lambda_minus = limit_minus*zero_of_psi(loc_min_loc,UU,PP) + (1-limit_minus)*1.d0
+         lambda_minus = zero_of_psi(loc_min_loc,UU,PP)
+         WHERE(limit_minus==0)
+            lambda_minus = 1.d0
+         ENDWHERE
          
          DO k = 1, syst_size
             UU(:,k) = xx_loc(:,k)
             PP(:,k) = uk_minus(k)-xx_loc(:,k)
          END DO
-         lambda_plus = limit_plus*zero_of_psi(loc_min_loc,UU,PP)  + (1-limit_plus)*1.d0
+         lambda_plus = zero_of_psi(loc_min_loc,UU,PP)
+         WHERE(limit_plus==0)
+            lambda_plus = 1.d0
+         ENDWHERE
 
          lambda_minus = MAX(MIN(lambda_minus,1.d0),0.d0)
          lambda_plus  = MAX(MIN(lambda_plus,1.d0),0.d0)

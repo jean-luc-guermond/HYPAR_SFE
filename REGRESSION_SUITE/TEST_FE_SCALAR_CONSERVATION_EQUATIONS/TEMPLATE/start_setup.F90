@@ -7,6 +7,8 @@ MODULE start_setup_MODULE
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions, my_linear_transport
   USE cell_limiting_engine_parallel_module
+  USE limiting_functionals_euler_module, ONLY: psi_rho_min, zero_of_psi_rho_min, psi_rho_max, zero_of_psi_rho_max
+
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
@@ -74,13 +76,15 @@ CONTAINS
     CALL linear_transport%init_linear_transport(name)
 
     !=== Define linear_transport limiting bounds (should we put this in PROBLEM_SOURCES instead?)
-    ALLOCATE(limiting_functionals_linear_transport(0))
-    ! ALLOCATE(limiting_functionals_linear_transport(2))
-    ! limiting_functionals_linear_transport(1)%psi => psi_rho_min
-    ! limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
-    ! limiting_functionals_linear_transport(2)%psi => psi_rho_max
-    ! limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
-    ! !=== Define linear_transport limiting bounds
+    ! ALLOCATE(limiting_functionals_linear_transport(0))
+    ALLOCATE(limiting_functionals_linear_transport(2))
+    limiting_functionals_linear_transport(1)%psi => psi_rho_min
+    limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_linear_transport(1)%name = "min"
+    limiting_functionals_linear_transport(2)%psi => psi_rho_max
+    limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_linear_transport(2)%name = "minus max"
+    !=== Define linear_transport limiting bounds
     
     CALL linear_transport%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_linear_transport)
     CALL init_state_functions(linear_transport)
