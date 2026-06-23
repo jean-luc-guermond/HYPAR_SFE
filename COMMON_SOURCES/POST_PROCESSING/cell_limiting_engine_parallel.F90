@@ -28,7 +28,6 @@ MODULE cell_limiting_engine_parallel_module
       PROCEDURE, PUBLIC  :: init => init_limiting
       PROCEDURE, PUBLIC  :: read => read_limiting_data
       PROCEDURE, PUBLIC  :: iterative_cell_limiting_procedure
-      PROCEDURE, PRIVATE :: cell_averaging
    END TYPE limiting_type
 
    ABSTRACT INTERFACE
@@ -365,6 +364,9 @@ CONTAINS
 !=====================================
 
    SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, xx_out)  
+#include "petsc/finclude/petsc.h"
+      USE petsc 
+      USE compute_periodic
       USE my_util, ONLY: error_petsc
       IMPLICIT NONE
       CLASS(limiting_type),             INTENT(IN) :: this
@@ -374,14 +376,15 @@ CONTAINS
       REAL(KIND=8), DIMENSION(:,:),                         INTENT(IN) :: xx_in
       REAL(KIND=8), DIMENSION(SIZE(xx_in,1),SIZE(xx_in,2)), INTENT(OUT):: xx_out
       REAL(KIND=8), DIMENSION(:)             :: loc_min
+      ! REAL(KIND=8), DIMENSION(1)               :: uk_minus, uk_plus
       REAL(KIND=8), DIMENSION(SIZE(xx_in,2))               :: uk_minus, uk_plus
-      REAL(KIND=8), DIMENSION(k_dim+1,SIZE(this%jj,2),SIZE(xx_in,2))    :: xx
+      ! REAL(KIND=8), DIMENSION(k_dim+1,1)    :: xx_loc, UU, PP
       REAL(KIND=8), DIMENSION(k_dim+1,SIZE(xx_in,2))    :: xx_loc, UU, PP
-      REAL(KIND=8), DIMENSION(k_dim+1) :: lambda_minus, lambda_plus
+      REAL(KIND=8), DIMENSION(k_dim+1) :: lambda_minus, lambda_plus, dummy
       REAL(KIND=8), DIMENSION(k_dim+1) :: loc_min_loc, loc_min_up_vec, loc_min_down_vec
       INTEGER,      DIMENSION(k_dim+1) :: jloc
-      INTEGER,      DIMENSION(k_dim+1) :: limit_plus, limit_minus
-      INTEGER :: k, m, n, me, nw, syst_size, iminus, iplus, comp, np, i
+      INTEGER,      DIMENSION(k_dim+1) :: limit_zero, limit_plus, limit_minus
+      INTEGER :: k, m, n, me, nw, syst_size, iminus, iplus, comp, np, i, ierr
       LOGICAL, DIMENSION(k_dim+1) :: mask_up, mask_down
       REAL(KIND=8) :: mass_plus, mass_minus, &
             lambda_K_minus, lambda_K_plus, &
@@ -395,6 +398,8 @@ CONTAINS
       me = SIZE(this%jj,2)
       nw = SIZE(this%jj,1)
       syst_size = SIZE(xx_in,2)
+      xx_out = 0.d0
+
       DO m = 1, me
          limit_plus = 0
          limit_minus = 0
@@ -415,6 +420,7 @@ CONTAINS
          ELSEWHERE(mask_up)
             limit_plus(:) = 1
          ENDWHERE
+         limit_zero = 1 - limit_minus - limit_plus
 
          DO k = 1, syst_size
             uk_minus(k)=SUM(this%localized_mass(:,m)*xx_loc(:,k)*limit_minus)
@@ -456,65 +462,36 @@ CONTAINS
          !write(*,*) lambda_star_minus,  lambda_star_plus
          !write(*,*)  Lambda_K_minus, Lambda_K_plus
          !=== DEBUGGING ===!
-         DO n = 1, nw
-            !!$ ===P2 fix
-            IF (ABS(this%lumped_mass(jloc(n))).LE.this%mass_eps) THEN
-               xx(n,m,:) = uk_plus(:)
-            ELSE
-            !!$ ===END fix
-               xx(n,m,:) = xx_loc(n,:) &
-                     +limit_minus(n)*(1-Lambda_K_minus)*(uk_plus(:)-xx_loc(n,:))&
-                     +limit_plus(n) *     Lambda_K_plus*(uK_minus(:)-xx_loc(n,:)) 
-            END IF
+         !    ! !!$ ===P2 fix
+         !    ! IF (ABS(this%lumped_mass(jloc(n))).LE.this%mass_eps) THEN
+         !    !    xx(n,m,:) = uk_plus(:)
+         !    ! ELSE
+         !    ! !!$ ===END fix
+         DO k=1, syst_size
+               dummy = xx_loc(:,k)  &
+                     +limit_minus(:)*(1-Lambda_K_minus)*(uk_plus(k)-xx_loc(:,k))&
+                     +limit_plus(:) *     Lambda_K_plus*(uK_minus(k)-xx_loc(:,k)) 
+               ! dummy  = limit_zero(:)*xx_loc(:,k) &
+               ! +limit_minus(:)*(xx_loc(:,k)+(1-Lambda_K_minus)*(uk_plus(k)-xx_loc(:,k)))&
+               ! +limit_plus(:) *(xx_loc(:,k)+     Lambda_K_plus*(uK_minus(k)-xx_loc(:,k)))
+               xx_out(jloc,k) = xx_out(jloc,k) + dummy*this%localized_mass(:,m)
          END DO
       END DO
 
    !===Now we average over the nodes=========
-      DO comp = 1, syst_size
-         CALL this%cell_averaging(xx(:,:,comp), xx_out(:,comp))
-      END DO     
 
+      DO k = 1, syst_size
+         CALL VecZeroEntries(this%xvect1, ierr)
+         CALL VecSetValues(this%xvect1, np, this%LA%loc_to_glob(1, :) - 1, xx_out(:,k), ADD_VALUES, ierr)
+         CALL VecAssemblyBegin(this%xvect1, ierr)
+         CALL VecAssemblyEnd(this%xvect1, ierr)
+
+         CALL periodic_add_vector_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%xvect1, this%LA)
+         CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, xx_out(:,k), opt_assemble=.TRUE.)
+         xx_out(:,k) = xx_out(:,k)/this%lumped_mass
+      END DO    
+      
    END SUBROUTINE iterative_cell_limiting_procedure
-
-   SUBROUTINE cell_averaging(this,xx,xx_out)
-#include "petsc/finclude/petsc.h"
-      USE petsc 
-      USE compute_periodic
-      IMPLICIT NONE
-      CLASS(limiting_type), INTENT(IN) :: this
-      REAL(KIND=8), DIMENSION(:,:), INTENT(INOUT) :: xx
-      ! REAL(KIND=8), DIMENSION(SIZE(this%jj,1),SIZE(this%jj,2)), INTENT(INOUT) :: xx
-      REAL(KIND=8), DIMENSION(:), INTENT(INOUT)  :: xx_out
-      REAL(KIND=8), DIMENSION(SIZE(xx_out))    :: xx_inter
-      REAL(KIND=8), DIMENSION(SIZE(this%jj,1)) :: v_loc
-      INTEGER, DIMENSION(SIZE(this%jj,1))      :: idxm
-      INTEGER :: m, nw, me, ierr
-      nw = SIZE(this%jj,1)
-      me = SIZE(this%jj,2)
-      xx_inter = 0.d0
-      CALL VecZeroEntries(this%xvect1, ierr)
-      DO m = 1, me
-         WHERE(ABS(this%lumped_mass(this%jj(:,m))).GE.this%mass_eps)
-            v_loc =  xx(:,m)*this%localized_mass(:,m)
-         ELSEWHERE
-            xx_out(this%jj(:,m)) = xx(:,m)
-            v_loc = 0.d0
-         END WHERE
-         idxm = this%LA%loc_to_glob(1, this%jj(:,m)) -1
-         CALL VecSetValues(this%xvect1, nw, idxm, v_loc, ADD_VALUES, ierr)
-      END DO
-      CALL VecAssemblyBegin(this%xvect1, ierr)
-      CALL VecAssemblyEnd(this%xvect1, ierr)
-
-      CALL periodic_add_vector_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%xvect1, this%LA)
-      CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, xx_inter, opt_assemble=.TRUE.)
-
-      !===Rescaling
-      WHERE (this%lumped_mass .GT.this%mass_eps)
-         xx_out= xx_inter/this%lumped_mass
-      END WHERE
-
-   END SUBROUTINE cell_averaging
 
    SUBROUTINE RELAX_BOUNDS(this, state, psi_min, nth_fonctional)
       USE petsc_tools, ONLY: array_to_petsc_vec
@@ -601,81 +578,7 @@ CONTAINS
          STOP
       END SELECT
       psi_min = psi_min - 4.*ABS(denom)
-! write(*,*) MAXVAL(ABS(denom)), MINVAL(ABS(psi_min)), this%limiting_functionals(nth_fonctional)%relaxation_global_bound
       psi_min = MAX(this%limiting_functionals(nth_fonctional)%relaxation_global_bound,psi_min)
    END SUBROUTINE RELAX_BOUNDS
-
-
-   ! SUBROUTINE relax_min_and_max(bound_relaxing,glob_min,glob_max,jj,un,maxn,minn)
-   !    IMPLICIT NONE
-   !    CHARACTER(*),               INTENT(IN) :: bound_relaxing
-   !    INTEGER, DIMENSION(:,:),    INTENT(IN) :: jj
-   !    REAL(KIND=8), DIMENSION(:), INTENT(IN) :: un
-   !    REAL(KIND=8), DIMENSION(:)             :: minn
-   !    REAL(KIND=8), DIMENSION(:)             :: maxn
-   !    REAL(KIND=8), INTENT(IN)               :: glob_min, glob_max
-   !    REAL(KIND=8), DIMENSION(SIZE(un))      :: alpha, denom
-   !    INTEGER, DIMENSION(SIZE(un)) ::   beta 
-   !    INTEGER      :: i, j, m, me, nw, n, np
-
-   !    me = SIZE(jj,2)
-   !    nw = SIZE(jj,1)
-   !    alpha = 0.d0
-   !    beta = 0
-   !    DO m = 1, me
-   !       DO n = 1, nw
-   !          i = jj(n,m)
-   !          DO np = 1, nw
-   !             IF (n==np) CYCLE
-   !             j = jj(np,m)
-   !             alpha(i) = alpha(i) + (un(i) - un(j))
-   !             beta(i) = beta(i) + 1
-   !          END DO
-   !       END DO
-   !    END DO
-   !    alpha = alpha/beta
-   !    SELECT CASE(TRIM(ADJUSTL(bound_relaxing)))
-   !    CASE('avg') !==Average
-   !       !denom = 0.d0
-   !       denom = alpha
-   !       beta = 0
-   !       DO m = 1, me
-   !          DO n = 1, nw
-   !             i = jj(n,m)
-   !             DO np = 1, nw
-   !                IF (n==np) CYCLE
-   !                j = jj(np,m) 
-   !                !denom(i) = denom(i) + alpha(i) + alpha(j)
-   !                denom(i) = denom(i) + alpha(j)
-   !                beta(i) = beta(i) + 1
-   !             END DO
-   !          END DO
-   !       END DO
-   !       !denom = denom/(2*beta)
-   !       denom = denom/(beta)
-   !    CASE('minmod') !===Minmod
-   !       denom = alpha 
-   !       DO m = 1, me
-   !          DO n = 1, nw
-   !             i = jj(n,m)
-   !             DO np = 1, nw
-   !                j = jj(np,m)
-   !                IF (denom(i)*alpha(j).LE.0.d0) THEN
-   !                   denom(i) = 0.d0
-   !                ELSE IF (ABS(denom(i)) > ABS(alpha(j))) THEN
-   !                   denom(i) = alpha(j)
-   !                END IF
-   !             END DO
-   !          END DO
-   !       END DO
-   !    CASE DEFAULT
-   !       WRITE(*,*) ' BUG in relax', TRIM(ADJUSTL(bound_relaxing))
-   !       STOP
-   !    END SELECT
-   !    maxn = maxn + 4.*ABS(denom)
-   !    minn = minn - 4.*ABS(denom)
-   !    maxn = MIN(glob_max,maxn)
-   !    minn = MAX(glob_min,minn)
-   ! END SUBROUTINE RELAX_MIN_AND_MAX
 
 END MODULE cell_limiting_engine_parallel_module

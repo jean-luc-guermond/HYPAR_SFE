@@ -23,9 +23,8 @@ endif()
 #=============================================================
 
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
-    " Flags used by the compiler during release builds. ")
-set(CMAKE_Fortran_FLAGS_NATIVE ${native_bounds} CACHE STRING
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}")
+set(CMAKE_Fortran_FLAGS_NATIVE "-O4 -march=native -mtune=native -Ofast -flto" CACHE STRING
         " Flags used by the compiler during native builds. ")
 
 ADD_CUSTOM_TARGET(debug
@@ -68,7 +67,7 @@ endif()
 set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${FE_dim}D/mod)
 
 # Building local sources
-file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)   
+file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)
 add_executable(${exe} ${local_sources})
 
 set_target_properties(${exe} PROPERTIES

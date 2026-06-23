@@ -1033,18 +1033,18 @@ CONTAINS
       CLASS(hyperbolic_type) :: this
       REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: un
       REAL(KIND = 8), DIMENSION(:,:),       INTENT(INOUT) :: bounds
-real(kind = 8), DIMENSION(SIZE(bounds, 1)) :: loc_min_bis
+!real(kind = 8), DIMENSION(SIZE(bounds, 1)) :: loc_min_bis
       REAL(KIND = 8), DIMENSION(SIZE(un,1),SIZE(un,2))    :: un_temp
       INTEGER :: it, i
 
       DO i=1, size(bounds, 2)
-!TESTTTTTT
-!          loc_min_bis = bounds(:,i)
-!          CALL this%limiting_all_functionals%RELAX_BOUNDS(un, loc_min_bis, i)
-! ! WRITE(*,*) "after", loc_min
-! ! WRITE(*,*) "MAXVAL DIFF", SUM(ABS(loc_min_bis-bounds(:,i)))/SUM(ABS(bounds(:,i)))
-! bounds(:,i) = loc_min_bis 
-!TESTTTTTT
+         !TESTTTTTT
+         !loc_min_bis = bounds(:,i)
+         !CALL this%limiting_all_functionals%RELAX_BOUNDS(un, loc_min_bis, i)
+         !WRITE(*,*) "after", loc_min
+         !WRITE(*,*) "MAXVAL DIFF", SUM(ABS(loc_min_bis-bounds(:,i)))/SUM(ABS(bounds(:,i)))
+         !bounds(:,i) = loc_min_bis 
+         !TESTTTTTT
          CALL this%limiting_all_functionals%RELAX_BOUNDS(un, bounds(:,i), i)
          DO it = 1, this%limiting%limit_max
             CALL this%limiting%iterative_cell_limiting_procedure(un,bounds(:,i),&
