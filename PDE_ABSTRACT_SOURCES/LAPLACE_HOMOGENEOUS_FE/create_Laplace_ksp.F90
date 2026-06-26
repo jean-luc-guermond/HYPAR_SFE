@@ -4,7 +4,6 @@ MODULE create_laplace_solver_ksp_module
     USE def_type_mesh,         ONLY: mesh_type, petsc_csr_LA
     USE dirichlet_type_module, ONLY: dirichlet_bc
     USE solver_data_module,    ONLY: solver_data_type
-    USE solver_petsc,          ONLY: solver_param
     USE read_inputs_module,    ONLY: rec_length
 
     TYPE argument_abstract_laplace_solver_type
@@ -19,8 +18,7 @@ MODULE create_laplace_solver_ksp_module
         TYPE(mesh_type),    POINTER   :: mesh
         TYPE(petsc_csr_LA), POINTER   :: LA
         TYPE(dirichlet_bc)            :: dir
-        TYPE(solver_param)            :: my_par
-        TYPE(solver_data_type)        :: my_solver_data
+        TYPE(solver_data_type)        :: solver_data
 
         Vec :: vec, vec_ghost, rhs
         Mat :: laplace_operator
@@ -133,11 +131,9 @@ CONTAINS
         CALL Dirichlet_M_parallel(this%laplace_operator, this%LA%loc_to_glob(1,this%dir%jsd))
 
         !===Create ksp solver
-        CALL this%my_solver_data%init(opt_name)
-        CALL this%my_solver_data%set(this%my_par)
+        CALL this%solver_data%init(opt_name)
+        CALL init_solver(this%communicator, this%solver_data, this%my_ksp, this%laplace_operator)
 
-        CALL init_solver(this%my_par, this%my_ksp, this%laplace_operator, this%communicator, &
-        solver = this%my_par%solver, precond = this%my_par%precond)
         IF (this%mesh%rank == 0) THEN
             WRITE(*,*) "finished initializing solver for Laplace equation " // this%name
         END IF
@@ -179,7 +175,7 @@ CONTAINS
         CALL dirichlet_rhs(this%LA%loc_to_glob(1, this%dir%jsd) - 1, this%dir_bc(this%mesh%rr(:, this%dir%jsd)), this%rhs)
 
         !=== Solving the linear system
-        CALL solver(this%my_ksp, this%rhs, this%vec, reinit = .FALSE., verbose = this%my_par%verbose)
+        CALL solver(this%my_ksp, this%rhs, this%vec, reinit = .FALSE., verbose = this%solver_data%if_verbose)
 
         !=== Extract from Petsc vector to Fortran array
         CALL extract_through_ghost(this%vec, 1, 1, this%LA, u_out, opt_assemble=.FALSE.)

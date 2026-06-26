@@ -28,9 +28,10 @@ CONTAINS
     CALL extract(x_ghost, 1, 1, LA, lumped_mass)
   END SUBROUTINE construct_lumped_mass
 
-   SUBROUTINE construct_lumped_mass_vector(mesh, LA, mass, lumped_mass)
+   SUBROUTINE construct_lumped_mass_vector(mesh, LA, mass, lumped_mass, opt_per)
       USE st_matrix, ONLY : create_my_ghost
       USE compute_periodic, ONLY : periodic_vector_petsc
+      USE my_util
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
@@ -38,6 +39,10 @@ CONTAINS
       Vec :: vec_one, lumped_mass
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       INTEGER :: ierr
+      LOGICAL, OPTIONAL :: opt_per
+      LOGICAL :: per
+
+      CALL pack_opt(per, .TRUE., opt_per)
 
       !===Create ghost structure
       CALL create_my_ghost(mesh, LA, ifrom)
@@ -47,7 +52,10 @@ CONTAINS
 
       CALL VecSet(vec_one, 1.d0, ierr)
       CALL MatMult(mass, vec_one, lumped_mass, ierr)
-      CALL periodic_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, lumped_mass, LA)
+      IF (per) THEN
+         CALL periodic_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, lumped_mass, LA)
+      END IF
+      CALL VecDestroy(vec_one, ierr)
    END SUBROUTINE construct_lumped_mass_vector
 
 

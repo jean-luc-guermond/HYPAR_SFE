@@ -16,23 +16,26 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), POINTER    :: x_loc
       CHARACTER(LEN = *),           INTENT(IN) :: operation
       INTEGER, DIMENSION(SIZE(uu)) :: idxm
-      INTEGER :: i, np, ierr
+      INTEGER :: i, np, k, kmax, ierr
       Vec     :: xx, xx_ghost
 
-      np = SIZE(uu)
+      kmax = SIZE(LA%loc_to_glob,1)
+      np = SIZE(uu)/kmax
 
       IF (np /= SIZE(LA%loc_to_glob, 2)) THEN
          CALL error_petsc("BUG in array to petsc, wrong np")
       END IF
 
-      DO i = 1, np
-         idxm(i) = LA%loc_to_glob(1, i) - 1
+      DO k=1, kmax
+         DO i = 1, np
+            idxm(i+(k-1)*np) = LA%loc_to_glob(k, i) - 1
+         END DO
       END DO
       SELECT CASE (operation)
       CASE('insert')
-         CALL VecSetValues(xx, np, idxm, uu, INSERT_VALUES, ierr)
+         CALL VecSetValues(xx, np*kmax, idxm, uu, INSERT_VALUES, ierr)
       CASE('add')
-         CALL VecSetValues(xx, np, idxm, uu, ADD_VALUES, ierr)
+         CALL VecSetValues(xx, np*kmax, idxm, uu, ADD_VALUES, ierr)
       CASE('min')
          !=== Define ghost vectors LOCALLY
          CALL VecGhostGetLocalForm(xx, xx_ghost, ierr)

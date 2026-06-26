@@ -33,7 +33,7 @@ MODULE start_setup_MODULE
   END TYPE setup_data_type
 
   TYPE(mesh_type),                   PUBLIC :: mesh
-  TYPE(petsc_csr_LA),               PRIVATE :: LA
+  !TYPE(petsc_csr_LA),               PRIVATE :: LA
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
@@ -68,7 +68,7 @@ CONTAINS
     CALL get_mesh(communicator, mesh)
 
     !===Construct LA
-    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
+    !CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
     
     !===Read
     CALL setup_data%init
@@ -86,8 +86,8 @@ CONTAINS
     !=== Define Euler limiting bounds
 
     CALL init_state_functions(euler)
-    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
-
+    !CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
+    CALL euler%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_euler) 
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

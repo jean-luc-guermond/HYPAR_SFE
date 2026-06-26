@@ -10,12 +10,13 @@ MODULE start_setup_MODULE
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
   TYPE argument_setup_data_type
-     CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
-     CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
-     CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
-     CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
-     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
-     CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
+      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
+      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+      CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
+      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+      CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
+      CHARACTER(LEN=rec_length) :: erk_sv             = '=== ERK ? ==='
+      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 
   TYPE setup_data_type
@@ -25,6 +26,7 @@ MODULE start_setup_MODULE
      INTEGER        :: verbose_freq        = 1000000
      REAL(KIND = 8) :: final_time          = 0.1d0
      INTEGER        :: max_it              = 1000000
+     INTEGER        :: erk_sv              = -31
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
    CONTAINS
@@ -33,7 +35,6 @@ MODULE start_setup_MODULE
   END TYPE setup_data_type
 
   TYPE(mesh_type),                   PUBLIC :: mesh
-  TYPE(petsc_csr_LA),               PRIVATE :: LA
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
@@ -66,9 +67,6 @@ CONTAINS
     !===Construct mesh
     CALL get_mesh(communicator, mesh)
 
-    !===Construct LA
-    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
-    
     !===Read
     CALL setup_data%init
 
@@ -86,7 +84,8 @@ CONTAINS
     limiting_functionals_euler(2)%name = 'minus rho max'
     !=== Define Euler limiting bounds
     
-    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
+    euler%erk_sv = setup_data%erk_sv
+    CALL euler%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_euler)
     CALL init_state_functions(euler)
 
   END SUBROUTINE start_setup
@@ -127,6 +126,9 @@ CONTAINS
 
     !===Maximum number of iterations
     CALL read_data(argument_data%max_it, this%max_it)
+
+    !===ERK Euler
+    CALL read_data(argument_data%erk_sv, this%erk_sv)
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)

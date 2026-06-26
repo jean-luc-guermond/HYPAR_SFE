@@ -36,6 +36,8 @@ F
 1.d0
 === Maximum number of timesteps ===
 1000000
+=== ERK ? ===
+11
 === Do we compare with analytical reference? (true/false) ===
 T
 ========================================
@@ -52,8 +54,6 @@ T
 =======================================================
 === CFL ? Euler 1 ===
 0.5d0
-=== ERK ? Euler 1 ===
-11
 === Which method to solve conservation equation (viscous,high,galerkin)? Euler 1 ===
 viscous
 === Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===

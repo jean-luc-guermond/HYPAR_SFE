@@ -63,8 +63,7 @@ CONTAINS
     INTEGER :: Nmax, m, n, i, j
 
     CALL this%READ()
-    this%ERK%sv = this%erk_sv
-    CALL this%ERK%init
+    CALL this%ERK%init(this%erk_sv)
     this%flux => flux
     this%flux_prime => flux_prime
     this%lambda_max => lambda_max

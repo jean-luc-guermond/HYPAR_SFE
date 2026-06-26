@@ -5,7 +5,7 @@ MODULE start_setup_MODULE
   USE euler_type_module
   USE limiting_functionals_euler_module, ONLY: psi_rho_min, psi_rho_max,&
                                zero_of_psi_rho_max, zero_of_psi_rho_min
-  USE cell_limiting_engine_parallel_module, ONLY: limiting_functionals_type
+  USE cell_limiting_engine_parallel_module
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
@@ -14,7 +14,7 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
      CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
-     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of iterations ==='
+     CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
 
@@ -33,10 +33,10 @@ MODULE start_setup_MODULE
   END TYPE setup_data_type
 
   TYPE(mesh_type),                   PUBLIC :: mesh
-  TYPE(petsc_csr_LA),               PRIVATE :: LA
+  !TYPE(petsc_csr_LA),               PRIVATE :: LA
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
-  TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
+  TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
   MPI_Comm :: communicator
   PUBLIC :: start_setup
@@ -67,8 +67,8 @@ CONTAINS
     CALL get_mesh(communicator, mesh)
 
     !===Construct LA
-    CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
-    
+    !CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, LA)
+
     !===Read
     CALL setup_data%init
 
@@ -80,11 +80,14 @@ CONTAINS
     ALLOCATE(limiting_functionals_euler(2))
     limiting_functionals_euler(1)%psi => psi_rho_min
     limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_euler(1)%name = 'rho min'
     limiting_functionals_euler(2)%psi => psi_rho_max
     limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_euler(2)%name = 'minus rho max'
     !=== Define Euler limiting bounds
-    
-    CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
+
+    !CALL euler%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_euler)
+    CALL euler%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_euler)
     CALL init_state_functions(euler)
 
   END SUBROUTINE start_setup

@@ -14,10 +14,10 @@ MODULE dirichlet_type_module
       INTEGER, DIMENSION(:), POINTER :: list_sides
       INTEGER, DIMENSION(:), POINTER :: jsd
     CONTAINS
-      PROCEDURE, PUBLIC :: set => dirichlet_nodes_local !===With ghosted nodes
+      PROCEDURE, PUBLIC :: set  => dirichlet_nodes_local !===With ghosted nodes
       PROCEDURE, PUBLIC :: read => read_dirichlet_data
       PROCEDURE, PUBLIC :: init => init_dirichlet_data
-      !!PROCEDURE, PUBLIC :: set => dirichlet_nodes_parallel !===Without ghosted nodes
+      PROCEDURE, PUBLIC :: set_parallel => dirichlet_nodes_parallel !===Without ghosted nodes
    END type dirichlet_bc
 CONTAINS
 

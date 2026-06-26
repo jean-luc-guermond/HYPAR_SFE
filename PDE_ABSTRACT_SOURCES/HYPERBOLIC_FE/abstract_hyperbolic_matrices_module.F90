@@ -39,7 +39,7 @@ CONTAINS
       INTEGER                        :: k, ierr
       INTEGER, DIMENSION(:), POINTER :: ifrom
       MPI_Comm                       :: communicator
-      IS,      DIMENSION(1)          :: is
+      IS,      DIMENSION(1)          :: is !<=== FIXME
 
       !===Init global vectors
       IF (.NOT. ALLOCATED(this%cij)) THEN
@@ -204,16 +204,12 @@ CONTAINS
       USE solver_petsc
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
-      TYPE(solver_param)              :: my_par_solver
-      MPI_Comm                       :: communicator
+      TYPE(solver_data_type)          :: my_par_solver
+      MPI_Comm                        :: communicator
 
       !===Create ksp solver
-      my_par_solver%it_max  = 5000
-      my_par_solver%rel_tol = 1.d-10
-      my_par_solver%abs_tol = 1.d-18
-      my_par_solver%verbose = .FALSE.
-      CALL init_solver(my_par_solver, this%ksp_consistent_mass, this%mass, communicator, &
-      solver = "GMRES", precond = 'MUMPS')
+      CALL init_solver(communicator, my_par_solver, this%ksp_consistent_mass, this%mass)      
+
    END SUBROUTINE construct_consistent_mass_solver
 
    SUBROUTINE construct_Ar(this)

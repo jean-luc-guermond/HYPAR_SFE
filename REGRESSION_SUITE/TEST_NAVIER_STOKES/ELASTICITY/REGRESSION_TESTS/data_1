@@ -1,0 +1,62 @@
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+'../../../MESHES'
+=== Name of mesh file ===
+unit_sq_0.1.FEM
+=== Is the mesh formatted? (True/False) ===
+F
+=== Do we read metis partition? (true/false) ===
+F
+================================
+!           MESH SETUP
+================================
+=== Type of finite element ===
+1
+=== Number of refinement steps ===
+0
+=== Factor of refinement ===
+2
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+=== How many pieces of periodic boundary? ===
+0
+=== How many pieces of Dirichlet boundaries for bcs on scalar ===
+4
+=== List of Dirichlet boundaries for bcs on scalar ===
+1 2 3 4
+==================================================
+!           SOLVER PARAMETERS elasticity
+==================================================
+=== Maximum number of iterations elasticity ===
+5000
+=== Relative tolerance elasticity ===
+1.0000000000000000E-010
+=== Absolute tolerance elasticity ===
+1.0000000000000001E-010
+=== Which solver? (CG,GMRES,...) elasticity ===
+CG
+=== Which precond? (MUMPS,HYPRE,...) elasticity ===
+MUMPS
+=== verbose solver? (True/False) elasticity ===
+F
+=== monitor residuals? (True/False) elasticity ===
+F
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Do we compare with analytical reference? (true/false) ===
+T
+=== Value of mu viscosity ===
+0.01
+=== Value of lambda viscosity ===
+0.01
+=== Value of thermal diffusivity ===
+0.0000000000000000
+=== Value of thermal capacity at constant volume ===
+0.0000000000000000
+=== Maximum number of timesteps ===
+2

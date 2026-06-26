@@ -26,7 +26,6 @@ MODULE abstract_hyperbolic_module
       CHARACTER(LEN=rec_length) :: char_method             = '=== Which method to solve conservation equation (viscous,high,galerkin)? ==='
       CHARACTER(LEN=rec_length) :: which_high_method       = '=== Which high order method (1/2)? ==='
       CHARACTER(LEN=rec_length) :: if_hybrid_mesh_limiting = '=== Do we use hybrid Pk/P1 meshes for limiting? ==='
-      CHARACTER(LEN=rec_length) :: erk_sv                  = '=== ERK ? ==='
       CHARACTER(LEN=rec_length) :: char_which_mass         = '=== Which mass matrix: lumped, quasi_consistent, consistent? ==='
       CHARACTER(LEN=rec_length) :: nb_correction_mass      = '=== For quasi_consistent mass, how many corrections? (0=lumped_mass) ==='
    END TYPE argument_hyperbolic_type
@@ -37,19 +36,18 @@ MODULE abstract_hyperbolic_module
       CHARACTER(LEN=rec_length)    :: char_method             = 'viscous'
       INTEGER                      :: method                  = METHOD_VISCOUS
       INTEGER                      :: which_high_method       = 1
-      INTEGER                      :: erk_sv                  = -21
+      INTEGER                      :: erk_sv                  = -31
       LOGICAL                      :: if_hybrid_mesh_limiting = .TRUE.
       CHARACTER(LEN=rec_length)    :: char_which_mass         = 'lumped'
       INTEGER                      :: which_mass              = LUMPED_MASS
       INTEGER                      :: nb_correction_mass      = 1
       !===Parameters built along way
       MPI_Comm :: communicator
-      Vec          :: x1vec, x2vec, x2_ghost, vec_loc, x3vec
+      Vec          :: x1vec, x2vec, x2_ghost, x3vec
       Vec          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
       CHARACTER(LEN=:), ALLOCATABLE :: name
       INTEGER                       :: syst_dim
       REAL(KIND = 8) :: dt, time, final_time
-      INTEGER, DIMENSION(:), ALLOCATABLE :: tab
       TYPE(mesh_type),     POINTER :: mesh, mesh_L
       TYPE(petsc_csr_LA),  POINTER :: LA,   LA_L
       TYPE(BT),             PUBLIC :: ERK
@@ -61,7 +59,7 @@ MODULE abstract_hyperbolic_module
    CONTAINS
       PROCEDURE, PUBLIC   :: init_hyperbolic
       PROCEDURE, PRIVATE  :: read_hyperbolic_data, init_vectors
-      PROCEDURE, PUBLIC   :: update
+      PROCEDURE, PUBLIC   :: update, one_step_ERK
       PROCEDURE, PRIVATE  :: compute_dij, compute_dt, invert_mass, commutator, apply_limiting
       PROCEDURE(template_flux),         DEFERRED :: flux
       PROCEDURE(template_lambda),       DEFERRED :: compute_lambda
@@ -122,7 +120,7 @@ MODULE abstract_hyperbolic_module
 
 CONTAINS
 
-   SUBROUTINE init_hyperbolic(this, communicator, name, mesh, LA, times, limiting_functionals)
+   SUBROUTINE init_hyperbolic(this, communicator, name, mesh, times, limiting_functionals)  
       USE my_util,            ONLY: error_petsc, to_str
       USE space_dim
       USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
@@ -134,14 +132,16 @@ CONTAINS
       MPI_Comm,                   INTENT(IN) :: communicator
       CHARACTER(100),             INTENT(IN) :: name
       TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
-      TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
       REAL(KIND = 8), DIMENSION(2) :: times
       TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals
 
       this%name = name
       this%mesh => mesh
       this%communicator = communicator
-      this%LA   => LA
+
+      !===Construct LA
+      ALLOCATE(this%LA)
+      CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, this%LA)
 
       this%time = times(1) !<==initial_time
       this%final_time = times(2) !<==final_time
@@ -149,8 +149,7 @@ CONTAINS
       CALL this%read_hyperbolic_data("HYPERBOLIC PARAMETERS FOR "//trim(adjustl(this%name)))
 
       !=== Build ERK structure
-      this%ERK%sv = this%erk_sv
-      CALL this%ERK%init()
+      CALL this%ERK%init(this%erk_sv)
 
       !===Matrices
       ALLOCATE(this%matrices)
@@ -221,10 +220,7 @@ CONTAINS
       !===CFL
       CALL read_data(argument_data%CFL, this%CFL, opt_name=this%name)
 
-      !===ERK
-      CALL read_data(argument_data%erk_sv, this%erk_sv, opt_name=this%name)
-
-      !===Method order
+      !===Method
       CALL read_data(argument_data%char_method, this%char_method, opt_name=this%name)
       CALL get_tab_idx_char(this%char_method, list_method, this%method)
 
@@ -259,7 +255,7 @@ CONTAINS
      INTEGER  :: stage
      urk(:,:,1) = un_in
      DO stage = 2, this%ERK%s+1
-        CALL one_step_ERK(this,stage,urk,flux_rk_at_dof)
+        CALL this%one_step_ERK(stage,urk,flux_rk_at_dof)
      END DO
      un_in = urk(:,:,this%ERK%s+1)
      this%time = this%time + this%dt
@@ -1072,13 +1068,6 @@ CONTAINS
       CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x4vec, ierr)
       CALL VecDuplicate(this%x1vec, this%x5vec, ierr)
-
-      CALL VecCreateSeq(PETSC_COMM_SELF, this%mesh%dom_np, this%vec_loc, ierr)
-
-      ALLOCATE(this%tab(this%mesh%dom_np))
-      DO n = 1, this%mesh%dom_np
-         this%tab(n) = n - 1
-      END DO
 
    END SUBROUTINE init_vectors
 

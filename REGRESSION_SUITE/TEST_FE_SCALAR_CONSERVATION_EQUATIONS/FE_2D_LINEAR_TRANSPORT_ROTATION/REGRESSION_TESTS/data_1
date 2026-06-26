@@ -42,6 +42,8 @@ F
 !!!two revolutions
 === Maximum number of timesteps ===
 1000000
+=== ERK ? ===
+-31
 === Do we compare with analytical reference? (true/false) ===
 T
 ===================================================
@@ -52,8 +54,6 @@ T
 ==================================================================
 === CFL ? linear_transport 1 ===
 0.1d0
-=== ERK ? linear_transport 1 ===
-31
 === Which method to solve conservation equation (viscous,high,galerkin)? linear_transport 1 ===
 galerkin
 === Which mass matrix: lumped, quasi_consistent, consistent? linear_transport 1 ===
@@ -75,3 +75,11 @@ F
 ================================================================
 === Apply cell-limiting (T/F) ? linear_transport 1 ===
 F
+=== Relaxation method (none/avg/minmod) min ===
+none
+=== Global bounds for relaxation min ===
+-10000000000.000000
+=== Relaxation method (none/avg/minmod) minus max ===
+none
+=== Global bounds for relaxation minus max ===
+-10000000000.000000

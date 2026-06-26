@@ -1,3 +1,7 @@
+=== Which solver? (GMRES) Laplace 1 ===
+GMRES
+=== Which precond? (MUMPS) Laplace 1 ===
+MUMPS
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -49,9 +53,11 @@ T
 1.0000000000000000E-010
 === Absolute tolerance Laplace 1 ===
 1.0000000000000001E-018
+=== Which solver? (CG,GMRES,...) Laplace 1 ===
+GMRES
+=== Which precond? (MUMPS,HYPRE,...) Laplace 1 ===
+MUMPS
 === verbose solver? (True/False) Laplace 1 ===
 F
-=== Which solver? (GMRES) Laplace 1 ===
-GMRES
-=== Which precond? (MUMPS) Laplace 1 ===
-MUMPS
+=== monitor residuals? (True/False) Laplace 1 ===
+F

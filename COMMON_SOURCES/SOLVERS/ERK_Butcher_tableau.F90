@@ -10,11 +10,13 @@ MODULE Butcher_tableau
      PROCEDURE :: init => init_bt
   END TYPE BT
 CONTAINS
-  SUBROUTINE init_bt(this)
+  SUBROUTINE init_bt(this, sv)
     IMPLICIT NONE
     CLASS(BT), INTENT(inout) :: this
+    INTEGER, INTENT(IN) :: sv
     INTEGER :: asv
     REAL(KIND=8) :: gamma
+    this%sv = sv
     asv= ABS(this%sv)
     this%s = (asv-MODULO(asv,10))/10
     IF (ASSOCIATED(this%C)) THEN

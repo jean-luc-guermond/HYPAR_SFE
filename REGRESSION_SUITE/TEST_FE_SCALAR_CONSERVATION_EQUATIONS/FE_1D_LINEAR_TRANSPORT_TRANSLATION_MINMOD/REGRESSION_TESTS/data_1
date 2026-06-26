@@ -39,6 +39,8 @@ F
 0.4d0
 === Maximum number of timesteps ===
 1000000
+=== ERK ? ===
+-31
 === Do we compare with analytical reference? (true/false) ===
 T
 ===================================================
@@ -51,10 +53,10 @@ T
 ==================================================================
 === CFL ? linear_transport 1 ===
 0.50000000000000000
-=== ERK ? linear_transport 1 ===
--31
 === Which method to solve conservation equation (viscous,high,galerkin)? linear_transport 1 ===
 high
+=== Which high order method (1/2)? linear_transport 1 ===
+1
 === Which mass matrix: lumped, quasi_consistent, consistent? linear_transport 1 ===
 quasi_consistent
 consistent
@@ -74,13 +76,13 @@ F
 ================================================================
 === Apply cell-limiting (T/F) ? linear_transport 1 ===
 T
-=== How many limiting iterations? linear_transport 1 ===                         
-4                                                                                
-=== Relaxation method (none/avg/minmod) min ===                                  
-minmod                                                                                                                                                      
-=== Global bounds for relaxation min ===                                         
-1.d0                                                                             
-=== Relaxation method (none/avg/minmod) minus max ===                            
-minmod                                                                                                                                                       
-=== Global bounds for relaxation minus max ===                                   
--2.d0                                                                            
+=== How many limiting iterations? linear_transport 1 ===
+4
+=== Relaxation method (none/avg/minmod) min ===
+minmod
+=== Global bounds for relaxation min ===
+1.d0
+=== Relaxation method (none/avg/minmod) minus max ===
+minmod
+=== Global bounds for relaxation minus max ===
+-2.d0
