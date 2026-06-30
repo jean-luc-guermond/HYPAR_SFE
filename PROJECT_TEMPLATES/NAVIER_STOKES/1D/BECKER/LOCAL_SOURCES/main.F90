@@ -4,13 +4,15 @@ PROGRAM prog
   USE start_setup_MODULE
   USE setup
   USE sub_plot
+  USE ETA_module
+  USE euler_post_proc_module
   USE my_util
   IMPLICIT NONE
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
   INTEGER :: n, tot_np, code, num_test
-
+  TYPE(ETA_type) :: ETA
 !========================!
 !==== INITIALIZATION ====!
 !========================!
@@ -25,14 +27,16 @@ PROGRAM prog
 !=====================!
 !==== SOLVER LOOP ====!
 !=====================!
-
+  CALL ETA%init(navier_stokes%mesh%rank)
   tps = user_time()
   n = 0
-  DO WHILE(navier_stokes%euler%time < setup_data%final_time)
-    CALL navier_stokes%euler%update(un)
+  DO WHILE(navier_stokes%time < setup_data%final_time)
+    CALL navier_stokes%update(un)
+    CALL ETA%update(navier_stokes%dt)
     n = n + 1
     IF (MOD(n, setup_data%verbose_freq)==0) THEN
-        IF (navier_stokes%euler%mesh%rank==0) write(*, *) n, navier_stokes%euler%time, navier_stokes%euler%dt
+        CALL ETA%print(navier_stokes%time, setup_data%final_time)
+        !IF (navier_stokes%euler%mesh%rank==0) write(*, *) n, navier_stokes%time, navier_stokes%dt
     END IF
     IF (n == setup_data%max_it) THEN
         IF (navier_stokes%euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
@@ -48,10 +52,12 @@ PROGRAM prog
   CALL MPI_ALLREDUCE(navier_stokes%euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
   IF(navier_stokes%euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n), tps, n
+     WRITE(*,*) ' Time per time step per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n), tps, n
   END IF
   CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
-
+  CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, &
+  navier_stokes%euler%bc%sol_anal(1, navier_stokes%euler%time,mesh%rr), 'rhoexact' // TRIM(ADJUSTL(char)) // '.plt')
+write(*,*) 'time', navier_stokes%time, navier_stokes%stokes%time, navier_stokes%euler%time
 !=========================!
 !==== REGRESSION TEST ====!
 !=========================!

@@ -65,7 +65,7 @@ F
 ====================================================================
 !           DIRICHLET BC PARAMETERS FOR linear_transport 1
 ====================================================================
-=== How many pieces of Dirichlet boundaries for bcs on rho ===
+=== How many pieces of Dirichlet boundaries for bcs on rho linear_transport 1 ===
 0
 ================================================================
 !           LIMITING PARAMETERS FOR linear_transport 1

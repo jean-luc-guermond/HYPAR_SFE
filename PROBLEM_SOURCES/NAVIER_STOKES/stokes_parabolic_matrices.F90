@@ -70,6 +70,12 @@ CONTAINS
            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%temp_lumped_mass_vec, ierr)
       CALL construct_lumped_mass_vector(mesh, LA_temp, this%temp_mass_mat, this%temp_lumped_mass_vec, opt_per=.FALSE.)
       !===Temperature lumped mass construction
+
+      !===Init KSP temp
+      CALL this%temperature_solver_param%init('temperature')
+      CALL init_solver(communicator, this%temperature_solver_param, this%temp_ksp, this%temp_mat, opt_mat_pre=this%precond_temp_mat) 
+      !===Init KSP temp
+
    !===Mat allocations temperature (temp_diff_mat)
 
    !===Mat allocations & construction Velocity (vel_diff_mat)

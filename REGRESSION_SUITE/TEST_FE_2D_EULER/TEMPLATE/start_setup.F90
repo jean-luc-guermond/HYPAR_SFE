@@ -85,8 +85,11 @@ CONTAINS
     !=== Define Euler limiting bounds
     
     euler%erk_sv = setup_data%erk_sv
-    CALL euler%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_euler)
+    CALL euler%init_hyperbolic(communicator, name, mesh, limiting_functionals_euler)
     CALL init_state_functions(euler)
+
+    CALL euler%set_times(times)
+
 
   END SUBROUTINE start_setup
 

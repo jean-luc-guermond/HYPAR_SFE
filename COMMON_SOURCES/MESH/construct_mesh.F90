@@ -116,6 +116,12 @@ CONTAINS
       IF (rank == 0) WRITE(*, *) 'Creating boundary structures'
       CALL generate_boundary_structure(mesh)
 
+      !=== Print mesh info ===!
+      IF (mesh%rank==0) THEN
+         WRITE(*,*)  'np tot: ', mesh%disp(mesh%nb_proc+1), ', me tot: ', mesh%discell(mesh%nb_proc+1)
+      END IF
+
+
    END SUBROUTINE get_mesh
 
 !=====================================================!

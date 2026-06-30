@@ -57,7 +57,7 @@ MODULE abstract_hyperbolic_module
       TYPE(limiting_all_functional_type) :: limiting_all_functionals
       PROCEDURE(template_eta_commute), NOPASS,        POINTER :: eta_commute
    CONTAINS
-      PROCEDURE, PUBLIC   :: init_hyperbolic
+      PROCEDURE, PUBLIC   :: init_hyperbolic, set_times
       PROCEDURE, PRIVATE  :: read_hyperbolic_data, init_vectors
       PROCEDURE, PUBLIC   :: update, one_step_ERK
       PROCEDURE, PRIVATE  :: compute_dij, compute_dt, invert_mass, commutator, apply_limiting
@@ -120,7 +120,7 @@ MODULE abstract_hyperbolic_module
 
 CONTAINS
 
-   SUBROUTINE init_hyperbolic(this, communicator, name, mesh, times, limiting_functionals)  
+   SUBROUTINE init_hyperbolic(this, communicator, name, mesh, limiting_functionals)  
       USE my_util,            ONLY: error_petsc, to_str
       USE space_dim
       USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
@@ -130,9 +130,8 @@ CONTAINS
       IMPLICIT NONE
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
       MPI_Comm,                   INTENT(IN) :: communicator
-      CHARACTER(100),             INTENT(IN) :: name
+      CHARACTER(LEN=*),             INTENT(IN) :: name
       TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
-      REAL(KIND = 8), DIMENSION(2) :: times
       TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals
 
       this%name = name
@@ -142,9 +141,6 @@ CONTAINS
       !===Construct LA
       ALLOCATE(this%LA)
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, this%LA)
-
-      this%time = times(1) !<==initial_time
-      this%final_time = times(2) !<==final_time
 
       CALL this%read_hyperbolic_data("HYPERBOLIC PARAMETERS FOR "//trim(adjustl(this%name)))
 
@@ -245,6 +241,14 @@ CONTAINS
 
       CALL finalize_rewrite_data
    END SUBROUTINE read_hyperbolic_data
+
+   SUBROUTINE set_times(this, times)
+      IMPLICIT NONE
+      CLASS(hyperbolic_type)                 :: this
+      REAL(KIND=8), DIMENSION(2), INTENT(IN) :: times
+      this%time = times(1) !<==initial_time
+      this%final_time = times(2) !<==final_time
+   END SUBROUTINE set_times
 
    SUBROUTINE update(this,un_in)
      IMPLICIT NONE

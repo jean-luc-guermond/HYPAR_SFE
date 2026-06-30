@@ -161,7 +161,7 @@ CONTAINS
       TYPE(mesh_type)                            :: mesh
       TYPE(petsc_csr_LA)                         :: LA
 
-      CALL this%bc%rho_bc%set(mesh, "rho", "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
+      CALL this%bc%rho_bc%set(mesh, "rho "//TRIM(ADJUSTL(this%name)), "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
       !===dummy to avoid warnings 
       RETURN
       WRITE(*,*) LA%loc_to_glob

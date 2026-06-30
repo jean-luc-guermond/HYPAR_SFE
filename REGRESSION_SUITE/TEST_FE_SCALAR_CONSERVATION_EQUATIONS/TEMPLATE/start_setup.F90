@@ -84,8 +84,11 @@ CONTAINS
     !=== Define linear_transport limiting bounds
     
     linear_transport%erk_sv = setup_data%erk_sv
-    CALL linear_transport%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_linear_transport)
+    CALL linear_transport%init_hyperbolic(communicator, name, mesh, limiting_functionals_linear_transport)
     CALL init_state_functions(linear_transport)
+
+    CALL linear_transport%set_times(times)
+
 
   END SUBROUTINE start_setup
 

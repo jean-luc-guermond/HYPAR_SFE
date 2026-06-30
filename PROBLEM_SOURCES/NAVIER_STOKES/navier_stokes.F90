@@ -32,7 +32,7 @@ MODULE navier_stokes_module
         Vec          :: x1vec, x2vec, x2_ghost, vec_loc, x3vec
         Vec          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
         CHARACTER(LEN=:), ALLOCATABLE :: name
-        ! INTEGER                       :: syst_dim
+        INTEGER                       :: syst_dim = k_dim + 2
         REAL(KIND = 8) :: dt, time, final_time
         TYPE(mesh_type),     POINTER :: mesh
         INTEGER                      :: imex_sv
@@ -42,13 +42,14 @@ MODULE navier_stokes_module
         TYPE(stokes_parabolic_type)  :: stokes
     CONTAINS
         PROCEDURE, PUBLIC   :: init => init_navier_stokes
-        ! PROCEDURE, PUBLIC   :: update
+        PROCEDURE, PUBLIC   :: update
+        PROCEDURE, PUBLIC   :: set_times
         PROCEDURE, PRIVATE  :: read => read_navier_stokes_data!, init_vectors
    END TYPE navier_stokes_type
 
 CONTAINS
 
-SUBROUTINE init_navier_stokes(this, communicator, name, mesh, times, limiting_functionals_euler) 
+SUBROUTINE init_navier_stokes(this, communicator, name, mesh, limiting_functionals_euler) 
     USE space_dim
     USE my_util,            ONLY: error_petsc, to_str
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
@@ -56,17 +57,13 @@ SUBROUTINE init_navier_stokes(this, communicator, name, mesh, times, limiting_fu
     IMPLICIT NONE
     CLASS(navier_stokes_type), INTENT(INOUT) :: this
     MPI_Comm,                   INTENT(IN) :: communicator
-    CHARACTER(100),             INTENT(IN) :: name
+    CHARACTER(LEN=*),             INTENT(IN) :: name
     TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
-    REAL(KIND = 8), DIMENSION(2) :: times
     TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals_euler
 
     this%name = name
     this%mesh => mesh
     this%communicator = communicator
-
-    this%time = times(1) !<==initial_time
-    this%final_time = times(2) !<==final_time
 
     CALL this%read("NAVIER STOKES PARAMETERS FOR "//trim(adjustl(this%name)))
 
@@ -76,17 +73,17 @@ SUBROUTINE init_navier_stokes(this, communicator, name, mesh, times, limiting_fu
     !=== Define Navier-Stokes IMEX tableaux
     
     !===Start Euler & ERK
-    CALL this%euler%init_euler(name)
+    CALL this%euler%init_euler(TRIM(ADJUSTL(name)) // '/Euler')
     this%euler%erk_sv = this%imex_sv
-    CALL this%euler%init_hyperbolic(communicator, name, mesh, times, limiting_functionals_euler)
+    CALL this%euler%init_hyperbolic(communicator, TRIM(ADJUSTL(name)) // '/Euler', mesh, limiting_functionals_euler)
 
     !=== Start Stokes & IRK
     this%stokes%thermal_diffusivity = this%thermal_diffusivity
     this%stokes%mu_viscosity        = this%mu_viscosity
     this%stokes%lambda_viscosity    = this%lambda_viscosity
     this%stokes%cv                  = this%cv
-    this%stokes%irk_sv = this%imex_sv
-    CALL this%stokes%init(communicator, name, mesh, times)
+    this%stokes%irk_sv              = this%imex_sv
+    CALL this%stokes%init(communicator, TRIM(ADJUSTL(name)) // '/Stokes', mesh)
 
 END SUBROUTINE init_navier_stokes
 
@@ -114,7 +111,7 @@ SUBROUTINE read_navier_stokes_data(this, section_name)
     CALL read_data(argument_data%mu_viscosity, this%mu_viscosity, opt_name=this%name)
 
     !===lambda
-    CALL read_data(argument_data%mu_viscosity, this%mu_viscosity, opt_name=this%name)
+    CALL read_data(argument_data%lambda_viscosity, this%lambda_viscosity, opt_name=this%name)
 
     !===lambda
     CALL read_data(argument_data%thermal_diffusivity, this%thermal_diffusivity, opt_name=this%name)
@@ -128,19 +125,34 @@ SUBROUTINE read_navier_stokes_data(this, section_name)
     CALL finalize_rewrite_data
 END SUBROUTINE read_navier_stokes_data
 
+SUBROUTINE set_times(this, times)
+    IMPLICIT NONE
+    CLASS(navier_stokes_type)              :: this
+    REAL(KIND=8), DIMENSION(2), INTENT(IN) :: times
+    this%time       = times(1) !<==initial_time
+    this%final_time = times(2) !<==final_time
+    CALL this%euler%set_times(times)
+    CALL this%stokes%set_times(times)
+END SUBROUTINE set_times
 
-!    SUBROUTINE update(this,un_in)
-!      IMPLICIT NONE
-!      CLASS(navier_stokes_type)                                             :: this
-!      REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim)               :: un_in
-!      REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1) :: urk
-!      REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)   :: flux_rk_at_dof
-!      INTEGER  :: stage
-!      urk(:,:,1) = un_in
-!      DO stage = 2, this%ERK%s+1
-!         CALL one_step_ERK(this,stage,urk,flux_rk_at_dof)
-!      END DO
-!      un_in = urk(:,:,this%ERK%s+1)
-!      this%time = this%time + this%dt
-!    END SUBROUTINE update
+SUBROUTINE update(this,un_in)
+    IMPLICIT NONE
+    CLASS(navier_stokes_type)                                          :: this
+    REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim)               :: un_in
+    REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1) :: urk
+    REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)   :: euler_flux_rk_at_dof
+
+    INTEGER  :: stage
+    urk(:,:,1) = un_in
+    DO stage = 2, this%ERK%s+1
+        CALL this%euler%one_step_ERK(stage,urk,euler_flux_rk_at_dof)
+        this%dt = this%euler%dt
+        this%stokes%dt = this%euler%dt
+        CALL this%stokes%one_step_IRK(stage,urk)
+    END DO
+    un_in = urk(:,:,this%ERK%s+1)
+    this%time = this%time + this%dt
+    this%euler%time = this%euler%time + this%dt
+    this%stokes%time = this%stokes%time + this%dt
+END SUBROUTINE update
 END MODULE navier_stokes_module

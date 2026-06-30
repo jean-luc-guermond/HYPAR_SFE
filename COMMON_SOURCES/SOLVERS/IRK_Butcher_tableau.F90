@@ -13,7 +13,8 @@ CONTAINS
   SUBROUTINE init_bt(this, sv)
     IMPLICIT NONE
     CLASS(IBT), INTENT(inout) :: this
-    INTEGER :: asv, sv
+    INTEGER, INTENT(IN) :: sv
+    INTEGER :: asv
     REAL(KIND=8) :: gamma
     this%sv =  sv
     asv= ABS(this%sv)

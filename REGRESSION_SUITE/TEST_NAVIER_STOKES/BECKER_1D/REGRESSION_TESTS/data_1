@@ -1,0 +1,152 @@
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+.
+=== Name of mesh file ===
+mesh
+=== Is the mesh formatted? (True/False) ===
+T
+=== Do we read metis partition? (true/false) ===
+F
+================================
+!           MESH SETUP
+================================
+=== Type of finite element ===
+1
+=== Number of refinement steps ===
+0
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+=== How many pieces of periodic boundary? ===
+0
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Restart (true/false) ===
+F
+=== Checkpointing frequency ===
+1.0000000000000000E+020
+=== Frequency for run verbose ===
+1000000
+=== Final time ===
+1.d0
+=== Maximum number of timesteps ===
+2000000
+=== IMEX rk ? ===
+-31
+=== Do we compare with analytical reference? (true/false) ===
+T
+=====================================================
+!           NAVIER STOKES PARAMETERS FOR NS
+=====================================================
+=== Value of mu viscosity NS ===
+1.d-2
+=== Value of lambda viscosity NS ===
+0.d0
+=== Value of thermal diffusivity NS ===
+4.66666667d-2
+=== Value of thermal capacity at constant volume NS ===
+2.5d0
+=========================================
+!           NS/Euler PARAMETERS
+=========================================
+=== b_covolume? NS/Euler ===
+0.0000000000000000
+=== No iteration for lambda solver? (t/f) NS/Euler ===
+T
+=== Tolerance for lambda solver NS/Euler ===
+1.0000000000000000E-002
+========================================================
+!           HYPERBOLIC PARAMETERS FOR NS/Euler
+========================================================
+=== CFL ? NS/Euler ===
+0.70000000000000000
+=== Which method to solve conservation equation (viscous,high,galerkin)? NS/Euler ===
+high
+=== Which high order method (1/2)? NS/Euler ===
+1
+=== Which mass matrix: lumped, quasi_consistent, consistent? NS/Euler ===
+quasi_consistent
+lumped
+=== For quasi_consistent mass, how many corrections? (0=lumped_mass) NS/Euler ===
+1
+=== Do we use hybrid Pk/P1 meshes for limiting? NS/Euler ===
+T
+==========================================================
+!           DIRICHLET BC PARAMETERS FOR NS/Euler
+==========================================================
+=== How many pieces of Dirichlet boundaries for bcs on density NS/Euler ===
+2
+=== List of Dirichlet boundaries for bcs on density NS/Euler ===
+1 2
+=== How many pieces of Dirichlet boundaries for bcs on ux NS/Euler ===
+2
+=== List of Dirichlet boundaries for bcs on ux NS/Euler ===
+1 2
+======================================================
+!           LIMITING PARAMETERS FOR NS/Euler
+======================================================
+=== Apply cell-limiting (T/F) ? NS/Euler ===
+T
+=== How many limiting iterations? NS/Euler ===
+2
+=== Relaxation method (none/avg/minmod) rho min ===
+none
+=== Global bounds for relaxation rho min ===
+0
+-10000000000.000000
+=== Relaxation method (none/avg/minmod) minus rho max ===
+none
+=== Global bounds for relaxation minus rho max ===
+-10000000000.000000
+===========================================================
+!           DIRICHLET BC PARAMETERS FOR NS/Stokes
+===========================================================
+=== How many pieces of Dirichlet boundaries for bcs on ux NS/Stokes ===
+2
+=== List of Dirichlet boundaries for bcs on ux NS/Stokes ===
+1 2
+=== How many pieces of Dirichlet boundaries for bcs on temperature NS/Stokes ===
+0
+===============================================================
+!           STOKES PARABOLIC PARAMETERS FOR NS/Stokes
+===============================================================
+=== Which method to solve Stokes parabolic equation (lumped,full)? NS/Stokes ===
+lumped
+===================================================
+!           SOLVER PARAMETERS temperature
+===================================================
+=== Maximum number of iterations temperature ===
+5000
+=== Relative tolerance temperature ===
+1.0000000000000000E-014
+=== Absolute tolerance temperature ===
+1.0000000000000001E-018
+=== Which solver? (CG,GMRES,...) temperature ===
+GMRES
+=== Which precond? (MUMPS,HYPRE,...) temperature ===
+MUMPS
+=== verbose solver? (True/False) temperature ===
+F
+=== monitor residuals? (True/False) temperature ===
+F
+==================================================
+!           SOLVER PARAMETERS elasticity
+==================================================
+=== Maximum number of iterations elasticity ===
+5000
+=== Relative tolerance elasticity ===
+1.0000000000000000E-014
+=== Absolute tolerance elasticity ===
+1.0000000000000001E-018
+=== Which solver? (CG,GMRES,...) elasticity ===
+GMRES
+=== Which precond? (MUMPS,HYPRE,...) elasticity ===
+MUMPS
+=== verbose solver? (True/False) elasticity ===
+F
+=== monitor residuals? (True/False) elasticity ===
+F

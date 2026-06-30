@@ -63,22 +63,16 @@ lumped
 =========================================================
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================
-=== How many pieces of Dirichlet boundaries for bcs on density ===
+=== How many pieces of Dirichlet boundaries for bcs on density Euler 1 ===
 0
-=== List of Dirichlet boundaries for bcs on density ===
-1 2 3 4
-=== How many pieces of Dirichlet boundaries for bcs on ux ===
+=== How many pieces of Dirichlet boundaries for bcs on ux Euler 1 ===
 0
-=== List of Dirichlet boundaries for bcs on ux ===
-0 0
-=== How many pieces of Dirichlet boundaries for bcs on uy ===
+=== How many pieces of Dirichlet boundaries for bcs on uy Euler 1 ===
 0
-=== List of Dirichlet boundaries for bcs on uy ===
-0 0
-=== How many pieces of Dirichlet boundaries for bcs on u.n=0 ===
+=== How many pieces of Dirichlet boundaries for bcs on whole boundary Euler 1 ===
 0
-=== List of Dirichlet boundaries for bcs on u.n=0 ===
-0 0
+=== How many pieces of Dirichlet boundaries for bcs on u.n=0 Euler 1 ===
+0
 =====================================================
 !           LIMITING PARAMETERS FOR Euler 1
 =====================================================

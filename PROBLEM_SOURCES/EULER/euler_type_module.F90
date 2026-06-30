@@ -198,14 +198,14 @@ CONTAINS
       TYPE(mesh_type)                            :: mesh
       TYPE(petsc_csr_LA)                         :: LA
 
-      CALL this%bc%rho_bc%set(mesh, "density", "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
+      CALL this%bc%rho_bc%set(mesh, "density "//TRIM(ADJUSTL(this%name)), "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
 
-      CALL this%bc%u_bc(1)%set(mesh, "ux")
+      CALL this%bc%u_bc(1)%set(mesh, "ux "//TRIM(ADJUSTL(this%name)))
       
       IF (k_dim>1) THEN
-         CALL this%bc%u_bc(2)%set(mesh, "uy")
-         CALL this%bc%whole_bdy_bc%set(mesh, "whole boundary")
-         CALL this%bc%udotn_bc%set(mesh, "u.n=0")
+         CALL this%bc%u_bc(2)%set(mesh, "uy "//TRIM(ADJUSTL(this%name)))
+         CALL this%bc%whole_bdy_bc%set(mesh, "whole boundary "//TRIM(ADJUSTL(this%name)))
+         CALL this%bc%udotn_bc%set(mesh, "u.n=0 "//TRIM(ADJUSTL(this%name)))
       END IF
       CALL this%construct_udotn(mesh, LA, this%bc%udotn_bc, this%bc%udotn_normal_vtx)
 

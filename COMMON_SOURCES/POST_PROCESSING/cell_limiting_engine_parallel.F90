@@ -96,7 +96,7 @@ CONTAINS
       USE fem_petsc_matrix_factory_module
       IMPLICIT NONE
       CLASS(limiting_type),    INTENT(INOUT) :: this
-      CHARACTER(100),             INTENT(IN) :: name
+      CHARACTER(LEN=*),             INTENT(IN) :: name
       TYPE(mesh_type),    TARGET, INTENT(IN) :: mesh
       TYPE(petsc_csr_LA), TARGET, INTENT(IN) :: LA
       REAL(KIND=8), DIMENSION(mesh%np)         :: vol_of_Ti

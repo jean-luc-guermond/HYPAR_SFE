@@ -1,3 +1,19 @@
+=== How many pieces of Dirichlet boundaries for bcs on density ===
+0
+=== List of Dirichlet boundaries for bcs on density ===
+0 0
+=== How many pieces of Dirichlet boundaries for bcs on ux ===
+2
+=== List of Dirichlet boundaries for bcs on ux ===
+1 6
+=== How many pieces of Dirichlet boundaries for bcs on uy ===
+4
+=== List of Dirichlet boundaries for bcs on uy ===
+1 2 4 7
+=== How many pieces of Dirichlet boundaries for bcs on u.n=0 ===
+1
+=== List of Dirichlet boundaries for bcs on u.n=0 ===
+5
 =====================================
 !           MESH PARAMETERS
 =====================================
@@ -64,21 +80,25 @@ T
 =========================================================
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================
-=== How many pieces of Dirichlet boundaries for bcs on density ===
-0
-=== List of Dirichlet boundaries for bcs on density ===
-0 0
-=== How many pieces of Dirichlet boundaries for bcs on ux ===
-2
-=== List of Dirichlet boundaries for bcs on ux ===
-1 6
-=== How many pieces of Dirichlet boundaries for bcs on uy ===
-4
-=== List of Dirichlet boundaries for bcs on uy ===
-1 2 4 7
-=== How many pieces of Dirichlet boundaries for bcs on u.n=0 ===
+=== How many pieces of Dirichlet boundaries for bcs on density Euler 1 ===
 1
-=== List of Dirichlet boundaries for bcs on u.n=0 ===
+=== List of Dirichlet boundaries for bcs on density Euler 1 ===
+1
+=== How many pieces of Dirichlet boundaries for bcs on ux Euler 1 ===
+2
+=== List of Dirichlet boundaries for bcs on ux Euler 1 ===
+1 6
+=== How many pieces of Dirichlet boundaries for bcs on uy Euler 1 ===
+4
+=== List of Dirichlet boundaries for bcs on uy Euler 1 ===
+1 2 4 7
+=== How many pieces of Dirichlet boundaries for bcs on whole boundary Euler 1 ===
+0
+=== List of Dirichlet boundaries for bcs on whole boundary Euler 1 ===
+0
+=== How many pieces of Dirichlet boundaries for bcs on u.n=0 Euler 1 ===
+1
+=== List of Dirichlet boundaries for bcs on u.n=0 Euler 1 ===
 5
 =====================================================
 !           LIMITING PARAMETERS FOR Euler 1

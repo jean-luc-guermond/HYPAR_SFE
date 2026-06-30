@@ -52,7 +52,7 @@ CONTAINS
     IMPLICIT NONE
     PetscErrorCode :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
-    CHARACTER(100) :: name = 'Euler 1'
+    CHARACTER(100) :: name = 'NS'
     INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
@@ -84,9 +84,8 @@ CONTAINS
     !===Start Navier-Stokes
     navier_stokes%imex_sv = setup_data%imex_sv
     CALL navier_stokes%init(communicator, name, mesh, times, limiting_functionals_euler)
-    CALL init_state_functions(navier_stokes%euler, navier_stokes%thermal_diffusivity)
+    CALL init_state_functions(navier_stokes%euler, navier_stokes%stokes, navier_stokes%thermal_diffusivity)
     ! CALL init_state_functions(navier_stokes%stokes)
-
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)

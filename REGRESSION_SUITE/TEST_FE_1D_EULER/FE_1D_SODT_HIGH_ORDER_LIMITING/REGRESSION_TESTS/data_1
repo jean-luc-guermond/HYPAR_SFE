@@ -66,14 +66,12 @@ T
 =========================================================
 !           DIRICHLET BC PARAMETERS FOR Euler 1
 =========================================================
-=== How many pieces of Dirichlet boundaries for bcs on density ===
+=== How many pieces of Dirichlet boundaries for bcs on density Euler 1 ===
 2
-=== List of Dirichlet boundaries for bcs on density ===
+=== List of Dirichlet boundaries for bcs on density Euler 1 ===
 1 2
-=== How many pieces of Dirichlet boundaries for bcs on ux ===
+=== How many pieces of Dirichlet boundaries for bcs on ux Euler 1 ===
 0
-=== List of Dirichlet boundaries for bcs on ux ===
-0 0
 =====================================================
 !           LIMITING PARAMETERS FOR Euler 1
 =====================================================
