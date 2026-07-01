@@ -595,8 +595,8 @@ CONTAINS
                   min_bounds(i) = MIN(min_bounds(i),MINVAL(temp_bounds(this%mesh_L%jj(:,m))))
                END DO
             END DO
-            CALL array_to_petsc_vec(min_bounds, this%x3vec, this%LA, "min")
-            CALL extract_through_ghost(this%x3vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
+            CALL this%mesh_L%comm_ghost(min_bounds, MPI_MIN)
+            bounds(:, nl) = min_bounds
          END DO
       END IF
       !=== Bounds computations using u_L
@@ -746,7 +746,6 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(this%mesh_L%np) :: zero_vec
       LOGICAL, DIMENSION(this%mesh_L%medge) :: virgin_edge
       REAL(KIND = 8), DIMENSION(this%mesh_L%np)  :: alpha !<==commutator in (0,1)
-
       mesh => this%mesh_L
       LA   => this%LA_L
 
@@ -862,8 +861,7 @@ CONTAINS
 
          IF (this%limiting%if_limiting .AND. this%which_high_method==1) THEN
             DO nl=1, this%limiting_all_functionals%nl
-               CALL array_to_petsc_vec(bounds(:,nl), this%x1vec, this%LA, 'min')
-               CALL extract_through_ghost(this%x1vec, 1, 1, this%LA, bounds(:, nl), opt_assemble=.FALSE.)
+               CALL mesh%comm_ghost(bounds(:,nl), MPI_MIN)
             END DO
          END IF
       END IF

@@ -116,6 +116,10 @@ CONTAINS
       IF (rank == 0) WRITE(*, *) 'Creating boundary structures'
       CALL generate_boundary_structure(mesh)
 
+      !=== communication graph using PETSC SF ===!
+      IF (rank == 0) WRITE(*, *) 'Creating PETSC SF'
+      CALL mesh%build_petscSF
+
       !=== Print mesh info ===!
       IF (mesh%rank==0) THEN
          WRITE(*,*)  'np tot: ', mesh%disp(mesh%nb_proc+1), ', me tot: ', mesh%discell(mesh%nb_proc+1)

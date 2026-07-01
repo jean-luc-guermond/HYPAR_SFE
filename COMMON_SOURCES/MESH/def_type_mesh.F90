@@ -111,6 +111,7 @@ MODULE def_type_mesh
       CHARACTER(LEN=:), ALLOCATABLE :: name
       TYPE(mesh_info_type)          :: info
       MPI_Comm, POINTER             :: comm !VB 11/05/2026
+      TYPE(tPetscSF)                :: sf_node !VB 01/07/2026
    CONTAINS
       PROCEDURE :: jj_glob
       PROCEDURE :: jce_loc
@@ -118,6 +119,7 @@ MODULE def_type_mesh
       PROCEDURE :: side_edge
       PROCEDURE :: create_comm, gather_dom_np, gather_me, gather_medge
       PROCEDURE :: get_proc, global_numbering, build_loc_to_glob
+      PROCEDURE :: build_petscSF, comm_ghost  !VB 01/07/2026
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -353,4 +355,68 @@ CONTAINS
          &to_str(this%proc))
       END IF
    END SUBROUTINE build_loc_to_glob
+
+   SUBROUTINE build_petscSF(this)
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      INTEGER :: n, nleaves, nroots, ierr
+      TYPE(PetscSFNode), DIMENSION(:), ALLOCATABLE :: roots
+
+      !=== CREATE PETSC SF
+      CALL PetscSFCreate(this%comm, this%sf_node, ierr)
+      CALL PetscSFSetFromOptions(this%sf_node, ierr)
+
+      nleaves = this%np - this%dom_np
+      nroots  = this%dom_np
+      ALLOCATE(roots(nleaves))
+      DO n=1, nleaves
+          !=== WARNING: petsc conventions indexing starts from 0, not 1
+          roots(n)%rank = this%proc_np_loc(1, n) - 1
+          roots(n)%index = this%proc_np_loc(2, n) - 1
+          !=== WARNING: petsc conventions indexing starts from 0, not 1
+      END DO
+      CALL PetscSFSetGraph(this%sf_node, nroots, nleaves, PETSC_NULL_INTEGER_ARRAY, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+      !=== CREATE PETSC SF
+
+   END SUBROUTINE build_petscSF
+
+   SUBROUTINE comm_ghost(this, un, op)
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      CLASS(mesh_type) :: this
+      REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
+      INTEGER, INTENT(IN) :: op
+
+      CALL reduce_ghost(un, this, op)
+      CALL cast_ghost(un, this)
+   CONTAINS
+      SUBROUTINE reduce_ghost(un, mesh, op)
+         USE my_util, ONLY: error_petsc, to_str
+         IMPLICIT NONE
+         INTEGER :: ierr
+         CLASS(mesh_type), INTENT(IN) :: mesh
+         REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
+         INTEGER, INTENT(IN) :: op
+         INTEGER, DIMENSION(5), PARAMETER :: op_tab = (/MPI_REPLACE, MPI_SUM, MPI_PROD, MPI_MIN, MPI_MAX/)
+
+         IF (.NOT. ANY(op==op_tab)) THEN
+             CALL error_petsc("Invalid operation for reduce_ghost "//to_str(op)//"; should be "//to_str(op_tab))
+         END IF
+
+         CALL PetscSFReduceBegin(mesh%sf_node, MPI_DOUBLE_PRECISION, un(mesh%dom_np+1:mesh%np), un(1:mesh%dom_np), op, ierr)
+         CALL PetscSFReduceEnd(mesh%sf_node, MPI_DOUBLE_PRECISION, un(mesh%dom_np+1:mesh%np), un(1:mesh%dom_np), op, ierr)
+      END SUBROUTINE reduce_ghost
+
+      SUBROUTINE cast_ghost(un, mesh)
+         IMPLICIT NONE
+         INTEGER :: ierr
+         CLASS(mesh_type), INTENT(IN) :: mesh
+         REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
+
+         CALL PetscSFBcastBegin(mesh%sf_node, MPI_DOUBLE_PRECISION, un(1:mesh%dom_np), un(mesh%dom_np+1:mesh%np), MPI_REPLACE, ierr)
+         CALL PetscSFBcastEnd(mesh%sf_node, MPI_DOUBLE_PRECISION, un(1:mesh%dom_np), un(mesh%dom_np+1:mesh%np), MPI_REPLACE, ierr)
+      END SUBROUTINE cast_ghost
+   END SUBROUTINE comm_ghost
+
 END MODULE def_type_mesh

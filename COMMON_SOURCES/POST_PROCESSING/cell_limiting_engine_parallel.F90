@@ -501,7 +501,6 @@ CONTAINS
       INTEGER,                              INTENT(IN) :: nth_fonctional
       REAL(KIND=8), DIMENSION(:),       INTENT(INOUT)  :: psi_min
       REAL(KIND=8) :: norm
-      ! REAL(KIND=8), INTENT(IN)               :: glob_min, glob_max
       REAL(KIND=8), DIMENSION(SIZE(state, 1)) :: alpha, denom, denom_ref, mask
       INTEGER,      DIMENSION(SIZE(state, 1)) ::   beta
       REAL(KIND=8), DIMENSION(SIZE(state, 1)) ::   un 
@@ -557,7 +556,6 @@ CONTAINS
 
          CALL extract_through_ghost(this%xvect3, 1, 1, this%LA, mask, opt_assemble=.FALSE.)
 
-         !TEST
          WHERE(ABS(mask)>1.d-1)
             mask = 0.d0
          ELSEWHERE
@@ -571,8 +569,7 @@ CONTAINS
             END DO
          END DO
          denom = denom*mask
-         CALL array_to_petsc_vec(denom, this%xvect3, this%LA, "min")
-         CALL extract_through_ghost(this%xvect3, 1, 1, this%LA, denom, opt_assemble=.FALSE.)
+         CALL this%mesh%comm_ghost(denom, MPI_MIN)
       CASE DEFAULT
          WRITE(*,*) ' BUG in relax, method not implemented: ', TRIM(ADJUSTL(this%limiting_functionals(nth_fonctional)%char_relaxation_method))
          STOP
