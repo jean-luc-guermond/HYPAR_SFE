@@ -22,11 +22,13 @@ endif()
 #============ SETTING VARIABLES FOR COMPILATION  =============
 #=============================================================
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
-    " Flags used by the compiler during release builds. ")
-set(CMAKE_Fortran_FLAGS_NATIVE ${native_bounds} CACHE STRING
-        " Flags used by the compiler during native builds. ")
+set(CMAKE_Fortran_FLAGS_DEBUG "${debug_bounds}")
+set(CMAKE_Fortran_FLAGS_RELEASE "${release_bounds}")
+set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}")# CACHE STRING
+# set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
+# set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}")
+# set(CMAKE_Fortran_FLAGS_NATIVE "${CMAKE_Fortran_FLAGS_NATIVE} ${native_bounds}")# CACHE STRING
+        # " Flags used by the compiler during native builds. ")
 
 ADD_CUSTOM_TARGET(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
@@ -67,8 +69,34 @@ endif()
 # set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
 set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${FE_dim}D/mod)
 
+
+# Create a list of the files to be preprocessed
+# set(fppFiles limiter.fpp)
+file(GLOB_RECURSE fppFiles CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/TEMPLATED/*.fpp)
+
+# Pre-process
+foreach(infile IN LISTS fppFiles)
+
+    # Generate output file name
+    string(REGEX REPLACE ".fpp\$" ".F90" outfile "${infile}")
+
+    # Custom command to do the processing
+    add_custom_command(
+        OUTPUT "${outfile}"
+        COMMAND fypp "${infile}" "${outfile}"
+        MAIN_DEPENDENCY "${infile}"
+        VERBATIM)
+
+    # Finally add output file to a list
+    set(outFiles ${outFiles} "${outfile}")
+    # message(STATUS "${outfile}")
+    # message(STATUS "${outFiles}")
+endforeach(infile)
+
+
 # Building local sources
-file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)   
+file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)
+list(APPEND local_sources ${outFiles})
 add_executable(${exe} ${local_sources})
 
 set_target_properties(${exe} PROPERTIES

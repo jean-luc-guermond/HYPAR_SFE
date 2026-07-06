@@ -5,12 +5,13 @@ MODULE navier_stokes_module
    USE petsc_tools,                          ONLY: array_to_petsc_vec
    USE euler_type_module,                    ONLY: euler_type
    USE stokes_parabolic_module,              ONLY: stokes_parabolic_type
-   USE cell_limiting_engine_parallel_module, ONLY: limiting_type, limiting_functional_type, limiting_all_functional_type
+   USE euler_cell_limiting_engine_parallel_module, ONLY: limiting_type, limiting_functional_type, limiting_all_functional_type
    USE def_type_mesh,                        ONLY: mesh_type
    USE read_inputs_module,                   ONLY: rec_length
    USE space_dim,                            ONLY: k_dim
    USE Butcher_tableau
    USE Implicit_Butcher_tableau
+USE profiler_module
 !>> limited global uses to avoid unexpected behaviors
 
  IMPLICIT NONE
@@ -40,6 +41,7 @@ MODULE navier_stokes_module
         TYPE(IBT)                    :: IRK
         TYPE(euler_type)             :: euler
         TYPE(stokes_parabolic_type)  :: stokes
+type(profiler_type) :: profiler
     CONTAINS
         PROCEDURE, PUBLIC   :: init => init_navier_stokes
         PROCEDURE, PUBLIC   :: update
@@ -60,6 +62,7 @@ SUBROUTINE init_navier_stokes(this, communicator, name, mesh, limiting_functiona
     CHARACTER(LEN=*),             INTENT(IN) :: name
     TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
     TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals_euler
+character(len=10), dimension(:), allocatable :: list_profiler
 
     this%name = name
     this%mesh => mesh
@@ -84,6 +87,14 @@ SUBROUTINE init_navier_stokes(this, communicator, name, mesh, limiting_functiona
     this%stokes%cv                  = this%cv
     this%stokes%irk_sv              = this%imex_sv
     CALL this%stokes%init(communicator, TRIM(ADJUSTL(name)) // '/Stokes', mesh)
+
+    !===Profiling
+    ALLOCATE(list_profiler(3))
+    list_profiler(1) = 'NS'
+    list_profiler(2) = 'euler'
+    list_profiler(3) = 'stokes'
+
+    CALL this%profiler%init(list_profiler)
 
 END SUBROUTINE init_navier_stokes
 
@@ -140,16 +151,21 @@ SUBROUTINE update(this,un_in)
     CLASS(navier_stokes_type)                                          :: this
     REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim)               :: un_in
     REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s+1) :: urk
-    REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%ERK%s)   :: euler_flux_rk_at_dof
 
     INTEGER  :: stage
     urk(:,:,1) = un_in
+call this%profiler%start(1)
     DO stage = 2, this%ERK%s+1
-        CALL this%euler%one_step_ERK(stage,urk,euler_flux_rk_at_dof)
+call this%profiler%start(2)
+        CALL this%euler%one_step_ERK(stage,urk)
+call this%profiler%end(2)
         this%dt = this%euler%dt
         this%stokes%dt = this%euler%dt
+call this%profiler%start(3)
         CALL this%stokes%one_step_IRK(stage,urk)
+call this%profiler%end(3)
     END DO
+call this%profiler%end(1)
     un_in = urk(:,:,this%ERK%s+1)
     this%time = this%time + this%dt
     this%euler%time = this%euler%time + this%dt

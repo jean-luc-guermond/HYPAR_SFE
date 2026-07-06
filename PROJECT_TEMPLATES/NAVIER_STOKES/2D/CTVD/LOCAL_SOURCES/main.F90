@@ -83,7 +83,8 @@ PROGRAM prog
   CALL make_vtu_file_2D(navier_stokes%communicator, navier_stokes%mesh, 'rho', un(:, 1), 'density', 'new', opt_it=0)
   CALL make_vtu_file_2D(navier_stokes%communicator, navier_stokes%mesh, 'rho_schlieren', grad, 'density_schlieren', 'new', opt_it=0)
 
-
+call navier_stokes%profiler%output()
+call navier_stokes%stokes%profiler%output()
 !=========================!
 !==== REGRESSION TEST ====!
 !=========================!

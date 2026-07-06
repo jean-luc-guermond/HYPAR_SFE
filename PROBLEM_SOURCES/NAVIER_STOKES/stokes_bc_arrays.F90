@@ -1,6 +1,6 @@
 MODULE stokes_bc_arrays
    USE dirichlet_type_module, ONLY : dirichlet_bc
-   USE def_type_mesh,         ONLY : mesh_type, petsc_csr_LA
+   USE def_type_mesh,         ONLY : mesh_type
    USE space_dim
 
    TYPE :: stokes_bc_type

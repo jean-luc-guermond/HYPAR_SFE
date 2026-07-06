@@ -5,6 +5,7 @@ MODULE start_setup_MODULE
     USE def_type_mesh
     USE read_inputs_module
     USE setup
+    USE petsc_csr_LA_module, ONLY: petsc_csr_LA
 
     TYPE argument_setup_data_type
         CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='

@@ -11,6 +11,7 @@ CONTAINS
   SUBROUTINE periodic_matrix_petsc(periodic, LA, matrix)
     USE dyn_line_type
     USE def_type_mesh
+    USE petsc_csr_LA_module
     USE my_util
 #include "petsc/finclude/petsc.h"
     USE petsc
@@ -88,6 +89,7 @@ CONTAINS
    SUBROUTINE periodic_rhs_petsc(n_bord, list, perlist, v_rhs, LA)
       USE dyn_line_type
       USE def_type_mesh
+      USE petsc_csr_LA_module
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
@@ -127,6 +129,7 @@ CONTAINS
    SUBROUTINE periodic_vector_petsc(nb_per_edges, list, perlist, vec_in, LA)
       USE dyn_line_type
       USE def_type_mesh
+      USE petsc_csr_LA_module
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
@@ -162,6 +165,7 @@ CONTAINS
    SUBROUTINE periodic_add_vector_petsc(nb_per_edges, list, perlist, vec_in, LA)
       USE dyn_line_type
       USE def_type_mesh
+      USE petsc_csr_LA_module
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE

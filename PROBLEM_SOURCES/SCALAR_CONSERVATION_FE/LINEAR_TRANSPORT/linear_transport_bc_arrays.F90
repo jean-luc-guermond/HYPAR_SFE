@@ -1,6 +1,6 @@
 MODULE linear_transport_bc_arrays
    USE dirichlet_type_module, ONLY : dirichlet_bc
-   USE def_type_mesh,         ONLY : mesh_type, petsc_csr_LA
+   USE def_type_mesh,         ONLY : mesh_type
 
    TYPE :: linear_transport_bc_type
       TYPE(dirichlet_bc) :: rho_bc

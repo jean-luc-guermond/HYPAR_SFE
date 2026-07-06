@@ -14,6 +14,7 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
      CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
+     CHARACTER(LEN=rec_length) :: erk_sv             = '=== ERK ? ==='
   END TYPE argument_setup_data_type
 
   TYPE setup_data_type
@@ -25,6 +26,7 @@ MODULE start_setup_MODULE
      INTEGER        :: max_it              = 1000000
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
+     INTEGER        :: erk_sv              = -31 
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
@@ -85,8 +87,10 @@ CONTAINS
     limiting_functionals_linear_transport(2)%name = "minus max"
     !=== Define linear_transport limiting bounds
     
-    CALL linear_transport%init_hyperbolic(communicator, name, mesh, LA, times, limiting_functionals_linear_transport)
+    linear_transport%erk_sv = setup_data%erk_sv
+    CALL linear_transport%init_hyperbolic(communicator, name, mesh, limiting_functionals_linear_transport)
     CALL init_state_functions(linear_transport)
+    CALL linear_transport%set_times(times)
 
   END SUBROUTINE start_setup
 
@@ -129,6 +133,9 @@ CONTAINS
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
+
+    !===erk_sv
+    CALL read_data(argument_data%erk_sv, this%erk_sv)
 
     !===Regression test
     CALL getarg(1, string)

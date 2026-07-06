@@ -8,6 +8,7 @@ MODULE start_setup_MODULE
     USE stokes_parabolic_matrices_module
     USE solver_data_module
     USE dirichlet_type_module
+    USE petsc_csr_LA_module, ONLY: petsc_csr_LA
 
     TYPE argument_setup_data_type
         CHARACTER(LEN=rec_length) :: if_analytical_ref    = '=== Do we compare with analytical reference? (true/false) ==='

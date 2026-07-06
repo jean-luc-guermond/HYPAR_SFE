@@ -243,6 +243,7 @@ CONTAINS
    SUBROUTINE create_local_petsc_matrix(communicator, LA, matrix, clean)
       USE def_type_mesh
       use petsc
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(petsc_csr_LA) :: LA
       LOGICAL, OPTIONAL :: clean

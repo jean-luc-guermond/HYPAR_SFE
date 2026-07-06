@@ -2,6 +2,8 @@ MODULE stokes_parabolic_matrices_module
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
+   USE petsc_csr_LA_module
+
    USE solver_petsc
    USE periodic_data_module
    USE compute_periodic

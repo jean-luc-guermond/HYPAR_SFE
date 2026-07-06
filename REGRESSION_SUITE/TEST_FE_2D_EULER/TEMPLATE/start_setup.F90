@@ -2,10 +2,13 @@ MODULE start_setup_MODULE
 #include "petsc/finclude/petsc.h"
   USE petsc
   USE def_type_mesh
+  USE petsc_csr_LA_module, ONLY: petsc_csr_LA
   USE euler_type_module
-  USE limiting_functionals_euler_module, ONLY: psi_rho_min, psi_rho_max,&
-                               zero_of_psi_rho_max, zero_of_psi_rho_min
-  USE cell_limiting_engine_parallel_module
+  USE limiting_functionals_euler_module, ONLY: psi_euler_rho_min, psi_euler_rho_max,&
+                               zero_of_psi_euler_rho_max, zero_of_psi_euler_rho_min
+  USE euler_cell_limiting_engine_parallel_module
+  USE euler_limiter_cell_elt
+  USE euler_uij_bar_bounds
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
@@ -75,13 +78,18 @@ CONTAINS
     CALL euler%init_euler(name)
 
     !=== Define Euler limiting bounds (should we put this in PROBLEM_SOURCES instead?)
+    euler%compute_bounds_uijbar => euler_compute_bounds_uijbar
+
     ALLOCATE(limiting_functionals_euler(2))
-    limiting_functionals_euler(1)%psi => psi_rho_min
-    limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_euler(1)%psi => psi_euler_rho_min
+    limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_euler_rho_min
     limiting_functionals_euler(1)%name = 'rho min'
-    limiting_functionals_euler(2)%psi => psi_rho_max
-    limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_euler(2)%psi => psi_euler_rho_max
+    limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_euler_rho_max
     limiting_functionals_euler(2)%name = 'minus rho max'
+
+    limiting_functionals_euler(1)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_min
+    limiting_functionals_euler(2)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_max 
     !=== Define Euler limiting bounds
     
     euler%erk_sv = setup_data%erk_sv

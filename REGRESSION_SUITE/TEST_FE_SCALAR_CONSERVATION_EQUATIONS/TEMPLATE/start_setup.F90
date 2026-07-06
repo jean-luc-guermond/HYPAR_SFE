@@ -1,13 +1,16 @@
 MODULE start_setup_MODULE
 #include "petsc/finclude/petsc.h"
   USE petsc
-  USE def_type_mesh
-  USE linear_transport_type_module
-
+  USE def_type_mesh, ONLY: mesh_type
+  USE linear_transport_type_module, ONLY: linear_transport_type
+  USE petsc_csr_LA_module, ONLY: petsc_csr_LA
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions, my_linear_transport
-  USE cell_limiting_engine_parallel_module
-  USE limiting_functionals_euler_module, ONLY: psi_rho_min, zero_of_psi_rho_min, psi_rho_max, zero_of_psi_rho_max
+  USE linear_transport_cell_limiting_engine_parallel_module
+  USE limiting_functionals_linear_transport_module, ONLY: psi_scalar_rho_min, zero_of_psi_scalar_rho_min, &
+                                                          psi_scalar_rho_max, zero_of_psi_scalar_rho_max
+  USE linear_transport_limiter_cell_elt
+  USE linear_transport_uij_bar_bounds
 
   TYPE argument_setup_data_type
       CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
@@ -74,13 +77,18 @@ CONTAINS
     CALL linear_transport%init_linear_transport(name)
 
     !=== Define linear_transport limiting bounds (should we put this in PROBLEM_SOURCES instead?)
+    linear_transport%compute_bounds_uijbar => linear_transport_compute_bounds_uijbar
+
     ALLOCATE(limiting_functionals_linear_transport(2))
-    limiting_functionals_linear_transport(1)%psi => psi_rho_min
-    limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_linear_transport(1)%psi => psi_scalar_rho_min
+    limiting_functionals_linear_transport(1)%zero_of_psi => zero_of_psi_scalar_rho_min
     limiting_functionals_linear_transport(1)%name = "min"
-    limiting_functionals_linear_transport(2)%psi => psi_rho_max
-    limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_linear_transport(2)%psi => psi_scalar_rho_max
+    limiting_functionals_linear_transport(2)%zero_of_psi => zero_of_psi_scalar_rho_max
     limiting_functionals_linear_transport(2)%name = "minus max"
+
+    limiting_functionals_linear_transport(1)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_scalar_rho_min
+    limiting_functionals_linear_transport(2)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_scalar_rho_max 
     !=== Define linear_transport limiting bounds
     
     linear_transport%erk_sv = setup_data%erk_sv

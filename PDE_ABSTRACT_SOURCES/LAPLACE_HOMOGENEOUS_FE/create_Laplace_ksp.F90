@@ -1,7 +1,9 @@
 MODULE create_laplace_solver_ksp_module
 #include "petsc/finclude/petsc.h"
     USE petsc
-    USE def_type_mesh,         ONLY: mesh_type, petsc_csr_LA
+    USE def_type_mesh,         ONLY: mesh_type
+    USE petsc_csr_LA_module,   ONLY: petsc_csr_LA
+
     USE dirichlet_type_module, ONLY: dirichlet_bc
     USE solver_data_module,    ONLY: solver_data_type
     USE read_inputs_module,    ONLY: rec_length

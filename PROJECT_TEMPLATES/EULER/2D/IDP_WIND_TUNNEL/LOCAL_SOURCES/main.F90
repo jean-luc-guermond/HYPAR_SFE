@@ -4,17 +4,13 @@ PROGRAM prog
   USE start_setup_MODULE
   USE setup
   USE sub_plot
-  USE plot_vtu_module
-  USE euler_post_proc_module
   USE my_util
-  USE ETA_module
   IMPLICIT NONE
   REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
-  REAL(KIND=8), DIMENSION(:),      ALLOCATABLE :: grad
   REAL(KIND = 8) :: tps
   CHARACTER(5) :: char
   INTEGER :: n, tot_np, code, num_test
-  TYPE(ETA_type) :: ETA
+
 !========================!
 !==== INITIALIZATION ====!
 !========================!
@@ -29,18 +25,14 @@ PROGRAM prog
 !=====================!
 !==== SOLVER LOOP ====!
 !=====================!
-  CALL ETA%init(euler%mesh%rank)
+
   tps = user_time()
   n = 0
   DO WHILE(euler%time < setup_data%final_time)
     CALL euler%update(un)
     n = n + 1
-    CALL ETA%update(euler%dt)
     IF (MOD(n, setup_data%verbose_freq)==0) THEN
-        CALL ETA%print(euler%time, setup_data%final_time)
-        ! IF (euler%mesh%rank==0) THEN
-        !   write(*, *) n, euler%time, euler%dt
-        ! END IF
+        IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
     END IF
     IF (n == setup_data%max_it) THEN
         IF (euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
@@ -56,13 +48,14 @@ PROGRAM prog
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', euler%mesh%nb_proc*tps/(tot_np*n), tps, n
+     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n*(euler%ERK%s)), tps, n*(euler%ERK%s)
+     WRITE(*,*) ' Time per time step per dof times proc divided by limiter it', &
+     tps/(tot_np*n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)), tps, &
+     n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)
   END IF
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
-  ALLOCATE(grad(euler%mesh%np))
-  CALL schlieren(euler,un(:, 1),grad)
-  CALL make_vtu_file_2D(euler%communicator, euler%mesh, 'rho', un(:, 1), 'density', 'new', opt_it=0)
-  CALL make_vtu_file_2D(euler%communicator, euler%mesh, 'rho_schlieren', grad, 'density_schlieren', 'new', opt_it=0)
+  ! CALL euler%profiler%output
+
 !=========================!
 !==== REGRESSION TEST ====!
 !=========================!

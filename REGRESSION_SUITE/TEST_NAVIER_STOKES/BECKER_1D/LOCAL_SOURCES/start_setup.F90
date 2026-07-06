@@ -3,9 +3,10 @@ MODULE start_setup_MODULE
   USE petsc
   USE def_type_mesh
   USE navier_stokes_module
-  USE limiting_functionals_euler_module, ONLY: psi_rho_min, psi_rho_max,&
-                               zero_of_psi_rho_max, zero_of_psi_rho_min
-  USE cell_limiting_engine_parallel_module
+  USE limiting_functionals_euler_module, ONLY: psi_euler_rho_min, psi_euler_rho_max,&
+                               zero_of_psi_euler_rho_max, zero_of_psi_euler_rho_min
+  USE euler_cell_limiting_engine_parallel_module
+  USE petsc_csr_LA_module, ONLY: petsc_csr_LA
 
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
@@ -73,11 +74,11 @@ CONTAINS
 
     !=== Define Euler limiting bounds (should we put this in PROBLEM_SOURCES instead?)
     ALLOCATE(limiting_functionals_euler(2))
-    limiting_functionals_euler(1)%psi => psi_rho_min
-    limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_rho_min
+    limiting_functionals_euler(1)%psi => psi_euler_rho_min
+    limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_euler_rho_min
     limiting_functionals_euler(1)%name = 'rho min'
-    limiting_functionals_euler(2)%psi => psi_rho_max
-    limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_rho_max
+    limiting_functionals_euler(2)%psi => psi_euler_rho_max
+    limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_euler_rho_max
     limiting_functionals_euler(2)%name = 'minus rho max'
     !=== Define Euler limiting bounds
 

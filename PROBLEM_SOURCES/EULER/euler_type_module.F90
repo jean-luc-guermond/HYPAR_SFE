@@ -2,11 +2,13 @@ MODULE euler_type_module
 !>> limited global uses to avoid unexpected behaviors
 #include "petsc/finclude/petsc.h"
    USE petsc
-   USE abstract_hyperbolic_module, ONLY: hyperbolic_type
+   USE euler_abstract_hyperbolic_module, ONLY: hyperbolic_type
    USE euler_bc_arrays, ONLY : euler_bc_type
    USE Butcher_tableau
-   USE cell_limiting_engine_parallel_module, ONLY : limiting_type
-   USE def_type_mesh, ONLY : mesh_type, petsc_csr_LA
+   USE euler_cell_limiting_engine_parallel_module, ONLY : limiting_type
+   USE def_type_mesh, ONLY : mesh_type
+   USE petsc_csr_LA_module, ONLY: petsc_csr_LA
+
    USE read_inputs_module,    ONLY : rec_length
 !>> limited global uses to avoid unexpected behaviors
 
@@ -160,7 +162,7 @@ CONTAINS
       USE space_dim
       IMPLICIT NONE
       CLASS(euler_type),                                 INTENT(INOUT) :: this
-      REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
+      REAL(KIND=8), DIMENSION(this%mesh%np, k_dim+2), INTENT(IN) :: un
       INTEGER,                                              INTENT(IN) :: i, j
       REAL(KIND = 8), DIMENSION(k_dim),                     INTENT(IN) :: nij
       REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max

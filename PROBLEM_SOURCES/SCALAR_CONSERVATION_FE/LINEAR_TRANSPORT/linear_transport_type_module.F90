@@ -2,10 +2,12 @@ MODULE linear_transport_type_module
 !>> limited global uses to avoid unexpected behaviors
 #include "petsc/finclude/petsc.h"
    USE petsc
-   USE abstract_hyperbolic_module,           ONLY: hyperbolic_type
+   USE linear_transport_abstract_hyperbolic_module,           ONLY: hyperbolic_type
    USE linear_transport_bc_arrays,           ONLY: linear_transport_bc_type
    USE Butcher_tableau
-   USE def_type_mesh,                        ONLY: mesh_type, petsc_csr_LA
+   ! USE def_type_mesh,                        ONLY: mesh_type
+   ! USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
+
    USE read_inputs_module,                   ONLY: rec_length
    USE space_dim,                            ONLY: k_dim
 !>> limited global uses to avoid unexpected behaviors
@@ -120,11 +122,10 @@ CONTAINS
    END FUNCTION flux_linear_transport
 
    SUBROUTINE lambda_linear_transport(this, un, i, j, nij, lambda_max)
-      USE arbitrary_eos_lambda_module
       USE space_dim
       IMPLICIT NONE
       CLASS(linear_transport_type),                      INTENT(INOUT) :: this
-      REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(IN) :: un
+      REAL(KIND=8), DIMENSION(this%mesh%np, 1), INTENT(IN) :: un
       INTEGER,                                              INTENT(IN) :: i, j
       REAL(KIND=8), DIMENSION(k_dim),                       INTENT(IN) :: nij
       REAL(KIND=8), DIMENSION(2),                          INTENT(OUT) :: lambda_max
@@ -155,7 +156,9 @@ CONTAINS
 
    SUBROUTINE construct_linear_transport_bc(this, mesh, LA)
       USE petsc
-#include "petsc/finclude/petsc.h" 
+#include "petsc/finclude/petsc.h"
+      USE def_type_mesh,                        ONLY: mesh_type
+      USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
       IMPLICIT NONE
       CLASS(linear_transport_type), INTENT(INOUT) :: this
       TYPE(mesh_type)                            :: mesh

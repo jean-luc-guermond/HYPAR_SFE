@@ -10,17 +10,19 @@ MODULE def_type_mesh
    USE petsc
    IMPLICIT NONE
 
+   INTEGER, DIMENSION(5), PARAMETER :: op_tab = (/MPI_REPLACE, MPI_SUM, MPI_PROD, MPI_MIN, MPI_MAX/)
+
    TYPE aij_type
       INTEGER, POINTER, DIMENSION(:) :: ia, ja
    END TYPE aij_type
 
-   TYPE petsc_csr_LA
-      INTEGER, DIMENSION(:), POINTER :: ia, ja
-      INTEGER, DIMENSION(:, :), POINTER :: loc_to_glob
-      INTEGER :: kmax
-      INTEGER, DIMENSION(:), POINTER :: np
-      INTEGER, DIMENSION(:), POINTER :: dom_np
-   END TYPE petsc_csr_LA
+   ! TYPE petsc_csr_LA
+   !    INTEGER, DIMENSION(:), POINTER :: ia, ja
+   !    INTEGER, DIMENSION(:, :), POINTER :: loc_to_glob
+   !    INTEGER :: kmax
+   !    INTEGER, DIMENSION(:), POINTER :: np
+   !    INTEGER, DIMENSION(:), POINTER :: dom_np
+   ! END TYPE petsc_csr_LA
 
    !------------------------------------------------------------------------------
    !  REAL(KIND=8), DIMENSION(n_w,  l_G),  PUBLIC :: ww
@@ -119,7 +121,7 @@ MODULE def_type_mesh
       PROCEDURE :: side_edge
       PROCEDURE :: create_comm, gather_dom_np, gather_me, gather_medge
       PROCEDURE :: get_proc, global_numbering, build_loc_to_glob
-      PROCEDURE :: build_petscSF, comm_ghost  !VB 01/07/2026
+      PROCEDURE :: build_petscSF, ghost_to_bulk, bulk_to_ghost_real, bulk_to_ghost_int, reduce_through_ghost  !VB 01/07/2026
    END TYPE mesh_type
 
    TYPE mesh_type_interface
@@ -381,42 +383,63 @@ CONTAINS
 
    END SUBROUTINE build_petscSF
 
-   SUBROUTINE comm_ghost(this, un, op)
+   SUBROUTINE reduce_through_ghost(this, un, op)
       USE my_util, ONLY: error_petsc, to_str
       IMPLICIT NONE
-      CLASS(mesh_type) :: this
-      REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
-      INTEGER, INTENT(IN) :: op
+      CLASS(mesh_type),              INTENT(IN) :: this
+      REAL(KIND=8), DIMENSION(this%np), INTENT(INOUT) :: un
+      INTEGER,                       INTENT(IN) :: op
 
-      CALL reduce_ghost(un, this, op)
-      CALL cast_ghost(un, this)
-   CONTAINS
-      SUBROUTINE reduce_ghost(un, mesh, op)
-         USE my_util, ONLY: error_petsc, to_str
-         IMPLICIT NONE
-         INTEGER :: ierr
-         CLASS(mesh_type), INTENT(IN) :: mesh
-         REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
-         INTEGER, INTENT(IN) :: op
-         INTEGER, DIMENSION(5), PARAMETER :: op_tab = (/MPI_REPLACE, MPI_SUM, MPI_PROD, MPI_MIN, MPI_MAX/)
+      CALL this%ghost_to_bulk(un, op)
+      CALL this%bulk_to_ghost_real(un, MPI_REPLACE)
+   END SUBROUTINE reduce_through_ghost
 
-         IF (.NOT. ANY(op==op_tab)) THEN
-             CALL error_petsc("Invalid operation for reduce_ghost "//to_str(op)//"; should be "//to_str(op_tab))
-         END IF
+   SUBROUTINE ghost_to_bulk(this, un, op)
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      INTEGER :: ierr
+      CLASS(mesh_type),              INTENT(IN) :: this
+      REAL(KIND=8), DIMENSION(this%np), INTENT(INOUT) :: un
+      INTEGER,                       INTENT(IN) :: op
 
-         CALL PetscSFReduceBegin(mesh%sf_node, MPI_DOUBLE_PRECISION, un(mesh%dom_np+1:mesh%np), un(1:mesh%dom_np), op, ierr)
-         CALL PetscSFReduceEnd(mesh%sf_node, MPI_DOUBLE_PRECISION, un(mesh%dom_np+1:mesh%np), un(1:mesh%dom_np), op, ierr)
-      END SUBROUTINE reduce_ghost
+      IF (.NOT. ANY(op==op_tab)) THEN
+            CALL error_petsc("Invalid operation for ghost_to_bulk "//to_str(op)//"; should be "//to_str(op_tab))
+      END IF
 
-      SUBROUTINE cast_ghost(un, mesh)
-         IMPLICIT NONE
-         INTEGER :: ierr
-         CLASS(mesh_type), INTENT(IN) :: mesh
-         REAL(KIND=8), DIMENSION(:), INTENT(INOUT) :: un
+      CALL PetscSFReduceBegin(this%sf_node, MPI_DOUBLE_PRECISION, un(this%dom_np+1:this%np), un(1:this%dom_np), op, ierr)
+      CALL PetscSFReduceEnd(this%sf_node, MPI_DOUBLE_PRECISION, un(this%dom_np+1:this%np), un(1:this%dom_np), op, ierr)
+   END SUBROUTINE ghost_to_bulk
 
-         CALL PetscSFBcastBegin(mesh%sf_node, MPI_DOUBLE_PRECISION, un(1:mesh%dom_np), un(mesh%dom_np+1:mesh%np), MPI_REPLACE, ierr)
-         CALL PetscSFBcastEnd(mesh%sf_node, MPI_DOUBLE_PRECISION, un(1:mesh%dom_np), un(mesh%dom_np+1:mesh%np), MPI_REPLACE, ierr)
-      END SUBROUTINE cast_ghost
-   END SUBROUTINE comm_ghost
+   SUBROUTINE bulk_to_ghost_int(this, un, op)
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      INTEGER :: ierr
+      CLASS(mesh_type),              INTENT(IN) :: this
+      INTEGER, DIMENSION(this%np),      INTENT(INOUT) :: un
+      INTEGER,                       INTENT(IN) :: op
+
+      IF (.NOT. ANY(op==op_tab)) THEN
+            CALL error_petsc("Invalid operation for bulk_to_ghost_int "//to_str(op)//"; should be "//to_str(op_tab))
+      END IF
+
+      CALL PetscSFBcastBegin(this%sf_node, MPI_INTEGER, un(1:this%dom_np), un(this%dom_np+1:this%np), op, ierr)
+      CALL PetscSFBcastEnd(this%sf_node, MPI_INTEGER, un(1:this%dom_np), un(this%dom_np+1:this%np), op, ierr)
+   END SUBROUTINE bulk_to_ghost_int
+
+   SUBROUTINE bulk_to_ghost_real(this, un, op)
+      USE my_util, ONLY: error_petsc, to_str
+      IMPLICIT NONE
+      INTEGER :: ierr
+      CLASS(mesh_type),              INTENT(IN) :: this
+      REAL(KIND=8), DIMENSION(this%np), INTENT(INOUT) :: un
+      INTEGER,                       INTENT(IN) :: op
+
+      IF (.NOT. ANY(op==op_tab)) THEN
+            CALL error_petsc("Invalid operation for bulk_to_ghost_real "//to_str(op)//"; should be "//to_str(op_tab))
+      END IF
+
+      CALL PetscSFBcastBegin(this%sf_node, MPI_DOUBLE_PRECISION, un(1:this%dom_np), un(this%dom_np+1:this%np), op, ierr)
+      CALL PetscSFBcastEnd(this%sf_node, MPI_DOUBLE_PRECISION, un(1:this%dom_np), un(this%dom_np+1:this%np), op, ierr)
+   END SUBROUTINE bulk_to_ghost_real
 
 END MODULE def_type_mesh

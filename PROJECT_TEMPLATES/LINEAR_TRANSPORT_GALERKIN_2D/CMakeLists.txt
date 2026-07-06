@@ -22,10 +22,13 @@ endif()
 #============ SETTING VARIABLES FOR COMPILATION  =============
 #=============================================================
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}")
-set(CMAKE_Fortran_FLAGS_NATIVE "-O4 -march=native -mtune=native -Ofast -flto" CACHE STRING
-        " Flags used by the compiler during native builds. ")
+set(CMAKE_Fortran_FLAGS_DEBUG "${debug_bounds}")
+set(CMAKE_Fortran_FLAGS_RELEASE "${release_bounds}")
+set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}")# CACHE STRING
+# set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
+# set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}")
+# set(CMAKE_Fortran_FLAGS_NATIVE "${CMAKE_Fortran_FLAGS_NATIVE} ${native_bounds}")# CACHE STRING
+        # " Flags used by the compiler during native builds. ")
 
 ADD_CUSTOM_TARGET(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}

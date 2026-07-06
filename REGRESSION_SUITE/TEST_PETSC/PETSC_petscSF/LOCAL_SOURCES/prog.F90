@@ -6,7 +6,7 @@ PROGRAM prog_petscSF
     USE read_inputs_module
     USE my_util
     USE st_matrix
-
+    USE petsc_csr_LA_module
     IMPLICIT NONE
     TYPE(mesh_type)                    :: mesh
     TYPE(petsc_csr_LA)                 :: LA
@@ -45,19 +45,19 @@ PROGRAM prog_petscSF
 
         !=== TEST COMMUNICATIONS
         CALL init_un(un, mesh)
-        CALL mesh%comm_ghost(un, MPI_SUM)
+        CALL mesh%reduce_through_ghost(un, MPI_SUM)
         CALL write_output(un, mesh, "SUM")
 
         CALL init_un(un, mesh)
-        CALL mesh%comm_ghost(un, MPI_MAX)
+        CALL mesh%reduce_through_ghost(un, MPI_MAX)
         CALL write_output(un, mesh, "MAX")
 
         CALL init_un(un, mesh)
-        CALL mesh%comm_ghost(un, MPI_MIN)
+        CALL mesh%reduce_through_ghost(un, MPI_MIN)
         CALL write_output(un, mesh, "MIN")
 
         CALL init_un(un, mesh)
-        CALL mesh%comm_ghost(un, MPI_PROD)
+        CALL mesh%reduce_through_ghost(un, MPI_PROD)
         CALL write_output(un, mesh, "PROD")
     CASE(2)
         !=== initialize vectors
@@ -73,7 +73,7 @@ PROGRAM prog_petscSF
             CALL array_to_petsc_vec_min_max(un, xx, LA, 'min')
             CALL extract_through_ghost(xx, 1, 1, LA, un_extr, opt_assemble=.FALSE.)
             un_sf = un
-            CALL mesh%comm_ghost(un_sf, MPI_MIN)
+            CALL mesh%reduce_through_ghost(un_sf, MPI_MIN)
             IF (SUM(ABS(un_extr-un_sf)) > 1.d-10) THEN
                 test_passed = .FALSE.
                 ! CALL error_petsc("BUG in prog_petscSF, un_extr and un_sf not consistent")
@@ -83,7 +83,7 @@ PROGRAM prog_petscSF
             CALL array_to_petsc_vec_min_max(un, xx, LA, 'max')
             CALL extract_through_ghost(xx, 1, 1, LA, un_extr, opt_assemble=.FALSE.)
             un_sf = un
-            CALL mesh%comm_ghost(un_sf, MPI_MAX)
+            CALL mesh%reduce_through_ghost(un_sf, MPI_MAX)
             IF (SUM(ABS(un_extr-un_sf)) > 1.d-10) THEN
                 test_passed = .FALSE.
                 ! CALL error_petsc("BUG in prog_petscSF, un_extr and un_sf not consistent")
@@ -113,10 +113,10 @@ PROGRAM prog_petscSF
         tps = user_time()
         DO n=1, n_max
             un_sf = un
-            CALL mesh%comm_ghost(un_sf, MPI_MIN)
+            CALL mesh%reduce_through_ghost(un_sf, MPI_MIN)
         END DO
         tps = user_time() - tps
-        IF (mesh%rank==0) WRITE(*,*) 'Time for mesh%comm_ghost: ', tps/n_max, ' s', 'n_max: ', n_max
+        IF (mesh%rank==0) WRITE(*,*) 'Time for mesh%reduce_through_ghost: ', tps/n_max, ' s', 'n_max: ', n_max
     CASE DEFAULT
         WRITE(*,*) ' BUG in prog_petscSF, test not implemented: ', test
         STOP

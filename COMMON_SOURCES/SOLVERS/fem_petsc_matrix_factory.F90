@@ -2,31 +2,32 @@ MODULE fem_petsc_matrix_factory_module
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
+   USE petsc_csr_LA_module
 CONTAINS
-    SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
-    USE st_matrix
-    IMPLICIT NONE
-    TYPE(mesh_type), INTENT(IN) :: mesh
-    type(petsc_csr_LA), INTENT(IN) :: LA
-    Mat, INTENT(IN) :: mass
-    REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-    Vec :: vec_one, xx, x_ghost
-    INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
-    INTEGER :: ierr
+   SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
+      USE st_matrix
+      IMPLICIT NONE
+      TYPE(mesh_type), INTENT(IN) :: mesh
+      type(petsc_csr_LA), INTENT(IN) :: LA
+      Mat, INTENT(IN) :: mass
+      REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
+      Vec :: vec_one, xx, x_ghost
+      INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
+      INTEGER :: ierr
 
-    !===Create ghost structure
-    CALL create_my_ghost(mesh, LA, ifrom)
-    CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
-         PETSC_DETERMINE, SIZE(ifrom), ifrom, xx, ierr)
-    CALL VecDuplicate(xx, vec_one, ierr)
+      !===Create ghost structure
+      CALL create_my_ghost(mesh, LA, ifrom)
+      CALL VecCreateGhost(PETSC_COMM_WORLD, mesh%dom_np, &
+            PETSC_DETERMINE, SIZE(ifrom), ifrom, xx, ierr)
+      CALL VecDuplicate(xx, vec_one, ierr)
 
-    CALL VecSet(vec_one, 1.d0, ierr)
-    CALL MatMult(mass, vec_one, xx, ierr)
-    CALL VecGhostGetLocalForm(xx, x_ghost, ierr)
-    CALL VecGhostUpdateBegin(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
-    CALL VecGhostUpdateEnd(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
-    CALL extract(x_ghost, 1, 1, LA, lumped_mass)
-  END SUBROUTINE construct_lumped_mass
+      CALL VecSet(vec_one, 1.d0, ierr)
+      CALL MatMult(mass, vec_one, xx, ierr)
+      CALL VecGhostGetLocalForm(xx, x_ghost, ierr)
+      CALL VecGhostUpdateBegin(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CALL VecGhostUpdateEnd(xx, INSERT_VALUES, SCATTER_FORWARD, ierr)
+      CALL extract(x_ghost, 1, 1, LA, lumped_mass)
+   END SUBROUTINE construct_lumped_mass
 
    SUBROUTINE construct_lumped_mass_vector(mesh, LA, mass, lumped_mass, opt_per)
       USE st_matrix, ONLY : create_my_ghost

@@ -8,7 +8,9 @@ CONTAINS
       !  USE sub_plot
       USE dirichlet_type_module, ONLY : dirichlet_bc
       USE space_dim
-      USE def_type_mesh, ONLY: mesh_type, petsc_csr_LA
+      USE def_type_mesh, ONLY: mesh_type
+      USE petsc_csr_LA_module, ONLY: petsc_csr_LA
+
       USE st_matrix, ONLY : create_my_ghost
       USE st_matrix,                  ONLY : extract_through_ghost
       IMPLICIT NONE

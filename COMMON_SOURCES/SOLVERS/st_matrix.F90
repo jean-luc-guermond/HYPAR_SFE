@@ -15,6 +15,7 @@ CONTAINS
 
    SUBROUTINE create_my_ghost(mesh, LA, ifrom)
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       type(petsc_csr_LA) :: LA
@@ -39,6 +40,7 @@ CONTAINS
 #include "petsc/finclude/petscvec.h"
       use petsc
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       REAL(KIND = 8), DIMENSION(:), INTENT(OUT) :: phi
       type(petsc_csr_LA) :: LA
@@ -71,7 +73,7 @@ CONTAINS
 
       !! opt_assemble = .TRUE. if need assembling xvec, .FALSE. by default
 
-      USE def_type_mesh, ONLY : petsc_csr_LA
+      USE petsc_csr_LA_module
       USE my_util,       ONLY : error_Petsc
 #include "petsc/finclude/petsc.h"
       USE petsc
@@ -204,6 +206,7 @@ CONTAINS
       !!  jj(nodes_per_element, number_of_elements)
       !!                  --->  node number in the grid
       USE def_type_mesh
+      USE petsc_csr_LA_module
       USE my_util
       USE periodic_data_module
       IMPLICIT NONE

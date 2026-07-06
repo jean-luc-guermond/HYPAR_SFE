@@ -9,6 +9,7 @@ MODULE fem_rhs
       !! LA(petsc_csr_MLA)
       !=================================
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type)    :: mesh
       type(petsc_csr_LA) :: LA
@@ -49,6 +50,7 @@ MODULE fem_rhs
    SUBROUTINE qs_00_block (mesh, LA, ff, vect)
       !=================================
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type), TARGET :: mesh
       type(petsc_csr_LA) :: LA
@@ -102,6 +104,7 @@ MODULE fem_rhs
       !! LA(petsc_csr_MLA)
       !=================================
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type)         :: mesh
       type(petsc_csr_LA)      :: LA

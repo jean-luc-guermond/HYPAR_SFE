@@ -1,4 +1,5 @@
 MODULE fem_M
+   USE petsc_csr_LA_module
    USE def_type_mesh
 #include "petsc/finclude/petsc.h"
    USE petsc

@@ -2,6 +2,7 @@ MODULE petsc_tools
 #include "petsc/finclude/petsc.h"
    USE petsc
    USE def_type_mesh
+   USE petsc_csr_LA_module
 
 CONTAINS
 

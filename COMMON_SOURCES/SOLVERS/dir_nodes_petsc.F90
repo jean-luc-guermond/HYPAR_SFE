@@ -185,6 +185,7 @@ CONTAINS
 
    SUBROUTINE scalar_with_bc_glob_js_D(pp_mesh, list_mode, pp_1_LA, pp_js_D, pp_mode_global_js_D)
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: pp_mesh
       INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
@@ -219,6 +220,7 @@ CONTAINS
 
    SUBROUTINE scalar_without_glob_js_D(pp_mesh, list_mode, pp_1_LA, pp_mode_global_js_D)
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: pp_mesh
       INTEGER, DIMENSION(:), INTENT(IN) :: list_mode
