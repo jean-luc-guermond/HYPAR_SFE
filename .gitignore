@@ -18,3 +18,8 @@ LIBS/CTestTestfile.cmake
 LIBS/Makefile
 LIBS/cmake_install.cmake
 variables.cmake
+backup*
+suite*
+*vtu
+*pvd
+__pycache__
