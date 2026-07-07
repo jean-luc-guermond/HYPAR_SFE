@@ -4,20 +4,24 @@ PROGRAM prog
   USE start_setup_MODULE
   USE setup
   USE sub_plot
+  USE euler_post_proc_module
+  USE plot_vtu_module
   USE my_util
+  USE ETA_module
   IMPLICIT NONE
-  REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
-  REAL(KIND = 8) :: tps
+  REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: grad
+  REAL(KIND = 8) :: tps, time_backup, time_snapshot
   CHARACTER(5) :: char
   INTEGER :: n, tot_np, code, num_test
+  TYPE(ETA_type) :: ETA
 
 !========================!
 !==== INITIALIZATION ====!
 !========================!
 
   CALL start_setup
-  ALLOCATE(un(mesh%np, euler%syst_dim))
-  CALL euler%bc%initial_condition(un, 0.d0, euler%mesh%rr)
+  time_backup   = euler%time + setup_data%checkpointing_freq
+  time_snapshot = euler%time + setup_data%snapshot_freq
 
   WRITE(char, '(I5)') euler%mesh%rank
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'initrho'//TRIM(ADJUSTL(char))//'.plt')
@@ -26,18 +30,40 @@ PROGRAM prog
 !==== SOLVER LOOP ====!
 !=====================!
 
+  CALL ETA%init(euler%mesh%rank, euler%time)
   tps = user_time()
   n = 0
   DO WHILE(euler%time < setup_data%final_time)
+    !===  Update Euler
     CALL euler%update(un)
+    CALL ETA%update(euler%dt)
     n = n + 1
+
+    !=== Post-proc
     IF (MOD(n, setup_data%verbose_freq)==0) THEN
-        IF (euler%mesh%rank==0) write(*, *) n, euler%time, euler%dt
+        CALL ETA%print(euler%time, setup_data%final_time)
     END IF
+    IF (euler%time > time_backup) THEN
+        IF (euler%mesh%rank==0) THEN
+          WRITE(*,*) 'overwriting Backup series'
+        END IF
+        time_backup = time_backup + setup_data%checkpointing_freq
+        CALL RW%write_restart(mesh, euler%time, un, euler%name, opt_if_series=.FALSE.)
+    END IF
+    IF (euler%time > time_snapshot) THEN
+        IF (euler%mesh%rank==0) THEN
+          WRITE(*,*) 'Writing snapshot file ', RW%counter
+        END IF
+        time_snapshot = time_snapshot + setup_data%snapshot_freq
+        CALL RW%write_restart(mesh, euler%time, un, euler%name, opt_if_series=.TRUE.)
+    END IF
+
+    !=== Stop loop
     IF (n == setup_data%max_it) THEN
         IF (euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
         EXIT
     END IF
+    !===
   END DO
   tps = user_time() - tps
 
@@ -49,12 +75,16 @@ PROGRAM prog
   IF(euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
      WRITE(*,*) ' Time per time step per dof times proc', euler%mesh%nb_proc*tps/(tot_np*n*(euler%ERK%s)), tps, n*(euler%ERK%s)
-     WRITE(*,*) ' Time per time step per dof times proc divided by limiter it', &
-     tps/(tot_np*n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)), tps, &
-     n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)
   END IF
+
   CALL plot_scalar_field(euler%mesh%jj, euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
-  ! CALL euler%profiler%output
+
+  IF (setup_data%if_final_post_proc) THEN
+    ALLOCATE(grad(euler%mesh%np))
+    CALL schlieren(euler,un(:, 1),grad)
+    CALL make_vtu_file_2D(euler%communicator, euler%mesh, 'rho', un(:, 1), 'density', 'new', opt_it=0)
+    CALL make_vtu_file_2D(euler%communicator, euler%mesh, 'rho_schlieren', grad, 'density_schlieren', 'new', opt_it=0)
+  END IF
 
 !=========================!
 !==== REGRESSION TEST ====!

@@ -1,0 +1,26 @@
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+"../../../MESHES"
+=== Name of mesh file ===
+unit_sq_0.1.FEM
+=== Is the mesh formatted? (True/False) ===
+F
+=== Do we read metis partition? (true/false) ===
+F
+================================
+!           MESH SETUP
+================================
+=== Type of finite element ===
+1
+=== Number of refinement steps ===
+1
+=== Factor of refinement ===
+2
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+=== How many pieces of periodic boundary? ===
+0

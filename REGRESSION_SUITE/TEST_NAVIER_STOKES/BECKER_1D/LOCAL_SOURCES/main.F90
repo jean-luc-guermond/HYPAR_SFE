@@ -4,12 +4,13 @@ PROGRAM prog
   USE start_setup_MODULE
   USE setup
   USE sub_plot
-  USE ETA_module
-  USE euler_post_proc_module
   USE my_util
+  USE euler_post_proc_module
+  USE plot_vtu_module
+  USE ETA_module
   IMPLICIT NONE
-  REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: un
-  REAL(KIND = 8) :: tps
+  REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: grad
+  REAL(KIND = 8) :: tps, time_backup, time_snapshot
   CHARACTER(5) :: char
   INTEGER :: n, tot_np, code, num_test
   TYPE(ETA_type) :: ETA
@@ -18,8 +19,9 @@ PROGRAM prog
 !========================!
 
   CALL start_setup
-  ALLOCATE(un(mesh%np, navier_stokes%euler%syst_dim))
-  CALL navier_stokes%euler%bc%initial_condition(un, 0.d0, navier_stokes%euler%mesh%rr)
+  time_backup   = navier_stokes%time + setup_data%checkpointing_freq
+  time_snapshot = navier_stokes%time + setup_data%snapshot_freq
+
 
   WRITE(char, '(I5)') navier_stokes%euler%mesh%rank
   CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, un(:, 1), 'initrho'//TRIM(ADJUSTL(char))//'.plt')
@@ -31,33 +33,62 @@ PROGRAM prog
   tps = user_time()
   n = 0
   DO WHILE(navier_stokes%time < setup_data%final_time)
+    !=== Update Navier-Stokes
     CALL navier_stokes%update(un)
     CALL ETA%update(navier_stokes%dt)
     n = n + 1
+    
+    !=== Post-proc
     IF (MOD(n, setup_data%verbose_freq)==0) THEN
         CALL ETA%print(navier_stokes%time, setup_data%final_time)
-        !IF (navier_stokes%euler%mesh%rank==0) write(*, *) n, navier_stokes%time, navier_stokes%dt
     END IF
+    IF (navier_stokes%time > time_backup) THEN
+        IF (navier_stokes%mesh%rank==0) THEN
+          WRITE(*,*) 'overwriting Backup series'
+        END IF
+        time_backup = time_backup + setup_data%checkpointing_freq
+        CALL RW%write_restart(mesh, navier_stokes%time, un, navier_stokes%name, opt_if_series=.FALSE.)
+    END IF
+    IF (navier_stokes%time > time_snapshot) THEN
+        IF (navier_stokes%mesh%rank==0) THEN
+          WRITE(*,*) 'Writing snapshot file ', RW%counter
+        END IF
+        time_snapshot = time_snapshot + setup_data%snapshot_freq
+        CALL RW%write_restart(mesh, navier_stokes%time, un, navier_stokes%name, opt_if_series=.TRUE.)
+    END IF
+
+    !=== Stop loop
     IF (n == setup_data%max_it) THEN
-        IF (navier_stokes%euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
+        IF (navier_stokes%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
         EXIT
     END IF
+    !===
   END DO
+  
+  !=== final backup
+  CALL RW%write_restart(mesh, navier_stokes%time, un, navier_stokes%name, opt_if_series=.FALSE.)
+
   tps = user_time() - tps
 
 !=========================!
 !==== POST-PROCESSING ====!
 !=========================!
 
-  CALL MPI_ALLREDUCE(navier_stokes%euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
-  IF(navier_stokes%euler%mesh%rank==0) THEN
+  CALL MPI_ALLREDUCE(navier_stokes%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
+  IF(navier_stokes%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n), tps, n
+     WRITE(*,*) ' Time per (time step times rk) per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n*navier_stokes%euler%ERK%s), tps, n
   END IF
-  CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
-  CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, &
-  navier_stokes%euler%bc%sol_anal(1, navier_stokes%euler%time,mesh%rr), 'rhoexact' // TRIM(ADJUSTL(char)) // '.plt')
-write(*,*) 'time', navier_stokes%time, navier_stokes%stokes%time, navier_stokes%euler%time
+  ! CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
+  ! CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, &
+  ! navier_stokes%euler%bc%sol_anal(1, navier_stokes%euler%time,mesh%rr), 'rhoexact' // TRIM(ADJUSTL(char)) // '.plt')
+
+  IF (setup_data%if_final_post_proc) THEN
+    ALLOCATE(grad(navier_stokes%mesh%np))
+    CALL schlieren(navier_stokes%euler,un(:, 1),grad)
+    CALL make_vtu_file_2D(navier_stokes%communicator, navier_stokes%mesh, 'rho', un(:, 1), 'density', 'new', opt_it=0)
+    CALL make_vtu_file_2D(navier_stokes%communicator, navier_stokes%mesh, 'rho_schlieren', grad, 'density_schlieren', 'new', opt_it=0)
+  END IF
 !=========================!
 !==== REGRESSION TEST ====!
 !=========================!

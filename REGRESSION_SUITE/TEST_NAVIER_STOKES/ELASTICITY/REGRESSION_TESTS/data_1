@@ -28,6 +28,38 @@ F
 4
 === List of Dirichlet boundaries for bcs on scalar ===
 1 2 3 4
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Do we compare with analytical reference? (true/false) ===
+T
+=== Value of mu viscosity ===
+0.01
+=== Value of lambda viscosity ===
+0.01
+=== Value of thermal diffusivity ===
+0.0000000000000000
+=== Value of thermal capacity at constant volume ===
+0.0000000000000000
+=== Maximum number of timesteps ===
+2
+===================================================
+!           SOLVER PARAMETERS temperature
+===================================================
+=== Maximum number of iterations temperature ===
+5000
+=== Relative tolerance temperature ===
+1.0000000000000000E-010
+=== Absolute tolerance temperature ===
+1.0000000000000001E-018
+=== Which solver? (CG,GMRES,...) temperature ===
+GMRES
+=== Which precond? (MUMPS,HYPRE,...) temperature ===
+MUMPS
+=== verbose solver? (True/False) temperature ===
+F
+=== monitor residuals? (True/False) temperature ===
+F
 ==================================================
 !           SOLVER PARAMETERS elasticity
 ==================================================
@@ -45,18 +77,3 @@ MUMPS
 F
 === monitor residuals? (True/False) elasticity ===
 F
-======================================
-!           SETUP PARAMETERS
-======================================
-=== Do we compare with analytical reference? (true/false) ===
-T
-=== Value of mu viscosity ===
-0.01
-=== Value of lambda viscosity ===
-0.01
-=== Value of thermal diffusivity ===
-0.0000000000000000
-=== Value of thermal capacity at constant volume ===
-0.0000000000000000
-=== Maximum number of timesteps ===
-2

@@ -10,13 +10,17 @@ MODULE start_setup_MODULE
   USE euler_uij_bar_bounds
   USE euler_cell_limiting_engine_parallel_module
 
+  USE restart_module
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
   TYPE argument_setup_data_type
       CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
+      CHARACTER(LEN=rec_length) :: restart_idx        = '=== Restart index (-1 if no index or from backup) ==='
       CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+      CHARACTER(LEN=rec_length) :: snapshot_freq      = '=== Snapshot frequency ==='
       CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
       CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+      CHARACTER(LEN=rec_length) :: if_final_post_proc = '=== Do we do final post-processing? ==='
       CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
       CHARACTER(LEN=rec_length) :: erk_sv             = '=== ERK ? ==='
       CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
@@ -25,18 +29,23 @@ MODULE start_setup_MODULE
   TYPE setup_data_type
      LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
+     INTEGER        :: restart_idx         = -1
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
+     REAL(KIND = 8) :: snapshot_freq       = 1.d20
      INTEGER        :: verbose_freq        = 1000000
      REAL(KIND = 8) :: final_time          = 0.1d0
+     LOGICAL        :: if_final_post_proc  = .FALSE.
      INTEGER        :: max_it              = 1000000
-     INTEGER        :: erk_sv              = -31
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
+     INTEGER        :: erk_sv              = -31
    CONTAINS
      PROCEDURE, PUBLIC :: read => read_setup_data
      PROCEDURE, PUBLIC :: init => init_setup_data
   END TYPE setup_data_type
 
+  REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE, PUBLIC :: un
+  TYPE(read_write_type),             PUBLIC :: RW
   TYPE(mesh_type),                   PUBLIC :: mesh
   TYPE(euler_type),                  PUBLIC :: euler
   TYPE(setup_data_type),             PUBLIC :: setup_data
@@ -55,7 +64,7 @@ CONTAINS
     IMPLICIT NONE
     PetscErrorCode :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
-    CHARACTER(100) :: name = 'Euler 1'
+    CHARACTER(100) :: name = 'Euler_1'
     INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
@@ -91,12 +100,23 @@ CONTAINS
     limiting_functionals_euler(2)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_max 
     !=== Define Euler limiting bounds
     
+    !===Start Euler
     euler%erk_sv = setup_data%erk_sv
     CALL euler%init_hyperbolic(communicator, name, mesh, limiting_functionals_euler)
     CALL init_state_functions(euler)
 
-    CALL euler%set_times(times)
 
+    !=== Restart/Init state vector
+    ALLOCATE(un(mesh%np, euler%syst_dim))
+    IF (setup_data%if_restart) THEN
+      CALL RW%read_restart(mesh, times(1), un, euler%name, opt_it=setup_data%restart_idx)
+    ELSE
+      times(1) = 0.d0
+      CALL euler%bc%initial_condition(un, 0.d0, euler%mesh%rr)
+    END IF
+
+    !=== set init and final times
+    CALL euler%set_times(times)
 
   END SUBROUTINE start_setup
 
@@ -125,8 +145,14 @@ CONTAINS
     !===Restart
     CALL read_data(argument_data%if_restart, this%if_restart)
 
+    !===Restart_idx
+    CALL read_data(argument_data%restart_idx, this%restart_idx, opt_add=this%if_restart)
+
     !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
+    
+    !===snapshot
+    CALL read_data(argument_data%snapshot_freq, this%snapshot_freq)
 
     !===Verbose frequency
     CALL read_data(argument_data%verbose_freq, this%verbose_freq)
@@ -134,6 +160,9 @@ CONTAINS
     !===Final time
     CALL read_data(argument_data%final_time, this%final_time)
 
+    !===Analytical reference
+    CALL read_data(argument_data%if_final_post_proc, this%if_final_post_proc)
+    
     !===Maximum number of iterations
     CALL read_data(argument_data%max_it, this%max_it)
 

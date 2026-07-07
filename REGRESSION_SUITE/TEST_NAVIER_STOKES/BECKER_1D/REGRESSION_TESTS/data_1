@@ -29,10 +29,14 @@ F
 F
 === Checkpointing frequency ===
 1.0000000000000000E+020
+=== Snapshot frequency ===
+1.0000000000000000E+020
 === Frequency for run verbose ===
 1000000
 === Final time ===
 1.d0
+=== Do we do final post-processing? ===
+F
 === Maximum number of timesteps ===
 2000000
 === IMEX rk ? ===

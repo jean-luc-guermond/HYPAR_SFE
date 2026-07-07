@@ -29,11 +29,15 @@ F
 F
 === Checkpointing frequency ===
 1.d20
+=== Snapshot frequency ===
+1.0000000000000000E+020
 === Frequency for run verbose ===
 1000000
 === Final time ===
 .1d0
 1.d0
+=== Do we do final post-processing? ===
+F
 === Maximum number of timesteps ===
 1000000
 === ERK ? ===
@@ -41,48 +45,48 @@ F
 === Do we compare with analytical reference? (true/false) ===
 T
 ========================================
-!           Euler 1 PARAMETERS
+!           Euler_1 PARAMETERS
 ========================================
-=== b_covolume? Euler 1 ===
+=== b_covolume? Euler_1 ===
 0.0000000000000000
-=== No iteration for lambda solver? (t/f) Euler 1 ===
+=== No iteration for lambda solver? (t/f) Euler_1 ===
 T
-=== Tolerance for lambda solver Euler 1 ===
+=== Tolerance for lambda solver Euler_1 ===
 1.0000000000000000E-002
 =======================================================
-!           HYPERBOLIC PARAMETERS FOR Euler 1
+!           HYPERBOLIC PARAMETERS FOR Euler_1
 =======================================================
-=== CFL ? Euler 1 ===
-0.5d0
-=== Which method to solve conservation equation (viscous,high,galerkin)? Euler 1 ===
+=== CFL ? Euler_1 ===
+0.50000000000000000
+=== Which method to solve conservation equation (viscous,high,galerkin)? Euler_1 ===
 high
-=== Which high order method (1/2)? Euler 1 ===
+=== Which high order method (1/2)? Euler_1 ===
 1
-=== Which mass matrix: lumped, quasi_consistent, consistent? Euler 1 ===
+=== Which mass matrix: lumped, quasi_consistent, consistent? Euler_1 ===
 quasi_consistent
-=== For quasi_consistent mass, how many corrections? (0=lumped_mass) Euler 1 ===
+=== For quasi_consistent mass, how many corrections? (0=lumped_mass) Euler_1 ===
 1
-=== Do we use hybrid Pk/P1 meshes for limiting? Euler 1 ===
+=== Do we use hybrid Pk/P1 meshes for limiting? Euler_1 ===
 T
 =========================================================
-!           DIRICHLET BC PARAMETERS FOR Euler 1
+!           DIRICHLET BC PARAMETERS FOR Euler_1
 =========================================================
-=== How many pieces of Dirichlet boundaries for bcs on density Euler 1 ===
+=== How many pieces of Dirichlet boundaries for bcs on density Euler_1 ===
 0
-=== How many pieces of Dirichlet boundaries for bcs on ux Euler 1 ===
+=== How many pieces of Dirichlet boundaries for bcs on ux Euler_1 ===
 0
-=== How many pieces of Dirichlet boundaries for bcs on uy Euler 1 ===
+=== How many pieces of Dirichlet boundaries for bcs on uy Euler_1 ===
 0
-=== How many pieces of Dirichlet boundaries for bcs on whole boundary Euler 1 ===
+=== How many pieces of Dirichlet boundaries for bcs on whole boundary Euler_1 ===
 0
-=== How many pieces of Dirichlet boundaries for bcs on u.n=0 Euler 1 ===
+=== How many pieces of Dirichlet boundaries for bcs on u.n=0 Euler_1 ===
 0
 =====================================================
-!           LIMITING PARAMETERS FOR Euler 1
+!           LIMITING PARAMETERS FOR Euler_1
 =====================================================
-=== Apply cell-limiting (T/F) ? Euler 1 ===
+=== Apply cell-limiting (T/F) ? Euler_1 ===
 T
-=== How many limiting iterations? Euler 1 ===
+=== How many limiting iterations? Euler_1 ===
 2
 === Relaxation method (none/avg/minmod) rho min ===
 avg

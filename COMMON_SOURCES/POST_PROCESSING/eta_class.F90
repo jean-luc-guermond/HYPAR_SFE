@@ -44,17 +44,21 @@ CONTAINS
         !=== Print averages
         IF (this%rank==0) THEN
             IF (this%ETA<60.d0) THEN
-                write(*, '(A,f4.1,A,f5.1,A,e9.3)') 'ETA: ', this%ETA, ' secs; execution ratio: ', &
-                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg
+                write(*, '(A,f4.1,A,f5.1,A,e9.3,A,e9.3,A,e9.3)') 'ETA: ', this%ETA, ' secs; execution ratio: ', &
+                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg, &
+                ', t_sim: ', cur_time, ', t_fin: ', final_time
             ELSE IF (this%ETA<3600.d0) THEN
-                write(*, '(A,f4.1,A,f5.1,A,e9.3)') 'ETA: ', this%ETA/60, ' mins; execution ratio: ', &
-                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg
+                write(*, '(A,f4.1,A,f5.1,A,e9.3,A,e9.3,A,e9.3)') 'ETA: ', this%ETA/60, ' mins; execution ratio: ', &
+                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg, &
+                ', t_sim: ', cur_time, ', t_fin: ', final_time
             ELSE IF (this%ETA<3600.d0*24.d0) THEN
-                write(*, '(A,f4.1,A,f5.1,A,e9.3)') 'ETA: ', this%ETA/3600, ' hours; execution ratio: ', &
-                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg
+                write(*, '(A,f4.1,A,f5.1,A,e9.3,A,e9.3,A,e9.3)') 'ETA: ', this%ETA/3600, ' hours; execution ratio: ', &
+                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg, &
+                ', t_sim: ', cur_time, ', t_fin: ', final_time
             ELSE
-                write(*, '(A,f4.1,A,f5.1,A,e9.3)') 'ETA: ', this%ETA/(3600*24), ' days; execution ratio: ', &
-                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg
+                write(*, '(A,f4.1,A,f5.1,A,e9.3,A,e9.3,A,e9.3)') 'ETA: ', this%ETA/(3600*24), ' days; execution ratio: ', &
+                (cur_time-this%init_time)/(final_time-this%init_time)*100, '%, timestep: ', this%dt_avg, &
+                ', t_sim: ', cur_time, ', t_fin: ', final_time
             END IF
         END IF
         !=== Reinit for next it

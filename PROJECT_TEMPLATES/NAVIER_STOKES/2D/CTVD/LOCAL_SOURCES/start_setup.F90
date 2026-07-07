@@ -112,7 +112,7 @@ CONTAINS
       CALL navier_stokes%euler%bc%initial_condition(un, 0.d0, navier_stokes%euler%mesh%rr)
     END IF
     
-    !===
+    !=== set init and final times
     CALL navier_stokes%set_times(times)
 
   END SUBROUTINE start_setup

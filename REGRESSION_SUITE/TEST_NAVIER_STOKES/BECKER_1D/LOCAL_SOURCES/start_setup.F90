@@ -7,14 +7,20 @@ MODULE start_setup_MODULE
                                zero_of_psi_euler_rho_max, zero_of_psi_euler_rho_min
   USE euler_cell_limiting_engine_parallel_module
   USE petsc_csr_LA_module, ONLY: petsc_csr_LA
+  USE euler_limiter_cell_elt
+  USE euler_uij_bar_bounds
 
+  USE restart_module
   USE read_inputs_module
   USE setup,           ONLY: init_state_functions
   TYPE argument_setup_data_type
      CHARACTER(LEN=rec_length) :: if_restart         = '=== Restart (true/false) ==='
+     CHARACTER(LEN=rec_length) :: restart_idx        = '=== Restart index (-1 if no index or from backup) ==='
      CHARACTER(LEN=rec_length) :: checkpointing_freq = '=== Checkpointing frequency ==='
+     CHARACTER(LEN=rec_length) :: snapshot_freq      = '=== Snapshot frequency ==='
      CHARACTER(LEN=rec_length) :: verbose_freq       = '=== Frequency for run verbose ==='
      CHARACTER(LEN=rec_length) :: final_time         = '=== Final time ==='
+     CHARACTER(LEN=rec_length) :: if_final_post_proc = '=== Do we do final post-processing? ==='
      CHARACTER(LEN=rec_length) :: max_it             = '=== Maximum number of timesteps ==='
      CHARACTER(LEN=rec_length) :: imex_sv            = '=== IMEX rk ? ==='
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
@@ -23,9 +29,12 @@ MODULE start_setup_MODULE
   TYPE setup_data_type
      LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
+     INTEGER        :: restart_idx         = -1
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
+     REAL(KIND = 8) :: snapshot_freq       = 1.d20
      INTEGER        :: verbose_freq        = 1000000
      REAL(KIND = 8) :: final_time          = 0.1d0
+     LOGICAL        :: if_final_post_proc  = .FALSE.
      INTEGER        :: max_it              = 1000000
      LOGICAL        :: if_analytical_ref   = .FALSE.
      INTEGER        :: syst_size
@@ -35,6 +44,8 @@ MODULE start_setup_MODULE
      PROCEDURE, PUBLIC :: init => init_setup_data
   END TYPE setup_data_type
 
+  REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE, PUBLIC :: un
+  TYPE(read_write_type),             PUBLIC :: RW
   TYPE(mesh_type),                   PUBLIC :: mesh
   TYPE(navier_stokes_type),          PUBLIC :: navier_stokes
   TYPE(setup_data_type),             PUBLIC :: setup_data
@@ -70,9 +81,12 @@ CONTAINS
 
     !===Read
     CALL setup_data%init
+
     times(2) = setup_data%final_time
 
     !=== Define Euler limiting bounds (should we put this in PROBLEM_SOURCES instead?)
+    navier_stokes%euler%compute_bounds_uijbar => euler_compute_bounds_uijbar
+
     ALLOCATE(limiting_functionals_euler(2))
     limiting_functionals_euler(1)%psi => psi_euler_rho_min
     limiting_functionals_euler(1)%zero_of_psi => zero_of_psi_euler_rho_min
@@ -80,14 +94,29 @@ CONTAINS
     limiting_functionals_euler(2)%psi => psi_euler_rho_max
     limiting_functionals_euler(2)%zero_of_psi => zero_of_psi_euler_rho_max
     limiting_functionals_euler(2)%name = 'minus rho max'
+
+    limiting_functionals_euler(1)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_min
+    limiting_functionals_euler(2)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_max 
+
     !=== Define Euler limiting bounds
 
     !===Start Navier-Stokes
     navier_stokes%imex_sv = setup_data%imex_sv
     CALL navier_stokes%init(communicator, name, mesh, limiting_functionals_euler)
     CALL init_state_functions(navier_stokes%euler, navier_stokes%stokes, navier_stokes%thermal_diffusivity)
-    ! CALL init_state_functions(navier_stokes%stokes)
+
+    !=== Restart/Init state vector
+    ALLOCATE(un(mesh%np, navier_stokes%syst_dim))
+    IF (setup_data%if_restart) THEN
+      CALL RW%read_restart(mesh, times(1), un, navier_stokes%name, opt_it=setup_data%restart_idx)
+    ELSE
+      times(1) = 0.d0
+      CALL navier_stokes%euler%bc%initial_condition(un, 0.d0, navier_stokes%euler%mesh%rr)
+    END IF
+    
+    !=== set init and final times
     CALL navier_stokes%set_times(times)
+
   END SUBROUTINE start_setup
 
   SUBROUTINE init_setup_data(this)
@@ -111,12 +140,17 @@ CONTAINS
     !================
     !=== We now find the relevant information for this setup
     !================
-
     !===Restart
     CALL read_data(argument_data%if_restart, this%if_restart)
 
+    !===Restart_idx
+    CALL read_data(argument_data%restart_idx, this%restart_idx, opt_add=this%if_restart)
+
     !===Checkpointing
     CALL read_data(argument_data%checkpointing_freq, this%checkpointing_freq)
+    
+    !===snapshot
+    CALL read_data(argument_data%snapshot_freq, this%snapshot_freq)
 
     !===Verbose frequency
     CALL read_data(argument_data%verbose_freq, this%verbose_freq)
@@ -124,6 +158,9 @@ CONTAINS
     !===Final time
     CALL read_data(argument_data%final_time, this%final_time)
 
+    !===Final post proc
+    CALL read_data(argument_data%if_final_post_proc, this%if_final_post_proc)
+    
     !===Maximum number of iterations
     CALL read_data(argument_data%max_it, this%max_it)
 

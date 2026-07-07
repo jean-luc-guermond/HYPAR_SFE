@@ -5,10 +5,9 @@ PROGRAM prog
   USE setup
   USE sub_plot
   USE my_util
-  USE ETA_module
   USE euler_post_proc_module
   USE plot_vtu_module
-  USE restart_module
+  USE ETA_module
   IMPLICIT NONE
   REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: grad
   REAL(KIND = 8) :: tps, time_backup, time_snapshot
@@ -44,17 +43,23 @@ PROGRAM prog
         CALL ETA%print(navier_stokes%time, setup_data%final_time)
     END IF
     IF (navier_stokes%time > time_backup) THEN
+        IF (navier_stokes%mesh%rank==0) THEN
+          WRITE(*,*) 'overwriting Backup series'
+        END IF
         time_backup = time_backup + setup_data%checkpointing_freq
         CALL RW%write_restart(mesh, navier_stokes%time, un, navier_stokes%name, opt_if_series=.FALSE.)
     END IF
     IF (navier_stokes%time > time_snapshot) THEN
+        IF (navier_stokes%mesh%rank==0) THEN
+          WRITE(*,*) 'Writing snapshot file ', RW%counter
+        END IF
         time_snapshot = time_snapshot + setup_data%snapshot_freq
         CALL RW%write_restart(mesh, navier_stokes%time, un, navier_stokes%name, opt_if_series=.TRUE.)
     END IF
 
     !=== Stop loop
     IF (n == setup_data%max_it) THEN
-        IF (navier_stokes%euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
+        IF (navier_stokes%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
         EXIT
     END IF
     !===
@@ -69,8 +74,8 @@ PROGRAM prog
 !==== POST-PROCESSING ====!
 !=========================!
 
-  CALL MPI_ALLREDUCE(navier_stokes%euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
-  IF(navier_stokes%euler%mesh%rank==0) THEN
+  CALL MPI_ALLREDUCE(navier_stokes%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
+  IF(navier_stokes%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
      WRITE(*,*) ' Time per (time step times rk) per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n*navier_stokes%euler%ERK%s), tps, n
   END IF
