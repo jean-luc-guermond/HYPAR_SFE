@@ -78,7 +78,8 @@ MODULE template_abstract_hyperbolic_module
 !=== WORKSPACE ===!
 
    CONTAINS
-      PROCEDURE, PUBLIC   :: init_hyperbolic, set_times
+      PROCEDURE, PUBLIC   :: init_hyperbolic
+      PROCEDURE, PUBLIC   :: set_times => set_times_hyperbolic
       PROCEDURE, PRIVATE  :: read_hyperbolic_data, init_vectors, init_edges_dij, init_F90_arrays
       PROCEDURE, PUBLIC   :: update, one_step_ERK
       PROCEDURE, PRIVATE  :: compute_dt, compute_dij
@@ -296,13 +297,13 @@ CONTAINS
       CALL finalize_rewrite_data
    END SUBROUTINE read_hyperbolic_data
 
-   SUBROUTINE set_times(this, times)
+   SUBROUTINE set_times_hyperbolic(this, times)
       IMPLICIT NONE
       CLASS(hyperbolic_type)                 :: this
       REAL(KIND=8), DIMENSION(2), INTENT(IN) :: times
       this%time = times(1) !<==initial_time
       this%final_time = times(2) !<==final_time
-   END SUBROUTINE set_times
+   END SUBROUTINE set_times_hyperbolic
 
    SUBROUTINE init_edges_dij(this)
       IMPLICIT NONE

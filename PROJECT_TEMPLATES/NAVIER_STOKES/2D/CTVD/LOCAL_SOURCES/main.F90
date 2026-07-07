@@ -72,7 +72,7 @@ PROGRAM prog
   CALL MPI_ALLREDUCE(navier_stokes%euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,navier_stokes%euler%communicator,code)
   IF(navier_stokes%euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n), tps, n
+     WRITE(*,*) ' Time per (time step times rk) per dof times proc', navier_stokes%mesh%nb_proc*tps/(tot_np*n*navier_stokes%euler%ERK%s), tps, n
   END IF
   ! CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, un(:, 1), 'rho' // TRIM(ADJUSTL(char)) // '.plt')
   ! CALL plot_scalar_field(navier_stokes%euler%mesh%jj, navier_stokes%euler%mesh%rr, &

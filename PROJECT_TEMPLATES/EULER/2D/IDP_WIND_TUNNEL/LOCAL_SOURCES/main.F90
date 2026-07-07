@@ -48,7 +48,7 @@ PROGRAM prog
   CALL MPI_ALLREDUCE(euler%mesh%dom_np,tot_np,1,MPI_INTEGER,MPI_SUM,euler%communicator,code)
   IF(euler%mesh%rank==0) THEN
      WRITE(*,*) ' tot_np', tot_np
-     WRITE(*,*) ' Time per time step per dof times proc', tps/(tot_np*n*(euler%ERK%s)), tps, n*(euler%ERK%s)
+     WRITE(*,*) ' Time per time step per dof times proc', euler%mesh%nb_proc*tps/(tot_np*n*(euler%ERK%s)), tps, n*(euler%ERK%s)
      WRITE(*,*) ' Time per time step per dof times proc divided by limiter it', &
      tps/(tot_np*n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)), tps, &
      n*euler%limiting%limit_max*SIZE(euler%limiting_all_functionals%limiting_functionals)

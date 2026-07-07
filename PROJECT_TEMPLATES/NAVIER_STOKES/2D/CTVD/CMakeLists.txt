@@ -4,11 +4,6 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Project name and version
-project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
-MESSAGE(STATUS "")
-message(STATUS "===== compiling project ${PROJECT_NAME} =====")
-MESSAGE(STATUS "")
-
 # Define variables for compilation
 set(FE_dim "0")
 include(variables.cmake)
@@ -17,16 +12,24 @@ if(FE_dim EQUAL 0)
 elseif(FE_dim GREATER 2)
     MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
 endif()
+project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
+MESSAGE(STATUS "")
+message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 #=============================================================
 #============ SETTING VARIABLES FOR COMPILATION  =============
 #=============================================================
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ffree-line-length-none>)
+endif()
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE ${release_bounds} CACHE STRING
-    " Flags used by the compiler during release builds. ")
-set(CMAKE_Fortran_FLAGS_NATIVE ${native_bounds} CACHE STRING
-        " Flags used by the compiler during native builds. ")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}" CACHE STRING
+        " Flags used by the compiler during debug builds. " FORCE)
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}" CACHE STRING
+        " Flags used by the compiler during release builds. " FORCE)
+set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}" CACHE STRING
+        " Flags used by the compiler during native builds. " FORCE)
 
 ADD_CUSTOM_TARGET(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}

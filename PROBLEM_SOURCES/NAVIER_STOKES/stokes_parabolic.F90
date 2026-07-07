@@ -57,7 +57,7 @@ type(profiler_type) :: profiler
     CONTAINS
         PROCEDURE :: read => read_stokes_parabolic_data
         PROCEDURE :: init => init_stokes_parabolic
-        PROCEDURE, PUBLIC :: set_times
+        PROCEDURE, PUBLIC :: set_times =>set_times_stokes 
         PROCEDURE, PUBLIC  :: one_step_IRK
         PROCEDURE, PRIVATE :: one_step_IRK_lumped
         ! PROCEDURE, PRIVATE :: one_step_IRK_full
@@ -160,13 +160,13 @@ character(len=10), dimension(:), allocatable :: list_profiler
         CALL finalize_rewrite_data
     END SUBROUTINE read_stokes_parabolic_data
 
-    SUBROUTINE set_times(this, times)
+    SUBROUTINE set_times_stokes(this, times)
         IMPLICIT NONE
         CLASS(stokes_parabolic_type)              :: this
         REAL(KIND=8), DIMENSION(2), INTENT(IN)    :: times
         this%time = times(1) !<==initial_time
         this%final_time = times(2) !<==final_time
-    END SUBROUTINE set_times
+    END SUBROUTINE set_times_stokes
 
     SUBROUTINE one_step_IRK(this, stage, urk)
         USE my_util, ONLY : error_petsc, to_str

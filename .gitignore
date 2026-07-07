@@ -25,3 +25,4 @@ suite*
 *pvd
 __pycache__
 TEMPLATED
+mesh_part*

@@ -31,12 +31,16 @@ MESSAGE(STATUS "")
 #==========================================================================
 #=============== setting compile flags
 #==========================================================================
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE "${release_bounds}")
-# set(CMAKE_Fortran_FLAGS_RELEASE "${release_bounds}" CACHE STRING
-    # " Flags used by the compiler during release builds. ")
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ffree-line-length-none>)
+endif()
+
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}" CACHE STRING
+        " Flags used by the compiler during debug builds. " FORCE)
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}" CACHE STRING
+        " Flags used by the compiler during release builds. " FORCE)
 set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}" CACHE STRING
-        " Flags used by the compiler during native builds. ")
+        " Flags used by the compiler during native builds. " FORCE)
 
 ADD_CUSTOM_TARGET(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}

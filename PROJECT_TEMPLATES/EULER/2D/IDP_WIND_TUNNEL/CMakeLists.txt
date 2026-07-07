@@ -4,11 +4,6 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Project name and version
-project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
-MESSAGE(STATUS "")
-message(STATUS "===== compiling project ${PROJECT_NAME} =====")
-MESSAGE(STATUS "")
-
 # Define variables for compilation
 set(FE_dim "0")
 include(variables.cmake)
@@ -17,18 +12,24 @@ if(FE_dim EQUAL 0)
 elseif(FE_dim GREATER 2)
     MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
 endif()
+project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
+MESSAGE(STATUS "")
+message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 #=============================================================
 #============ SETTING VARIABLES FOR COMPILATION  =============
 #=============================================================
+if(${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+  add_compile_options($<$<COMPILE_LANGUAGE:Fortran>:-ffree-line-length-none>)
+endif()
 
-set(CMAKE_Fortran_FLAGS_DEBUG "${debug_bounds}")
-set(CMAKE_Fortran_FLAGS_RELEASE "${release_bounds}")
-set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}")# CACHE STRING
-# set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}")
-# set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}")
-# set(CMAKE_Fortran_FLAGS_NATIVE "${CMAKE_Fortran_FLAGS_NATIVE} ${native_bounds}")# CACHE STRING
-        # " Flags used by the compiler during native builds. ")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_bounds}" CACHE STRING
+        " Flags used by the compiler during debug builds. " FORCE)
+set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE} ${release_bounds}" CACHE STRING
+        " Flags used by the compiler during release builds. " FORCE)
+set(CMAKE_Fortran_FLAGS_NATIVE "${native_bounds}" CACHE STRING
+        " Flags used by the compiler during native builds. " FORCE)
 
 ADD_CUSTOM_TARGET(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
@@ -69,34 +70,8 @@ endif()
 # set(MY_HYPAR_SFE_LIB hypar_lib_F_${FE_dim}D)
 set(MY_HYPAR_SFE_MODULE_SOURCES ${HYPAR_SFE_DIR}/LIBS/BUILD/${FE_dim}D/mod)
 
-
-# Create a list of the files to be preprocessed
-# set(fppFiles limiter.fpp)
-file(GLOB_RECURSE fppFiles CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/TEMPLATED/*.fpp)
-
-# Pre-process
-foreach(infile IN LISTS fppFiles)
-
-    # Generate output file name
-    string(REGEX REPLACE ".fpp\$" ".F90" outfile "${infile}")
-
-    # Custom command to do the processing
-    add_custom_command(
-        OUTPUT "${outfile}"
-        COMMAND fypp "${infile}" "${outfile}"
-        MAIN_DEPENDENCY "${infile}"
-        VERBATIM)
-
-    # Finally add output file to a list
-    set(outFiles ${outFiles} "${outfile}")
-    # message(STATUS "${outfile}")
-    # message(STATUS "${outFiles}")
-endforeach(infile)
-
-
 # Building local sources
-file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)
-list(APPEND local_sources ${outFiles})
+file(GLOB_RECURSE local_sources CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/LOCAL_SOURCES/*.F90)   
 add_executable(${exe} ${local_sources})
 
 set_target_properties(${exe} PROPERTIES

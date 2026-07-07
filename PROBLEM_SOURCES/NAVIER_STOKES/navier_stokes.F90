@@ -45,7 +45,7 @@ type(profiler_type) :: profiler
     CONTAINS
         PROCEDURE, PUBLIC   :: init => init_navier_stokes
         PROCEDURE, PUBLIC   :: update
-        PROCEDURE, PUBLIC   :: set_times
+        PROCEDURE, PUBLIC   :: set_times => set_times_navier_stokes
         PROCEDURE, PRIVATE  :: read => read_navier_stokes_data!, init_vectors
    END TYPE navier_stokes_type
 
@@ -136,7 +136,7 @@ SUBROUTINE read_navier_stokes_data(this, section_name)
     CALL finalize_rewrite_data
 END SUBROUTINE read_navier_stokes_data
 
-SUBROUTINE set_times(this, times)
+SUBROUTINE set_times_navier_stokes(this, times)
     IMPLICIT NONE
     CLASS(navier_stokes_type)              :: this
     REAL(KIND=8), DIMENSION(2), INTENT(IN) :: times
@@ -144,7 +144,7 @@ SUBROUTINE set_times(this, times)
     this%final_time = times(2) !<==final_time
     CALL this%euler%set_times(times)
     CALL this%stokes%set_times(times)
-END SUBROUTINE set_times
+END SUBROUTINE set_times_navier_stokes
 
 SUBROUTINE update(this,un_in)
     IMPLICIT NONE
