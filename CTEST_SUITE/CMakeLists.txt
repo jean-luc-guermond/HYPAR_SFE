@@ -4,13 +4,13 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Project name and version
+include(variables.cmake)
+include(function_regression_test.cmake)
 project(REGRESSION_TEST LANGUAGES C Fortran)
 MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")
 
-include(variables.cmake)
-include(function_regression_test.cmake)
 include(CTest)
 
 #==========================================================================

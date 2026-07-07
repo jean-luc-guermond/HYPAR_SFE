@@ -13,6 +13,7 @@ current_regression_reference_1
 current_regression_reference_2
 current_regression_reference_3
 previous_data
+LIBS/DEPENDENCIES/
 LIBS/CMakeFiles/
 LIBS/CTestTestfile.cmake
 LIBS/Makefile

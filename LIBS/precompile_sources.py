@@ -5,9 +5,12 @@ import shutil
 #======= PATH DEFINITIONS =======#
 #================================#
 
-dir_top = sys.argv[1]#"/home/botez/CUR_HYPAR/HYPAR_SFE"
-dir_HY = os.path.join(dir_top, "PDE_ABSTRACT_SOURCES/HYPERBOLIC_FE/")
-dir_limiter = os.path.join(dir_top, "COMMON_SOURCES/POST_PROCESSING")
+
+def define_paths(dir_top):
+    global dir_HY, dir_limiter
+    dir_top = sys.argv[1]
+    dir_HY = os.path.join(dir_top, "PDE_ABSTRACT_SOURCES/HYPERBOLIC_FE/")
+    dir_limiter = os.path.join(dir_top, "COMMON_SOURCES/POST_PROCESSING")
 
 #=========================================================#
 #======= precompiling list of limiting functionals =======#

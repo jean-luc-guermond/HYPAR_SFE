@@ -44,13 +44,12 @@ function(add_regression_test)
     #===================================================
     # Loop over number of regex to generate executables
     #===================================================
-    set(MY_CMD /bin/bash "../../../job.sh")
-    list(APPEND MY_CMD
-        ${RUN_PRE_PROC}
-        ${PROC_CALL}
-        ${RUN_POST_PROC}
-        ${LOCAL_NB_REGEX}
-    )
+    set(EXEC_CMD /bin/bash "../../../job.sh")
+    set(MY_CMD 
+        "${RUN_PRE_PROC} ${RUN_POST_PROC}"
+        "${PROC_CALL}"
+        "${LOCAL_NB_REGEX}"
+        )
 
     foreach(i RANGE 1 ${LOCAL_NB_REGEX})
       # Create executable
@@ -79,7 +78,7 @@ function(add_regression_test)
     foreach(n_proc IN LISTS LOCAL_LIST_N_PROCS)
         add_test(NAME ${LOCAL_TEST_NAME}_PROC_${n_proc}
         WORKING_DIRECTORY ${TEST_DIR}/REGRESSION_TESTS
-        COMMAND ${MY_CMD} ${n_proc})
+        COMMAND ${EXEC_CMD} ${MY_CMD} ${n_proc})
         set_property (TEST "${LOCAL_TEST_NAME}_PROC_${n_proc}" PROPERTY PASS_REGULAR_EXPRESSION "${passRegex}")
     endforeach()
 endfunction()

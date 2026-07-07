@@ -1,9 +1,8 @@
-import os
+import os, sys
 from precompile_sources import *
 
-dir_top = "/home/botez/CUR_HYPAR/HYPAR_SFE"
-dir_HY = os.path.join(dir_top, "PDE_ABSTRACT_SOURCES/HYPERBOLIC_FE/")
-dir_limiter = os.path.join(dir_top, "COMMON_SOURCES/POST_PROCESSING")
+dir_top = sys.argv[1]
+define_paths(dir_top)
 path_pb = os.getcwd()
 
 #=== Linear transport

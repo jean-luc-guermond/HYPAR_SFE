@@ -4,11 +4,6 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Project name and version
-project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
-MESSAGE(STATUS "")
-message(STATUS "===== compiling project ${PROJECT_NAME} =====")
-MESSAGE(STATUS "")
-
 # Define variables for compilation
 set(FE_dim "0")
 include(variables.cmake)
@@ -17,6 +12,10 @@ if(FE_dim EQUAL 0)
 elseif(FE_dim GREATER 2)
     MESSAGE(FATAL_ERROR "BUG IN MY_APP/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
 endif()
+project(MY_PROJECT VERSION 1.0 LANGUAGES Fortran C)
+MESSAGE(STATUS "")
+message(STATUS "===== compiling project ${PROJECT_NAME} =====")
+MESSAGE(STATUS "")
 
 #=============================================================
 #============ SETTING VARIABLES FOR COMPILATION  =============

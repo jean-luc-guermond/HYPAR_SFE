@@ -11,29 +11,46 @@ elseif(FE_dim GREATER 2)
     MESSAGE(FATAL_ERROR "BUG IN HYPAR_SFE/LIBS/CMakeLists.txt: FE_dim = ${FE_dim} unavailable, only 1 or 2")
 endif()
 #==========================================================================
-#=============== compilation of HYPAR_SFE
+#=============== Loading of packages and checking versions
 #==========================================================================
 
 # Getting mandatory libraries
 find_package(MPI REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(PkgConfig REQUIRED)
-find_package(Python3 REQUIRED)
-
-pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc)
-pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 # Getting mandatory libraries
 
 # Debugging information for libraries
 message(STATUS "Working in: ${HYPAR_SFE_DIR}")
 message(STATUS "ZLIB_LIBRARIES=${ZLIB_LIBRARIES}")
 message(STATUS "MPI_Fortran_LIBRARIES=${MPI_Fortran_LIBRARIES}")
+
+#==== load and check PETSc version ====#
+pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc)
+
 get_target_property(PETSC_INC PkgConfig::PETSC INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "PETSC includes: ${PETSC_INC}")
+message(STATUS "PETSC version: ${PETSC_VERSION}")
+if(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION})
+    MESSAGE(FATAL_ERROR "PETSC version: must be at least ${PETSC_MIN_VERSION}")
+elseif((${PETSC_VERSION} VERSION_GREATER ${PETSC_MAX_VERSION}) OR (${PETSC_VERSION} VERSION_EQUAL ${PETSC_MAX_VERSION}))
+    MESSAGE(FATAL_ERROR "PETSC version: must be at most ${PETSC_MAX_VERSION}")
+endif()
+#==== load and check PETSc version ====#
+
+#==== load FFTw ====#
+pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
+
 get_target_property(FFTW_INC PkgConfig::FFTW INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "FFTW includes: ${FFTW_INC}")
-# Debugging information for libraries
+message(STATUS "FFTW version: ${FFTW_VERSION}")
+#==== load FFTw ====#
 
+#==========================================================================
+#=============== HYPAR_SFE sources pre-generation using python and fypp
+#==========================================================================
+
+include(CMake_get_python.cmake)
 
 execute_process(
     COMMAND ${Python3_EXECUTABLE} ${HYPAR_SFE_DIR}/LIBS/python_precompile.py ${HYPAR_SFE_DIR}
@@ -56,7 +73,7 @@ foreach(infile IN LISTS fppFiles)
     # Custom command to do the processing
     add_custom_command(
         OUTPUT "${outfile}"
-        COMMAND fypp "${infile}" "${outfile}"
+        COMMAND ${Python3_EXECUTABLE} -m fypp "${infile}" "${outfile}"
         MAIN_DEPENDENCY "${infile}"
         VERBATIM)
 
@@ -66,7 +83,10 @@ foreach(infile IN LISTS fppFiles)
     # message(STATUS "${outFiles}")
 endforeach(infile)
 
-# Building HYPAR_SFE library
+#==========================================================================
+#=============== Building fortran HYPAR_SFE library
+#==========================================================================
+
 # file(GLOB_RECURSE hypar_SFE_sources CONFIGURE_DEPENDS
 file(GLOB_RECURSE hypar_SFE_sources
 ${HYPAR_SFE_DIR}/COMMON_SOURCES/*.F90
