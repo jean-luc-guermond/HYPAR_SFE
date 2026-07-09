@@ -2,7 +2,7 @@
 !           MESH PARAMETERS
 =====================================
 === Name of directory for mesh file ===
-"."
+"../../../../../../MESHES"
 === Name of mesh file ===
 "circle_0p1.FEM"
 === Is the mesh formatted? (True/False) ===
