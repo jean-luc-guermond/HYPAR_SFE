@@ -1,12 +1,10 @@
+#include "petsc/finclude/petsc.h"
 MODULE linear_transport_type_module
 !>> limited global uses to avoid unexpected behaviors
-#include "petsc/finclude/petsc.h"
    USE petsc
    USE linear_transport_abstract_hyperbolic_module,           ONLY: hyperbolic_type
    USE linear_transport_bc_arrays,           ONLY: linear_transport_bc_type
    USE Butcher_tableau
-   ! USE def_type_mesh,                        ONLY: mesh_type
-   ! USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
 
    USE read_inputs_module,                   ONLY: rec_length
    USE space_dim,                            ONLY: k_dim

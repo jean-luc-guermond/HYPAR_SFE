@@ -1,11 +1,10 @@
 MODULE euler_bc_arrays
    USE dirichlet_type_module, ONLY : dirichlet_bc
-   USE def_type_mesh,         ONLY : mesh_type
 
    TYPE :: euler_bc_type
       TYPE(dirichlet_bc) :: rho_bc, u_bc(2), whole_bdy_bc, udotn_bc
       REAL(KIND = 8), ALLOCATABLE, DIMENSION(:, :) :: udotn_normal_vtx
-      REAL(KIND=8) :: gamma
+      REAL(KIND = 8) :: gamma
       PROCEDURE(template_vect_anal), POINTER :: mt_anal    => NULL()
       PROCEDURE(template_vect_anal), POINTER :: vit_anal   => NULL()
       PROCEDURE(template_scal_anal), POINTER :: rho_anal   => NULL()

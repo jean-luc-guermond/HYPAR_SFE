@@ -1,15 +1,12 @@
+#include "petsc/finclude/petsc.h"
 MODULE euler_type_module
 !>> limited global uses to avoid unexpected behaviors
-#include "petsc/finclude/petsc.h"
    USE petsc
-   USE euler_abstract_hyperbolic_module, ONLY: hyperbolic_type
-   USE euler_bc_arrays, ONLY : euler_bc_type
-   USE Butcher_tableau
-   USE euler_cell_limiting_engine_parallel_module, ONLY : limiting_type
-   USE def_type_mesh, ONLY : mesh_type
-   USE petsc_csr_LA_module, ONLY: petsc_csr_LA
 
    USE read_inputs_module,    ONLY : rec_length
+
+   USE euler_bc_arrays,                  ONLY: euler_bc_type
+   USE euler_abstract_hyperbolic_module, ONLY: hyperbolic_type
 !>> limited global uses to avoid unexpected behaviors
 
    IMPLICIT NONE
@@ -194,6 +191,8 @@ CONTAINS
       USE petsc
 #include "petsc/finclude/petsc.h"
 
+      USE petsc_csr_LA_module,   ONLY : petsc_csr_LA
+      USE def_type_mesh,         ONLY : mesh_type
       USE space_dim,           ONLY: k_dim
       IMPLICIT NONE
       CLASS(euler_type), INTENT(INOUT)        :: this
@@ -214,11 +213,12 @@ CONTAINS
    END SUBROUTINE construct_euler_bc
 
    SUBROUTINE impose_bc_euler(this, un, mesh, time)
-      USE def_type_mesh
+      USE def_type_mesh, ONLY: mesh_type
+      USE space_dim, ONLY: k_dim
       IMPLICIT NONE
       CLASS(euler_type), INTENT(INOUT) :: this
-      TYPE(mesh_type) :: mesh
-      REAL(KIND = 8), INTENT(IN) :: time
+      TYPE(mesh_type)                  :: mesh
+      REAL(KIND = 8),       INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(:, :), INTENT(INOUT) :: un
       INTEGER :: comp_sys, comp_u
       REAL(KIND=8), DIMENSION(SIZE(this%bc%udotn_bc%jsd)) :: mdotn

@@ -5,6 +5,7 @@ message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")
 
 include(variables_lib.cmake)
+
 if(FE_dim EQUAL 0)
     MESSAGE(FATAL_ERROR "BUG IN HYPAR_SFE/LIBS/CMakeLists.txt: FE_dim = 0 ==> very likely means you forgot to define it in your variable.cmake")
 elseif(FE_dim GREATER 2)
@@ -47,24 +48,24 @@ message(STATUS "FFTW version: ${FFTW_VERSION}")
 #==== load FFTw ====#
 
 #==========================================================================
-#=============== HYPAR_SFE sources pre-generation using python and fypp
+#=============== HYPAR_SFE sources pre-generation (using python and fypp)
 #==========================================================================
 
-include(CMake_get_python.cmake)
+include(CMake_get_python)
 
 execute_process(
-    COMMAND ${Python3_EXECUTABLE} ${HYPAR_SFE_DIR}/LIBS/python_precompile.py ${HYPAR_SFE_DIR}
+    COMMAND ${Python3_EXECUTABLE} ${HYPAR_SFE_DIR}/LIBS/PYTHON_SOURCES/python_precompile.py ${HYPAR_SFE_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     RESULT_VARIABLE result
 )
 
 if(NOT result EQUAL 0)
-    message(FATAL_ERROR "python_precompile.py failed")
+    message(FATAL_ERROR "BUG in HYPAR_SFE/LIBS/CMakeLists.txt: python_precompile.py failed")
 endif()
 
 file(GLOB_RECURSE fppFiles CONFIGURE_DEPENDS ${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*.fpp)
 
-# Pre-process
+# Pre-process with fpp files
 foreach(infile IN LISTS fppFiles)
 
     # Generate output file name
@@ -79,8 +80,6 @@ foreach(infile IN LISTS fppFiles)
 
     # Finally add output file to a list
     set(outFiles ${outFiles} "${outfile}")
-    # message(STATUS "${outfile}")
-    # message(STATUS "${outFiles}")
 endforeach(infile)
 
 #==========================================================================

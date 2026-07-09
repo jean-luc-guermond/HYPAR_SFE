@@ -4,8 +4,21 @@ MESSAGE(STATUS "This is CMake ${CMAKE_VERSION}")
 MESSAGE(STATUS "")
 
 # Project name and version
+list(APPEND CMAKE_MODULE_PATH
+     "${CMAKE_SOURCE_DIR}"
+)
 include(variables.cmake)
-include(function_regression_test.cmake)
+get_filename_component(
+    HYPAR_SFE_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+    DIRECTORY
+)
+
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}" "${HYPAR_SFE_DIR}/LIBS/CMAKE_SOURCES")
+include(function_regression_test)
+include(function_cases_user)
+include(function_print_project_name)
+
 project(REGRESSION_TEST LANGUAGES C Fortran)
 MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
@@ -14,17 +27,11 @@ MESSAGE(STATUS "")
 include(CTest)
 
 #==========================================================================
-#=============== messaging concerning parallelization test level
+#=============== messaging concerning dynamic/static
 #==========================================================================
 
-if(PARALLEL_TEST_LEVEL GREATER 4)
-    MESSAGE(FATAL_ERROR "invalid Level of parallelization ${PARALLEL_TEST_LEVEL} > 4, double check variables.cmake")
-elseif(PARALLEL_TEST_LEVEL EQUAL 4)
-    MESSAGE(WARNING "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing ==> BE AWARE THAT THESE TESTS MIGHT BE VERY HEAVY/LONG")
-elseif(PARALLEL_TEST_LEVEL EQUAL 0)
-    MESSAGE(STATUS "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing ==> will only test default number of procs")
-else()
-    MESSAGE(STATUS "Level ${PARALLEL_TEST_LEVEL}/4 of parallelization testing")
+if(${static_library})
+    MESSAGE(WARNING "You selected the static library => be aware that all executables might be very heavy")
 endif()
 MESSAGE(STATUS "")
 
@@ -66,45 +73,9 @@ set(BUILD_ALL_DIMS ON)
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
 
 #==========================================================================
-#=============== Listing and compilation of CTESTS
+#=============== Point towards actual CTESTS
 #==========================================================================
 
-# TEST_FE_1D_EULER
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_1D_EULER
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_1D_EULER/BUILD)
-
-# TEST_FE_2D_EULER
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_2D_EULER
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_2D_EULER/BUILD)
-
-# TEST_FE_SCALAR_CONSERVATION_EQUATIONS
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_SCALAR_CONSERVATION_EQUATIONS
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FE_SCALAR_CONSERVATION_EQUATIONS/BUILD)
-
-# TEST_FFT_1D
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FFT
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FFT/BUILD)
-
-# TEST_FOURIER_1D_SCALAR
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FOURIER_1D_SCALAR
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_FOURIER_1D_SCALAR/BUILD)
-
-# TEST_PERIODICITY
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PERIODICITY/
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PERIODICITY/BUILD)
-
-# TEST_HYPAR_FE_TOOLS
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_FE_TOOLS/
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_FE_TOOLS/BUILD)
-
-# TEST_HYPAR_MESH_TOOLS
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_MESH_TOOLS/
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_HYPAR_MESH_TOOLS/BUILD)
-
-# TEST_PETSC
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PETSC/
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_PETSC/BUILD)
-
- # TEST_NAVIER_STOKES
-add_subdirectory(${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_NAVIER_STOKES/
-  ${HYPAR_SFE_DIR}/REGRESSION_SUITE/TEST_NAVIER_STOKES/BUILD) 
+set(DIR_TESTS ${HYPAR_SFE_DIR}/REGRESSION_SUITE)
+add_subdirectory(${DIR_TESTS}
+                 ${DIR_TESTS}/BUILD)

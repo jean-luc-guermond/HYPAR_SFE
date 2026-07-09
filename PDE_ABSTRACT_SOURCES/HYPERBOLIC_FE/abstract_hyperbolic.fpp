@@ -1014,7 +1014,7 @@ CONTAINS
          CALL VecPointWiseDivide(this%x5vec, this%x5vec, this%x6vec, ierr)
          CALL extract_through_ghost(this%x5vec, 1, 1, this%LA_L, rk, opt_assemble=.FALSE.)
 
-         alpha = MIN(1*rk,1.d0)
+         alpha = MIN(1.d0*rk,1.d0)
          alpha = threshold(alpha)
 
          !IF (this%time+1.1*this%dt>this%final_time .AND. stage==this%ERK%s+1) THEN
