@@ -408,6 +408,8 @@ CONTAINS
       IF (PRESENT(opt_skip_data)) THEN
          okay = raw_okay .AND. (.NOT. opt_skip_data)
          IF (.NOT. okay) end_idx_record = end_idx_record - 1
+      ELSE
+         okay = raw_okay
       END IF
       IF (okay) READ(list_info_for_new_data(index_list_info_data),*) val_in_out
 

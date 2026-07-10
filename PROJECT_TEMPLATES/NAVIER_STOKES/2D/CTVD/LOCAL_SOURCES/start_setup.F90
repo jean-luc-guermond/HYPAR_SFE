@@ -66,19 +66,23 @@ CONTAINS
     INTEGER :: rank
 
     !===Start PETSC and MPI (mandatory)
-
+write(*,*) 'flag 1'
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
 
+write(*,*) 'flag 2'
     !===Clean data once
     CALL clean_data_once
+write(*,*) 'flag 3'
 
     !===Construct mesh
     CALL get_mesh(communicator, mesh)
+write(*,*) 'flag 4'
 
     !===Read
     CALL setup_data%init
+write(*,*) 'flag 5'
 
     times(2) = setup_data%final_time
 
@@ -97,6 +101,7 @@ CONTAINS
     limiting_functionals_euler(2)%spe_iterative_cell_limiting_procedure => iterative_cell_limiting_procedure_euler_rho_max 
 
     !=== Define Euler limiting bounds
+write(*,*) 'flag 6'
 
     !===Start Navier-Stokes
     navier_stokes%imex_sv = setup_data%imex_sv

@@ -115,6 +115,8 @@ CTEST currently failing
 
 3. Vanderwalls test cases > 1
 
+4. Ctest with MINMOD with debug bound -finit-real=snan -finit-integer=-999999 -ffpe-trap=invalid,zero,overflow
+
 CTEST to add
 ------------
 

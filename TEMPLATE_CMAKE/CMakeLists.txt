@@ -23,7 +23,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}" "${HYPAR_SFE_DIR}/LIBS/CMAKE_SOURCES
 #============ PROJECT DEFINITION =============
 #=============================================
 
-project(BURGERS_1D VERSION 1.0 LANGUAGES Fortran C)
+project(my_project VERSION 1.0 LANGUAGES Fortran C)
 MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")

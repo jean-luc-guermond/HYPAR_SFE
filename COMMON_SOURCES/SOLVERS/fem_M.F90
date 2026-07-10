@@ -33,7 +33,6 @@ CONTAINS
                END DO
             ENDDO
          ENDDO
-
          CALL MatSetValues(matrix, mesh%gauss%n_w, idxn, mesh%gauss%n_w, idxn, mat_loc, ADD_VALUES, ierr)
       ENDDO
 

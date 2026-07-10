@@ -215,12 +215,10 @@ character(len=10), dimension(:), allocatable :: list_profiler
         !=== Build counters
         np = this%mesh%np
         !stage_prime = this%IRK%lp_of_l(stage) 
-call this%profiler%start(1)
 
         !========================================================!
         !======== VELOCITY VISCOUS DISSIPATION at stage-1========!
         !========================================================!
-call this%profiler%start(2)
         !===Define velocity at stage-1
         DO k = 1, k_dim
             velocity_lm1(:,k) = urk(:,k+1,stage-1)/rho_lm1
@@ -229,12 +227,10 @@ call this%profiler%start(2)
         CALL array_to_petsc_vec(rhs, this%vel1_vec, this%LA_vel, 'insert')
         !=== (-1)Div(sigma(vel))
         CALL MatMult(this%matrices%vel_diff_mat, this%vel1_vec, this%vel_flux_rk_at_dof(stage-1), ierr) 
-call this%profiler%end(2)
 
         !================================!
         !======== VELOCITY UPDATE========!
         !================================!
-call this%profiler%start(3)
         !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
         CALL VecZeroEntries(this%vel1_vec, ierr)
         CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%vel_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
@@ -245,30 +241,24 @@ call this%profiler%start(3)
         CALL array_to_petsc_vec(rhs, this%vel2_vec, this%LA_vel, 'insert')
         CALL VecAXPY(this%vel1_vec, 1.d0, this%vel2_vec, ierr)
 
-call this%profiler%end(3)
         !===RHS stored in this%vel1_vec
         !===End Combine parabolic fluxes with IRK coefficients
 
-call this%profiler%start(4)
         !====Construct matrix
         DO k = 1, k_dim
             lhs_mass((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*rho_l
         END DO
         CALL array_to_petsc_vec(lhs_mass, this%vel2_vec, this%matrices%LA_vel, 'insert')
         !===NOTICE: rho*ML is stored in this%vel2_vec
-call this%profiler%end(4)
         
         IF (stage < this%IRK%s + 1) THEN
-call this%profiler%start(5)
             !=== rhs BC
             DO k = 1, k_dim
                 CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
                                 this%bc%vit_anal(k, this%time, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%vel1_vec)
             END DO
             !=== rhs BC
-call this%profiler%end(5)
 
-call this%profiler%start(6)
             !=== LHS matrix construction + BC
             CALL MatCopy(this%matrices%vel_diff_mat, this%matrices%vel_mat, SAME_NONZERO_PATTERN, ierr)
             CALL MatScale(this%matrices%vel_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
@@ -278,33 +268,25 @@ call this%profiler%start(6)
                 CALL Dirichlet_M_parallel(this%matrices%vel_mat, this%LA_vel%loc_to_glob(k,this%bc%vel(k)%jsd))
             END DO
             !=== LHS matrix construction + BC
-call this%profiler%end(6)
 
             !=== Solver linear system
-call this%profiler%start(7)
             CALL this%iterative_LA(this%matrices%elasticity_solver_param, &
                                 this%matrices%vel_mat, this%matrices%vel_ksp, this%matrices%precond_vel_mat,&
                                 this%vel1_vec, this%sol_vel_vec)
-call this%profiler%end(7)
         ELSE
-call this%profiler%start(7)
             !===Divide by rho*ML stored in this%vel2_vec
             CALL VecPointWiseDivide(this%sol_vel_vec, this%vel1_vec, this%vel2_vec, ierr)
- call this%profiler%end(7)
         END IF
-call this%profiler%start(8)
         !====extract velocity and update momentum
         DO k=1, k_dim
             CALL extract_through_ghost(this%sol_vel_vec, k, k, this%LA_vel, vel_out(:, k), opt_assemble=.FALSE.)
             urk(:,k+1, stage) = rho_l*vel_out(:, k)
         END DO
- call this%profiler%end(8)
 
         !===================================!
         !======== TEMPERATURE UPDATE========!
         !===================================!
 
-call this%profiler%start(9)
         !=== (-1)Div(sigma(vel).vel)
         IF (stage==2) THEN
             CALL viscous_production (this, velocity_lm1, this%temp_flux_rk_at_dof(stage-1))
@@ -314,9 +296,6 @@ call this%profiler%start(9)
         CALL array_to_petsc_vec(scal_temp, this%temp1_vec, this%LA_temp, 'insert')
         CALL MatMult(this%matrices%temp_diff_mat, this%temp1_vec, this%temp2_vec, ierr)
         CALL VecAXPY(this%temp_flux_rk_at_dof(stage-1), 1.d0, this%temp2_vec, ierr)
- call this%profiler%end(9)
-
-call this%profiler%start(10)
 
         IF (stage < this%IRK%s + 1) THEN
             CALL viscous_production (this, vel_out, this%temp_flux_rk_at_dof(stage))
@@ -331,9 +310,6 @@ call this%profiler%start(10)
             CALL VecMAXPY(this%temp1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), & 
                                                 this%temp_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
         END IF
- call this%profiler%end(10)
-
-call this%profiler%start(11)
         !=== E(l') - (1/2)*rho(l)*vel_out(l)**2 
         scal_temp = urk(:,k_dim+2,stage) - 0.5d0*rho_l*sum(vel_out**2,dim=2)
         ! scal_temp = urk(:,k_dim+2,stage_prime) - 0.5d0*rho_l*sum(vel_out**2,dim=2)
@@ -347,23 +323,17 @@ call this%profiler%start(11)
         !TESTTT
         !===RHS stored in this%temp1_vec
         !===End Combine parabolic fluxes with IRK coefficients
- call this%profiler%end(11)
 
-call this%profiler%start(12)
         !===Construct Matrix  
         scal_temp = this%matrices%scal_lumped_mass*rho_l*this%cv
         CALL array_to_petsc_vec(scal_temp, this%temp2_vec, this%matrices%LA_temp, 'insert')
         !===NOTICE: rho*cv*ML is stored in this%vel2_vec
- call this%profiler%end(12)
         IF (stage < this%IRK%s + 1) THEN
-call this%profiler%start(13)
             !=== rhs BC
             CALL dirichlet_rhs(this%matrices%LA_temp%loc_to_glob(1, this%bc%temp%jsd)-1, &
                             this%bc%temp_anal(this%time, this%mesh%rr(:,this%bc%temp%jsd)), this%temp1_vec)
             !=== rhs BC
- call this%profiler%end(13)
 
-call this%profiler%start(14)
             !=== LHS matrix construction + BC
             CALL MatCopy(this%matrices%temp_diff_mat, this%matrices%temp_mat, SAME_NONZERO_PATTERN, ierr)
             CALL MatScale(this%matrices%temp_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
@@ -371,26 +341,16 @@ call this%profiler%start(14)
             !CALL periodic_matrix_petsc(mesh%per, this%matrices%LA_temp, this%matrices%temp_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
             CALL Dirichlet_M_parallel(this%matrices%temp_mat, this%LA_temp%loc_to_glob(1,this%bc%temp%jsd))
             !=== LHS matrix construction + BC
- call this%profiler%end(14)
-call this%profiler%start(15)
 
             CALL this%iterative_LA(this%matrices%temperature_solver_param, &
                                 this%matrices%temp_mat, this%matrices%temp_ksp, this%matrices%precond_temp_mat,&
                                 this%temp1_vec, this%sol_temp_vec)
- call this%profiler%end(15)
         ELSE
- call this%profiler%start(15)
             CALL VecPointWiseDivide(this%sol_temp_vec, this%temp1_vec, this%temp2_vec, ierr)
- call this%profiler%end(15)
         END IF
-
- call this%profiler%start(16)
         !====extract velocity and update momentum
         CALL extract_through_ghost(this%sol_temp_vec, 1, 1, this%LA_temp, temp_out, opt_assemble=.FALSE.)
         urk(:,k_dim+2, stage) = rho_l*this%cv*temp_out + 0.5d0*rho_l*sum(vel_out**2,dim=2)
- call this%profiler%end(16)
-call this%profiler%end(1)
-
     END SUBROUTINE one_step_IRK_LUMPED
 
     SUBROUTINE construct_stokes_bc(this, mesh)

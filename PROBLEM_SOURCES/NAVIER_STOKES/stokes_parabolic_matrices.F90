@@ -1,5 +1,7 @@
-MODULE stokes_parabolic_matrices_module
 #include "petsc/finclude/petsc.h"
+MODULE stokes_parabolic_matrices_module
+   !> Module to build matrices used for solving 
+   !! the velocity and the temperature successively
    USE petsc
    USE def_type_mesh
    USE petsc_csr_LA_module
@@ -32,6 +34,8 @@ TYPE stokes_parabolic_matrices_type
 CONTAINS
 
    SUBROUTINE construct_stokes_parabolic_matrices(this, communicator, mesh, LA_vel, LA_temp)
+      !> Construction of matrices for Stokes
+      !! TODO: periodic conditions; consistent matrices; implicit lumped diffusion?
       USE space_dim
       USE fem_M
       USE st_matrix, ONLY: create_my_ghost, extract_through_ghost
@@ -119,6 +123,8 @@ CONTAINS
    END SUBROUTINE construct_stokes_parabolic_matrices
 
    SUBROUTINE var_mass_M (this, mesh, mass, rho)
+      !> alternative qs_mass_diff: builds mass matrix with mass (constant) and rho (space-dependant)
+      !! To add to COMMON_SOURCES/SOLVER ?
       !=================================================
       IMPLICIT NONE
       CLASS(stokes_parabolic_matrices_type) :: this
@@ -151,6 +157,9 @@ CONTAINS
    END SUBROUTINE var_mass_M
 
    SUBROUTINE elasticity_M (this, mesh)
+      !> subroutine to build elasticity matrix of size k_dim
+      !! To add to COMMON_SOURCES/SOLVER ? takes as arguments: lambda_viscosity and mu_viscosity
+      !! use petsc_csr_la_enhanced instead?
       !=================================================
       USE space_dim
       IMPLICIT NONE
@@ -210,6 +219,8 @@ CONTAINS
    END SUBROUTINE elasticity_M
 
    SUBROUTINE mass_vel_M (this, mesh)
+      !> simple mass matrix by blocks of k_dim
+      !! TO add to solver petsc?
       !=================================================
       USE space_dim
       IMPLICIT NONE

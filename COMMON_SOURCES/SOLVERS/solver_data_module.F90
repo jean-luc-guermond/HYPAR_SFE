@@ -91,19 +91,19 @@ CONTAINS
 
       if_hypre=TRIM(ADJUSTL(this%precond))=='HYPRE'
       !=== strong_thr
-      CALL read_data(argument_data%boomeramg_strong_threshold, this%boomeramg_strong_threshold,opt_add=if_hypre)
+      CALL read_data(argument_data%boomeramg_strong_threshold, this%boomeramg_strong_threshold, opt_name=this%name,opt_add=if_hypre)
 
       !=== boomeramg_coarsen_type
-      CALL read_data(argument_data%boomeramg_coarsen_type, this%boomeramg_coarsen_type,opt_add=if_hypre)
+      CALL read_data(argument_data%boomeramg_coarsen_type, this%boomeramg_coarsen_type, opt_name=this%name,opt_add=if_hypre)
 
       !=== boomeramg_relax_type_all
-      CALL read_data(argument_data%boomeramg_relax_type_all, this%boomeramg_relax_type_all,opt_add=if_hypre)
+      CALL read_data(argument_data%boomeramg_relax_type_all, this%boomeramg_relax_type_all, opt_name=this%name,opt_add=if_hypre)
 
       !=== if_fixed_v_cycle
-      CALL read_data(argument_data%if_fixed_v_cycle, this%if_fixed_v_cycle,opt_add=if_hypre)
+      CALL read_data(argument_data%if_fixed_v_cycle, this%if_fixed_v_cycle, opt_name=this%name,opt_add=if_hypre)
 
       !=== number_v_cycle
-      CALL read_data(argument_data%number_v_cycle, this%number_v_cycle, opt_add=this%if_fixed_v_cycle.AND.if_hypre)
+      CALL read_data(argument_data%number_v_cycle, this%number_v_cycle, opt_name=this%name, opt_add=this%if_fixed_v_cycle.AND.if_hypre)
 
       !=== if_verbose      
       CALL read_data(argument_data%if_verbose, this%if_verbose, opt_name=this%name)

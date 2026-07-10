@@ -52,6 +52,8 @@ type(profiler_type) :: profiler
 CONTAINS
 
 SUBROUTINE init_navier_stokes(this, communicator, name, mesh, limiting_functionals_euler) 
+    !> initialize Navier-Stokes setup
+    !! Also initializes Euler and Stokes
     USE space_dim
     USE my_util,            ONLY: error_petsc, to_str
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
@@ -147,6 +149,8 @@ SUBROUTINE set_times_navier_stokes(this, times)
 END SUBROUTINE set_times_navier_stokes
 
 SUBROUTINE update(this,un_in)
+    !> IMEX update of Euler and then Stokes
+    !! dt computed at Euler step
     IMPLICIT NONE
     CLASS(navier_stokes_type)                                          :: this
     REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim)               :: un_in

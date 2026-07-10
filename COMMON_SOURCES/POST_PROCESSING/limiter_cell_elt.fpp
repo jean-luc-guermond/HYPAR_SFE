@@ -17,7 +17,6 @@ CONTAINS
         CLASS(limiting_type),             INTENT(IN) :: this
         REAL(KIND=8), DIMENSION(:),                           INTENT(IN) :: loc_min
         REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$),  INTENT(INOUT) :: xx_in
-        ! REAL(KIND=8), DIMENSION(k_dim+1, ${syst_dim}$, size(this%jj,2))     :: xx
         REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$) :: xx_out
         REAL(KIND=8), DIMENSION(${syst_dim}$)               :: uk_minus, uk_plus, uu, pp
         LOGICAL,      DIMENSION(SIZE(loc_min))              :: mask_up_vec, mask_down_vec
@@ -76,8 +75,8 @@ CONTAINS
             inv_minus = 1.d0/max(mass_minus,this%mass_eps)
             inv_plus  = 1.d0/max(mass_plus ,this%mass_eps)
             DO comp=1, syst_size
-                uk_minus(comp) = uk_minus(comp)/max(mass_minus,this%mass_eps)
-                uk_plus(comp) = uk_plus(comp)/max(mass_plus,this%mass_eps)
+                uk_minus(comp) = uk_minus(comp)*inv_minus
+                uk_plus(comp) = uk_plus(comp)*inv_plus
             END DO
 
             DO n=1, k_dim+1
@@ -97,8 +96,8 @@ CONTAINS
             END DO
             Lambda_star_minus = MAX(lambda_minus, 0.d0)
             Lambda_star_plus = MAX(lambda_plus, 0.d0)
-            Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus/mass_minus)
-            Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus/mass_plus)
+            Lambda_K_minus = MAX(Lambda_star_minus, 1.d0-Lambda_star_plus*mass_plus*inv_minus)
+            Lambda_K_plus  = MIN(Lambda_star_plus, (1.d0-Lambda_star_minus)*mass_minus*inv_plus)
 
             !=== DEBUGGING ===!
             !write(*,*)  'm possible limiting', m

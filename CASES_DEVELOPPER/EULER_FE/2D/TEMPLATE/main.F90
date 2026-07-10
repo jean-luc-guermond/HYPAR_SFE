@@ -59,7 +59,9 @@ PROGRAM prog
     END IF
 
     !=== Stop loop
-    IF (n == setup_data%max_it) THEN
+    IF (euler%dt < 1.d-12) THEN
+      CALL error_petsc("BUG in main loop: timestep too small "//to_str(euler%dt))
+    ELSEIF (n == setup_data%max_it) THEN
         IF (euler%mesh%rank==0) WRITE(*,*) "max_it reached, exiting solver loop"
         EXIT
     END IF

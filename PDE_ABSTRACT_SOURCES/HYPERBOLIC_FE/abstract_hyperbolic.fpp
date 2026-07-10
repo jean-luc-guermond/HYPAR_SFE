@@ -769,7 +769,7 @@ CONTAINS
          alpha => this%x2)                    ! DIMENSION(this%mesh_L%np)  !<==commutator in (0,1)
       nw = mesh%gauss%n_w
       IF (this%method==METHOD_HIGH) THEN
-         CALL this%commutator(un, alpha, 1)
+         CALL this%commutator(un, alpha)
       END IF
 
       mat_L_glob = 0.d0
@@ -875,7 +875,6 @@ CONTAINS
       IF (this%method==METHOD_HIGH) THEN
          ASSOCIATE(arr_H => LA%zz_contig_2, mat_loc_to_glob => LA%mat_loc_to_glob)
          arr_H(:) = 0.d0
-         CALL this%commutator(un, alpha, 2)
          DO m=1, mesh%me
             DO ni=1, nw
                i = mesh%jj(ni, m)
@@ -940,7 +939,7 @@ CONTAINS
       END SELECT
    END SUBROUTINE invert_mass
 
-   SUBROUTINE commutator(this, un, alpha, int_assembly)
+   SUBROUTINE commutator(this, un, alpha)
       USE space_dim
       USE sub_plot
       USE st_matrix, ONLY: extract_through_ghost
@@ -950,7 +949,6 @@ CONTAINS
       CLASS(hyperbolic_type) :: this
       REAL(KIND = 8), DIMENSION(:,:), INTENT(IN) :: un
       REAL(KIND = 8), DIMENSION(:), INTENT(OUT):: alpha
-      INTEGER,                      INTENT(IN) :: int_assembly
       REAL(KIND = 8), DIMENSION(this%mesh%np)  :: rk, rk_norm, eta, logeta
       REAL(KIND = 8), DIMENSION(:), POINTER :: dummy
       INTEGER :: k, ierr, np_tot
@@ -959,8 +957,6 @@ CONTAINS
       LOGICAL :: if_commutator_H=.FALSE.
       PetscReal :: norm
 
-      SELECT CASE(int_assembly)
-      CASE(1)
          
          eta = this%eta_commute(un)
          CALL VecSetValues(this%x1vec, SIZE(eta), this%LA_L%loc_to_glob(1,:)-1, eta, INSERT_VALUES, ierr)
@@ -969,7 +965,6 @@ CONTAINS
          logeta = log(abs(eta))
          CALL VecSetValues(this%x2vec, SIZE(logeta), this%LA_L%loc_to_glob(1,:)-1, logeta, INSERT_VALUES, ierr)
          CALL VecAssemblyBegin(this%x2vec, ierr)
-      CASE(2)
          CALL VecAssemblyEnd(this%x1vec, ierr)
          CALL VecAssemblyEnd(this%x2vec, ierr)
          
@@ -1023,10 +1018,6 @@ CONTAINS
             CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, alpha, 'a'//trim(adjustl(char))//'.plt')
             CALL plot_scalar_field(this%mesh%jj, this%mesh%rr, eta, 'eta'//trim(adjustl(char))//'.plt')
          END IF
-
-      CASE DEFAULT
-         CALL error_petsc('BUG in commutator => wrong case '//to_str(int_assembly))
-      END SELECT
 
    END SUBROUTINE commutator
 
