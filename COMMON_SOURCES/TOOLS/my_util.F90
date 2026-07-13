@@ -9,7 +9,8 @@ MODULE my_util
       MODULE PROCEDURE pack_opt_logical, pack_opt_integer, pack_opt_real, pack_opt_character
   END INTERFACE pack_opt
 
-  PUBLIC :: user_time, error_Petsc, local_error_petsc, to_str, write_rank_0, pack_opt
+  PUBLIC :: user_time, error_Petsc, local_error_petsc, to_str, write_rank_0, pack_opt, get_tab_idx_char
+  PRIVATE
 CONTAINS
   !
   !Authors: Jean-Luc Guermond, Lugi Quartapelle, Copyright 1994

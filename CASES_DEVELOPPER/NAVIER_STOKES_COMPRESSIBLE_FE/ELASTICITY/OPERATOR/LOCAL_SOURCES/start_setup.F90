@@ -20,7 +20,6 @@ MODULE start_setup_MODULE
     END TYPE argument_setup_data_type
 
     TYPE setup_data_type
-        LOGICAL        :: if_regression_test  = .FALSE.
         LOGICAL        :: if_analytical_ref   = .FALSE.
         INTEGER        :: syst_size
         REAL(KIND = 8)                :: thermal_diffusivity = 0.d0
@@ -52,6 +51,7 @@ CONTAINS
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
     USE space_dim
+    USE options_module
     IMPLICIT NONE
     CHARACTER(100) :: name
     INTEGER        :: rank
@@ -63,6 +63,9 @@ CONTAINS
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
 
+    !===Read executable arguments
+    CALL read_all_arguments
+  
     !===Clean data once
     CALL clean_data_once
 
@@ -115,14 +118,6 @@ CONTAINS
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
-
-    !===Regression test
-    CALL getarg(1, string)
-    IF (trim(adjustl(string))=='regression') THEN
-       this%if_regression_test = .true.
-    ELSE
-       this%if_regression_test = .false.
-    END IF
 
     !===mu
     CALL read_data(argument_data%mu_viscosity, this%mu_viscosity)

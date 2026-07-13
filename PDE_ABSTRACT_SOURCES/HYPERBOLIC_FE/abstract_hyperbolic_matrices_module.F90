@@ -37,6 +37,7 @@ CONTAINS
       USE space_dim
       USE fem_M
       USE st_matrix, ONLY: create_my_ghost
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
       TYPE(mesh_type),    INTENT(IN) :: mesh, mesh_L

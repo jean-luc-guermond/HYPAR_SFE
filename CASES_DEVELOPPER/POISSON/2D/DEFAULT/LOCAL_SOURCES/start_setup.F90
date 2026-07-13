@@ -37,6 +37,7 @@ CONTAINS
     USE construct_mesh,     ONLY: get_mesh
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
+    USE options_module
     IMPLICIT NONE
     CHARACTER(100) :: name
     INTEGER        :: rank
@@ -47,6 +48,9 @@ CONTAINS
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
+
+    !===Read executable arguments
+    CALL read_all_arguments
 
     !===Clean data once
     CALL clean_data_once

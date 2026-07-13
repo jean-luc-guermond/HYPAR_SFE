@@ -1,4 +1,43 @@
 MODULE petsc_csr_LA_module
+    !> Update VB 01/07/2026
+    !! module containing object petsc_csr_LA
+    !! fill_mat: offers a faster way to fill petsc matrices than with MatSetValues
+    !! WARNING: a matrix provided by fill_mat must have been generated with petsc_create_local_matrix, not MatDuplicate!!
+    !! TODO => generalize to LA(dim>1)
+    !!
+    !!    MatSetValues:
+    !! 
+    !!    CALL MatZeroEntries(matrix_2, ierr)
+    !!    DO m=1, mesh%me
+    !!        idxm = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
+    !!        DO ni=1, nw
+    !!            DO nj=1, nw
+    !!                CALL my_compute(un_block(nj, ni), m, ni, nj)  !=== WARNING ROW ORIENTATION
+    !!            END DO
+    !!        END DO
+    !!        CALL MatSetValues(matrix_2, nw, idxm, nw, idxm, un_block(:,:), ADD_VALUES, ierr)
+    !!    END DO
+    !!    CALL MatAssemblyBegin(matrix_2, MAT_FINAL_ASSEMBLY, ierr)
+    !!    CALL MatAssemblyEnd(matrix_2, MAT_FINAL_ASSEMBLY, ierr)
+    !!
+    !!  
+    !!    LA%fill_mat:
+    !!
+    !!    !======= GATHER OPERATION ==========!
+    !!    ASSOCIATE(arr => LA%zz_contig_1, mat_loc_to_glob => LA%mat_loc_to_glob)
+    !!    arr(:) = 0.d0
+    !!    DO m=1, mesh%me
+    !!        DO ni=1, nw
+    !!            DO nj=1, nw
+    !!                CALL my_compute(un_block(nj, ni), m, ni, nj)
+    !!                arr(mat_loc_to_glob(ni, nj, m)) = arr(mat_loc_to_glob(ni, nj, m)) + un_block(nj, ni) !=== WARNING ROW ORIENTATION
+    !!            END DO
+    !!        END DO
+    !!    END DO
+    !!    !======= COMMUNICATE & (instantanous) MATRIX FILL ==========!
+    !!    CALL LA%fill_mat(matrix_1, arr)
+    !!    END ASSOCIATE
+
     USE def_type_mesh
     USE petscmat
     USE petscvec

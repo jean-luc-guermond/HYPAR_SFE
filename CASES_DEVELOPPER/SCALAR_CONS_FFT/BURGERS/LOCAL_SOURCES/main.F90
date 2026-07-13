@@ -55,6 +55,7 @@ CONTAINS
     USE nl_scalar_cons_module
     USE fft_1D
     USE post_processing_debug_MODULE
+    USE options_module
     IMPLICIT NONE
     type(nl_scalar_cons_type) :: nl_scalar_cons
     REAL(KIND = 8), DIMENSION(fourier_param%Nmax_real) :: r_un
@@ -74,7 +75,7 @@ CONTAINS
     !    CALL get_num_test(num_test)
     !    CALL regression(tab_norm, opt_num_test=num_test)
     ! END IF
-    IF (setup_data%if_regression_test) THEN
+    IF (options%if_regression) THEN
       ALLOCATE(tab_norm(1))
       IF (setup_data%if_analytical_ref) THEN
         error = SUM(ABS(r_un-exact_sol_R(fourier_param, nl_scalar_cons%time)))
@@ -84,8 +85,7 @@ CONTAINS
         norm = SUM(ABS(r_un))
         tab_norm(1) = norm
       END IF
-      CALL get_num_test(num_test)
-      CALL regression(tab_norm, opt_num_test=num_test)
+      CALL regression(tab_norm, opt_num_test=options%num_regex)
     END IF
 
   END SUBROUTINE errors

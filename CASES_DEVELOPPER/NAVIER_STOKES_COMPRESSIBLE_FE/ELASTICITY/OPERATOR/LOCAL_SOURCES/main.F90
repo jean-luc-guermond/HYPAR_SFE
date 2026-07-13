@@ -89,43 +89,7 @@ PROGRAM test_matrix
     END DO
     !=== Build RHS
     IF (n>1) tps_loop = tps_loop + (user_time()-tps)
-    ! !=== Solve
-    ! IF (tps_ratio>2) THEN
-    !   count = 0
-    !   IF (mesh%rank==0) WRITE(*,*) 'reinitializing solver precond'
-    !   tps = user_time()
-    !   CALL MatCopy(stokes_matrices%vel_mat, stokes_matrices%precond_vel_mat, SAME_NONZERO_PATTERN, ierr)
-    !   CALL KSPDestroy(stokes_matrices%vel_ksp, ierr)
-    !   ! IF (once) THEN
-    !   !   once = .FALSE.
-    !     CALL init_solver(communicator, stokes_matrices%elasticity_solver_param, stokes_matrices%vel_ksp, &
-    !     stokes_matrices%vel_mat, opt_mat_pre=stokes_matrices%precond_vel_mat)!, opt_re_init=.TRUE.)  
-    !   ! END IF  
-    !   tps_init = user_time() - tps
-    ! ELSE
-    !   CALL KSPSetInitialGuessNonzero(stokes_matrices%vel_ksp, PETSC_TRUE, ierr)
-    !   CALL KSPSetReusePreconditioner(stokes_matrices%vel_ksp, PETSC_TRUE, ierr)
-    ! END IF
-    ! IF (n>1) tps_loop = tps_loop + (user_time()-tps)
 
-    ! tps = user_time()
-    ! CALL solver(stokes_matrices%vel_ksp, x1vec_vel, sol_vec, reinit = .FALSE., verbose = .FALSE.)
-    ! count = count + 1
-
-    ! SELECT CASE(count)
-    ! CASE(1)
-    !   tps_ratio = 1.d0
-    ! CASE(2)
-    !   local_tps_solver_ref = user_time()-tps
-    !   CALL MPI_ALLREDUCE(local_tps_solver_ref, tps_solver_ref, 1, MPI_DOUBLE, MPI_MIN, communicator, ierr)
-    !   local_tps_solver_one_iter = user_time()-tps
-    !   CALL MPI_ALLREDUCE(local_tps_solver_one_iter, tps_solver_one_iter, 1, MPI_DOUBLE, MPI_MIN, communicator, ierr)
-    !   tps_ratio = tps_solver_one_iter/tps_solver_ref
-    ! CASE DEFAULT
-    !   local_tps_solver_one_iter = user_time()-tps
-    !   CALL MPI_ALLREDUCE(local_tps_solver_one_iter, tps_solver_one_iter, 1, MPI_DOUBLE, MPI_MIN, communicator, ierr)
-    !   tps_ratio = tps_solver_one_iter/tps_solver_ref
-    ! END SELECT
     tps = user_time()
     CALL iterative_LA(stokes_matrices%elasticity_solver_param, stokes_matrices%vel_mat, stokes_matrices%vel_ksp, &
     stokes_matrices%precond_vel_mat, x1vec_vel, sol_vec)
@@ -181,6 +145,7 @@ CONTAINS
   SUBROUTINE errors
     USE fem_tn
     USE post_processing_debug_MODULE
+    USE options_module
     IMPLICIT NONE
 
     REAL(KIND=8) :: error, norm, norm_anal
@@ -202,7 +167,7 @@ CONTAINS
     END DO
 
 !==== For regression tests ====!
-    IF (setup_data%if_regression_test) THEN
+    IF (options%if_regression) THEN
       DO k=1, k_dim
         IF (setup_data%if_analytical_ref) THEN
           CALL ns_l1_PAR(mesh, u_out(:,k)-velocity(k,mesh%rr), error, communicator)
@@ -213,8 +178,7 @@ CONTAINS
         END IF
         tab_norm(k) = norm
       END DO
-      CALL get_num_test(num_test)
-      CALL regression(tab_norm, opt_num_test=num_test)
+      CALL regression(tab_norm, opt_num_test=options%num_regex)
     END IF
 
   END SUBROUTINE errors

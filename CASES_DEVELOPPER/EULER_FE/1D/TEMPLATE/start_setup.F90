@@ -27,7 +27,6 @@ MODULE start_setup_MODULE
   END TYPE argument_setup_data_type
 
   TYPE setup_data_type
-     LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
      INTEGER        :: restart_idx         = -1
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
@@ -61,6 +60,7 @@ CONTAINS
     USE construct_mesh,     ONLY: get_mesh
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
+    USE options_module
     IMPLICIT NONE
     PetscErrorCode :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
@@ -73,6 +73,9 @@ CONTAINS
     communicator = PETSC_COMM_WORLD
     CALL MPI_Comm_rank(communicator, rank, ierr)
 
+    !===Read executable arguments
+    CALL read_all_arguments
+    
     !===Clean data once
     CALL clean_data_once
 
@@ -131,7 +134,6 @@ CONTAINS
     CHARACTER(LEN=rec_length) :: section_name='SETUP PARAMETERS'
     CLASS(setup_data_type)             :: this
     TYPE(argument_setup_data_type)     :: argument_data
-    CHARACTER(LEN=rec_length)          :: string
 
     !================
     !=== MANDATORY Reading all data file
@@ -171,14 +173,6 @@ CONTAINS
 
     !===Analytical reference
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
-
-    !===Regression test
-    CALL getarg(1, string)
-    IF (trim(adjustl(string))=='regression') THEN
-       this%if_regression_test = .true.
-    ELSE
-       this%if_regression_test = .false.
-    END IF
 
     !================
     !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections

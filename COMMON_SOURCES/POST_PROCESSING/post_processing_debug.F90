@@ -1,27 +1,41 @@
 MODULE post_processing_debug_MODULE
   IMPLICIT NONE
+  PUBLIC :: regression
+  PRIVATE
+  CHARACTER(LEN=10), PARAMETER :: list_regex(9) = (/ &
+   "1234567891",&
+   "2345678912",&
+   "3456789123",&
+   "4567891234",&
+   "5678912345",&
+   "6789123456",&
+   "7891234567",&
+   "8912345678",&
+   "9123456789"&
+  /)
+
 CONTAINS
   
-  SUBROUTINE get_num_test(num_test)
-     IMPLICIT NONE
-      INTEGER, INTENT(OUT) :: num_test
-      CHARACTER(LEN=100) :: string
+!   SUBROUTINE get_num_test(num_test)
+!      IMPLICIT NONE
+!       INTEGER, INTENT(OUT) :: num_test
+!       CHARACTER(LEN=100) :: string
 
-      CALL getarg(2, string)
-      IF (trim(adjustl(string))=='1') THEN
-         num_test = 1
-      ELSE IF (trim(adjustl(string))=='2') THEN
-         num_test = 2
-      ELSE IF (trim(adjustl(string))=='3') THEN
-         num_test = 3
-      ELSE
-         WRITE(*,*) "Invalid test number ", trim(adjustl(string)), ". Allowed: 1, 2, 3"
-         STOP
-      END IF
-  END SUBROUTINE get_num_test
+!       CALL getarg(2, string)
+!       IF (trim(adjustl(string))=='1') THEN
+!          num_test = 1
+!       ELSE IF (trim(adjustl(string))=='2') THEN
+!          num_test = 2
+!       ELSE IF (trim(adjustl(string))=='3') THEN
+!          num_test = 3
+!       ELSE
+!          WRITE(*,*) "Invalid test number ", trim(adjustl(string)), ". Allowed: 1, 2, 3"
+!          STOP
+!       END IF
+!   END SUBROUTINE get_num_test
 
   SUBROUTINE regression(absolute_error, opt_num_test, opt_tol)
-      USE my_util, ONLY: pack_opt
+      USE my_util, ONLY: pack_opt, error_petsc, to_str
       INTEGER, OPTIONAL                      :: opt_num_test
       REAL(KIND=8), DIMENSION(:), INTENT(IN) :: absolute_error
       REAL(KIND=8), DIMENSION(SIZE(absolute_error)) :: regression_ref, relative_error
@@ -36,22 +50,14 @@ CONTAINS
       CALL pack_opt(tol, raw_tol, opt_tol)
 
 !==== Defining regression test number
-      IF (PRESENT(opt_num_test)) THEN
-         num_test = opt_num_test
-      ELSE
-         num_test = 1
-      END IF
+      CALL pack_opt(num_test, 1, opt_num_test)
 
       WRITE(str_num_test, '(I0)') num_test
-      IF (num_test==1) THEN
-         regex = '1234567891'
-      ELSE IF (num_test==2) THEN
-         regex = '2345678912'
-      ELSE IF (num_test==3) THEN
-         regex = '3456789123'
+      IF (num_test > SIZE(list_regex)) THEN
+         CALL error_petsc("BUG in regression: invalid num_test = "//to_str(num_test)//&
+         &", only valid up to "//to_str(SIZE(list_regex)))
       ELSE
-         WRITE(*,*) "Invalid test number ", num_test, ". Allowed: 1, 2, 3"
-         RETURN
+         regex = list_regex(num_test)
       END IF
 
 !==== Opening regression reference file + seeing if existent or not

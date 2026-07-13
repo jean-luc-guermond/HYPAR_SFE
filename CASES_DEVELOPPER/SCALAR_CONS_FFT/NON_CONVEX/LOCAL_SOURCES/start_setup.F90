@@ -10,7 +10,6 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: if_analytical_ref  = '=== Do we compare with analytical reference? (true/false) ==='
   END TYPE argument_setup_data_type
   TYPE setup_data_type
-     LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
@@ -28,11 +27,14 @@ CONTAINS
 #include "petsc/finclude/petsc.h"
     USE petsc
     USE read_inputs_module, ONLY : clean_data_once
+    USE options_module
     IMPLICIT NONE
     REAL(KIND = 8) :: init_time = 0.d0
     INTEGER :: ierr
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
 
+    !===Read executable arguments
+    CALL read_all_arguments
     !===Clean data once
     CALL clean_data_once
     !===Init parameters
@@ -77,14 +79,6 @@ CONTAINS
 
       !===if_analytical_ref
     CALL read_data(argument_data%if_analytical_ref, this%if_analytical_ref)
-
-      !===Regression test
-    CALL getarg(1, string)
-    IF (trim(adjustl(string))=='regression') THEN
-       this%if_regression_test = .true.
-    ELSE
-       this%if_regression_test = .false.
-    END IF
 
 !================
 !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections

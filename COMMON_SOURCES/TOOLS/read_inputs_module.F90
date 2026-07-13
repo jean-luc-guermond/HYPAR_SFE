@@ -1,21 +1,17 @@
 MODULE read_inputs_module
 
-    IMPLICIT NONE
-    PUBLIC :: clean_data_once, read_data_init_list, finalize_rewrite_data, read_data, read_periodic_data
+   IMPLICIT NONE
+   PUBLIC :: clean_data_once, read_data_init_list, finalize_rewrite_data, read_data, read_periodic_data
 
-    INTERFACE read_data
-        MODULE PROCEDURE read_real_data, read_integer_data, read_integer_array_data, read_character_data, read_logical_data
-    END INTERFACE read_data
+   INTERFACE read_data
+      MODULE PROCEDURE read_real_data, read_integer_data, read_integer_array_data, read_character_data, read_logical_data
+   END INTERFACE read_data
 
-    INTEGER, PARAMETER, PUBLIC :: rec_length=200,list_length=200
-    CHARACTER(LEN=rec_length), DIMENSION(:), ALLOCATABLE, PRIVATE :: record_info_from_data, list_info_for_new_data
-    INTEGER, PARAMETER, PRIVATE :: in_unit=21
-    INTEGER, PRIVATE :: index_list_info_data, record_size
-    LOGICAL, PRIVATE :: data_cleaned = .FALSE., if_regression_test
-    INTEGER, PRIVATE :: num_test, num_data_file
-    CHARACTER(LEN=:), ALLOCATABLE, PRIVATE :: file_in, file_save, file_out
-    CHARACTER(LEN=*), PARAMETER, PRIVATE :: file_in_par = 'data', file_save_par = 'previous_data', file_out_par = 'data'
-
+   INTEGER, PARAMETER, PUBLIC :: rec_length=200, list_length=200
+   CHARACTER(LEN=rec_length), DIMENSION(:), ALLOCATABLE, PRIVATE :: record_info_from_data, list_info_for_new_data
+   INTEGER, PARAMETER, PRIVATE :: in_unit=21
+   INTEGER, PRIVATE :: index_list_info_data, record_size
+   LOGICAL, PRIVATE :: data_cleaned = .FALSE.
 
 CONTAINS
    
@@ -88,53 +84,32 @@ CONTAINS
    
    
    SUBROUTINE clean_data_once
-#include "petsc/finclude/petsc.h"
       USE PETSC
-      USE post_processing_debug_MODULE, ONLY: get_num_test
       USE my_util, ONLY: to_str
+      USE options_module
       IMPLICIT NONE
-      INTEGER                                            :: rank, code, record_size_clean, raw_record_size, j
-      CHARACTER(LEN=rec_length), DIMENSION(list_length)  :: record, raw_record
+      INTEGER                                            :: rank, ierr, record_size_clean, raw_record_size, j, idx_raw_record, idx_record_clean
+      CHARACTER(LEN=rec_length), DIMENSION(:), ALLOCATABLE :: record, raw_record
       CHARACTER(LEN=rec_length)                          :: control 
-      
-      PetscErrorCode :: ierr
       
       !===Make sure data is cleaned only once
       data_cleaned = .TRUE.
       
       CALL MPI_Comm_rank(PETSC_COMM_WORLD, rank, ierr)
-    
-!==== FIX VB 08/05/2026 ==> DATA REWRITING HANDLING if_regression_test
-      CALL getarg(1, control)
-      IF (trim(adjustl(control))=='regression') THEN
-         if_regression_test = .TRUE.
-         CALL get_num_test(num_test)
-         CALL MPI_Comm_Size(PETSC_COMM_WORLD, num_data_file, code)
-         file_in = 'data_'//to_str(num_test)
-         file_save = 'previous_data_'//to_str(num_test)
-         !=== comment/uncomment to replace current data file in regression
-         file_out = 'data_regression_'//to_str(num_test)//'_NPROC_'//to_str(num_data_file)
-         ! file_out = file_in
-         !=== comment/uncomment to replace current data file in regression
-      ELSE
-         if_regression_test = .FALSE.
-         file_in   = file_in_par
-         file_save = file_save_par
-         file_out  = file_out_par
-      END IF
-!==== FIX VB 08/05/2026 ==> DATA REWRITING HANDLING if_regression_test
 
       IF (rank == 0) THEN 
          raw_record_size = 0
          record_size_clean = 0
-         
-         !===Cleaning data
-         OPEN(UNIT = in_unit, FILE = file_in, FORM = 'formatted', STATUS = 'unknown')
+         idx_raw_record = 0
+         idx_record_clean = 0
+         !=======================================================
+         !========== FIRST READING FOR ALLOCATIONS  
+         !=======================================================      
+         OPEN(UNIT = in_unit, FILE = options%data_in, FORM = 'formatted', STATUS = 'unknown')
          DO
             READ(in_unit,'(A)',END=100) control
             !===Will be used to rewrite the previous data as previous_data
             raw_record_size = raw_record_size + 1
-            raw_record(raw_record_size) = control
             
             !===All sets of characters to be cleaned from data file
             IF (TRIM(ADJUSTL(control(1:8)))=="%%%%%%%%") THEN
@@ -145,13 +120,42 @@ CONTAINS
             !    CYCLE
             ELSE
                record_size_clean = record_size_clean + 1
-               record(record_size_clean) = control
             END IF
          END DO
          100 CONTINUE
          CLOSE(in_unit)
-         !===Rewriting data as previous_data
-         OPEN(UNIT = in_unit, FILE = file_save, FORM = 'formatted', STATUS = 'unknown')
+
+         ALLOCATE(record(record_size_clean))
+         ALLOCATE(raw_record(raw_record_size))
+
+         !=======================================================
+         !========== NOW CLEANING DATA  
+         !=======================================================      
+         OPEN(UNIT = in_unit, FILE = options%data_in, FORM = 'formatted', STATUS = 'unknown')
+         DO
+            READ(in_unit,'(A)',END=101) control
+            !===Will be used to rewrite the previous data as previous_data
+            idx_raw_record = idx_raw_record + 1
+            raw_record(idx_raw_record) = control
+            
+            !===All sets of characters to be cleaned from data file
+            IF (TRIM(ADJUSTL(control(1:8)))=="%%%%%%%%") THEN
+               CYCLE
+            ELSE IF (TRIM(ADJUSTL(control(1:8)))=="||||||||") THEN
+               CYCLE
+            ! ELSE IF (TRIM(ADJUSTL(control(1:8)))=="========") THEN
+            !    CYCLE
+            ELSE
+               idx_record_clean = idx_record_clean + 1
+               record(idx_record_clean) = control
+            END IF
+         END DO
+         101 CONTINUE
+         CLOSE(in_unit)
+         !=======================================================
+         !========== SAVING A VERSION OF THE DATA FILE (relevant if data_in = data_out)
+         !=======================================================   
+         OPEN(UNIT = in_unit, FILE = options%data_save, FORM = 'formatted', STATUS = 'unknown')
          DO j = 1, raw_record_size
             IF (TRIM(ADJUSTL(raw_record(j)))=='') CYCLE
             WRITE(in_unit,'(A)') TRIM(ADJUSTL(raw_record(j)))
@@ -159,7 +163,7 @@ CONTAINS
          CLOSE(in_unit)
          
          !===Rewriting data after cleaning
-         OPEN(UNIT = in_unit, FILE = file_out, FORM = 'formatted', STATUS = 'unknown')
+         OPEN(UNIT = in_unit, FILE = options%data_out, FORM = 'formatted', STATUS = 'unknown')
          DO j = 1, record_size_clean
             IF (TRIM(ADJUSTL(record(j)))=='') CYCLE
             WRITE(in_unit,'(A)') TRIM(ADJUSTL(record(j)))
@@ -167,7 +171,7 @@ CONTAINS
          CLOSE(in_unit)
 
       END IF
-      CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
+      CALL MPI_BARRIER(PETSC_COMM_WORLD, ierr)
    END SUBROUTINE clean_data_once
    
    !===================================================================================
@@ -177,6 +181,7 @@ CONTAINS
    SUBROUTINE read_data_init_list(raw_section_name)
       USE PETSC
       USE my_util, ONLY: error_Petsc
+      USE options_module
       IMPLICIT NONE
       
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: raw_section_name
@@ -184,8 +189,8 @@ CONTAINS
       
       CHARACTER(LEN=rec_length) :: control, string
       CHARACTER(LEN=5)   :: fmt
-      INTEGER            :: length_section_name
-      INTEGER            :: code
+      INTEGER            :: length_section_name, idx_line
+      INTEGER            :: ierr
       LOGICAL            :: skip_control
       
       !========== MANDATORY INITIALIZING record_info_from_data AND list_info_for_new_data
@@ -202,37 +207,19 @@ CONTAINS
          &record_info_from_data or list_info_for_new_data is allocated &
          &, you might have forgotten to deallocate (for instance by calling "rewrite_data_from_list_record")')
       ELSE 
-         ALLOCATE(record_info_from_data(list_length))
-         record_info_from_data = ""
-         ALLOCATE(list_info_for_new_data(list_length))
-         list_info_for_new_data = ""
          index_list_info_data = 0
          record_size = 0
       END IF
       
-      !=======================================================
-      !========== TYPING IN SECTION NAME (if REPEAT('=', ...) is modified, make sure to include the modification in "clean_data_once") 
-      !=======================================================
-      
       IF (PRESENT(raw_section_name)) THEN
-         
          section_name = '!' // repeat(' ', 11) // TRIM(ADJUSTL(raw_section_name))
-         section_bounds = REPEAT('=', LEN(TRIM(ADJUSTL(section_name)))+10)
-         
-         index_list_info_data = index_list_info_data + 1
-         list_info_for_new_data(index_list_info_data) = section_bounds
-         index_list_info_data = index_list_info_data + 1
-         list_info_for_new_data(index_list_info_data) = TRIM(ADJUSTL(section_name))
-         index_list_info_data = index_list_info_data + 1
-         list_info_for_new_data(index_list_info_data) = section_bounds
-         
          length_section_name = LEN(TRIM(ADJUSTL(section_name))) 
       END IF
-      
-      
-      !========== READING CURRENT INFORMATION FROM DATA FILE
-      
-      OPEN(UNIT = in_unit, FILE = file_out, FORM = 'formatted', STATUS = 'unknown')
+
+      !=======================================================
+      !========== FIRST READING FOR ALLOCATIONS  
+      !=======================================================      
+      OPEN(UNIT = in_unit, FILE = options%data_out, FORM = 'formatted', STATUS = 'unknown')
             
       !===Read data file into record
       skip_control = .FALSE.
@@ -244,15 +231,11 @@ CONTAINS
             CYCLE
          END IF
          record_size = record_size+1
-         record_info_from_data(record_size)=control
          IF (PRESENT(raw_section_name)) THEN
             WRITE(fmt, '("(A", I0, ")")') length_section_name
             WRITE(string,fmt) TRIM(ADJUSTL(control))
             IF (string==section_name) THEN
-               record_info_from_data(record_size) = ""
-               record_size = record_size - 1
-               record_info_from_data(record_size) = ""
-               record_size = record_size - 1
+               record_size = record_size - 2
                skip_control = .TRUE.
             END IF
          END IF
@@ -260,21 +243,79 @@ CONTAINS
       100 CONTINUE
       CLOSE(in_unit)
       
-      CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
+      CALL MPI_BARRIER(PETSC_COMM_WORLD, ierr)
+
+      ALLOCATE(record_info_from_data(record_size))
+      record_info_from_data = ""
+      ALLOCATE(list_info_for_new_data(record_size + list_length)) !=== Some margin for new information
+      list_info_for_new_data = ""
+
+      !=======================================================
+      !========== TYPING SECTION NAME INSIDE list_info_for_new_data 
+      !=== WARNING: if you wish to change the format of section name, i.e modify REPEAT('=', ...), then modify it inside "clean_data_once" as well 
+      !=======================================================
+      
+      IF (PRESENT(raw_section_name)) THEN
+         
+         section_bounds = REPEAT('=', LEN(TRIM(ADJUSTL(section_name)))+10)
+         
+         index_list_info_data = index_list_info_data + 1
+         list_info_for_new_data(index_list_info_data) = section_bounds
+         index_list_info_data = index_list_info_data + 1
+         list_info_for_new_data(index_list_info_data) = TRIM(ADJUSTL(section_name))
+         index_list_info_data = index_list_info_data + 1
+         list_info_for_new_data(index_list_info_data) = section_bounds
+         
+      END IF
+      
+      
+      !=======================================================
+      !========== READING INFORMATION FROM DATA FILE
+      !=======================================================
+      
+      OPEN(UNIT = in_unit, FILE = options%data_out, FORM = 'formatted', STATUS = 'unknown')
+            
+      !===Read data file into record
+      idx_line = 0
+      skip_control = .FALSE.
+      DO
+         READ(in_unit,'(A)',END=101) control
+         IF (TRIM(ADJUSTL(control))=='') CYCLE
+         IF (skip_control) THEN
+            skip_control = .FALSE.
+            CYCLE
+         END IF
+         idx_line = idx_line+1
+         record_info_from_data(idx_line)=control
+         IF (PRESENT(raw_section_name)) THEN
+            WRITE(fmt, '("(A", I0, ")")') length_section_name
+            WRITE(string,fmt) TRIM(ADJUSTL(control))
+            IF (string==section_name) THEN
+               record_info_from_data(idx_line) = ""
+               idx_line = idx_line - 1
+               record_info_from_data(idx_line) = ""
+               idx_line = idx_line - 1
+               skip_control = .TRUE.
+            END IF
+         END IF
+      END DO
+      101 CONTINUE
+      CLOSE(in_unit)
+      
+      CALL MPI_BARRIER(PETSC_COMM_WORLD, ierr)
    END SUBROUTINE read_data_init_list
    
    SUBROUTINE finalize_rewrite_data
-#include "petsc/finclude/petsc.h"
       USE petsc
+      USE options_module
       IMPLICIT NONE
       
-      INTEGER                                    :: j, rank, code
-      PetscErrorCode :: ierr
+      INTEGER  :: j, rank, ierr
       
       CALL MPI_Comm_rank(PETSC_COMM_WORLD, rank, ierr)
       
       !=== WRITING NEW DATA IN DATA FILE
-      OPEN(unit=in_unit,file=file_out,FORM='FORMATTED',STATUS='UNKNOWN')
+      OPEN(unit=in_unit,file=options%data_out,FORM='FORMATTED',STATUS='UNKNOWN')
       IF (rank == 0) THEN 
          DO j = 1, record_size
             IF (TRIM(ADJUSTL(record_info_from_data(j)))=='') CYCLE
@@ -293,7 +334,7 @@ CONTAINS
       record_size = 0
       
       !=== WAITING ALL PROCESSES TO FINISH WRITING
-      CALL MPI_BARRIER(PETSC_COMM_WORLD, code)
+      CALL MPI_BARRIER(PETSC_COMM_WORLD, ierr)
 
    END SUBROUTINE finalize_rewrite_data
    

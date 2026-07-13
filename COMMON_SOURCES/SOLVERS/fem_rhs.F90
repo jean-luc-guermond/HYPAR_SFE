@@ -51,6 +51,7 @@ MODULE fem_rhs
       !=================================
       USE def_type_mesh
       USE petsc_csr_LA_module
+      USE petscvec
       IMPLICIT NONE
       TYPE(mesh_type), TARGET :: mesh
       type(petsc_csr_LA) :: LA
@@ -61,9 +62,12 @@ MODULE fem_rhs
       INTEGER, DIMENSION(SIZE(LA%loc_to_glob, 1) * mesh%gauss%n_w) :: idxm
       INTEGER :: i, m, l, ni, iglob, nw, ki, ix, kmax
       REAL(KIND = 8) :: fl
-      Vec                                         :: vect
-      PetscErrorCode                              :: ierr
-      CALL VecSet(vect, 0.d0, ierr)
+      TYPE(tVec) :: vect
+      INTEGER :: ierr
+      ! Vec                                         :: vect
+      ! PetscErrorCode                              :: ierr
+
+      CALL VecZeroEntries(vect, ierr)
 
       kmax = SIZE(LA%loc_to_glob, 1)
       nw = mesh%gauss%n_w

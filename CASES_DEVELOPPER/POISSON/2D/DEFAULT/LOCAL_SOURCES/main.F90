@@ -75,6 +75,7 @@ CONTAINS
   SUBROUTINE errors
     USE fem_tn
     USE post_processing_debug_MODULE
+    USE options_module
     IMPLICIT NONE
 
     REAL(KIND=8) :: error, norm, norm_anal
@@ -97,7 +98,7 @@ CONTAINS
 
     
 !==== For regression tests ====!
-    IF (setup_data%if_regression_test) THEN
+    IF (options%if_regression) THEN
       DO n=1, setup_data%syst_size
         IF (setup_data%if_analytical_ref) THEN
           CALL ns_l1_PAR(mesh, un_out(:)-exact_solution, error, Laplace%communicator)
@@ -108,8 +109,7 @@ CONTAINS
         END IF
         tab_norm(n) = norm
       END DO
-      CALL get_num_test(num_test)
-      CALL regression(tab_norm, opt_num_test=num_test)
+      CALL regression(tab_norm, opt_num_test=options%num_regex)
     END IF
 
   END SUBROUTINE errors

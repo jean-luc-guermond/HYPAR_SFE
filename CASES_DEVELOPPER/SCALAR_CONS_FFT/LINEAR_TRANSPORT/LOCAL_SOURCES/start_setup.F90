@@ -11,7 +11,6 @@ MODULE start_setup_MODULE
      CHARACTER(LEN=rec_length) :: char_which_init    = '=== Which initial condition? (smooth, step) ==='
   END TYPE argument_setup_data_type
   TYPE setup_data_type
-     LOGICAL        :: if_regression_test  = .FALSE.
      LOGICAL        :: if_restart          = .FALSE.
      REAL(KIND = 8) :: checkpointing_freq  = 1.d20
      REAL(KIND = 8) :: final_time          = 0.1d0
@@ -37,11 +36,14 @@ CONTAINS
     USE petsc
     USE read_inputs_module, ONLY : clean_data_once
     USE my_util, ONLY: error_petsc, to_str
+    USE options_module
     IMPLICIT NONE
     REAL(KIND = 8) :: init_time = 0.d0
     INTEGER :: ierr
     CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
 
+    !===Read executable arguments
+    CALL read_all_arguments
     !===Clean data once
     CALL clean_data_once
     !===Init parameters
@@ -101,14 +103,6 @@ CONTAINS
     !===Which init
     CALL read_data(argument_data%char_which_init, this%char_which_init)
     CALL get_tab_idx_char(this%char_which_init, list_init_rho, this%which_init)
-
-      !===Regression test
-    CALL getarg(1, string)
-    IF (trim(adjustl(string))=='regression') THEN
-       this%if_regression_test = .true.
-    ELSE
-       this%if_regression_test = .false.
-    END IF
 
 !================
 !=== MANDATORY to close data for the current section and rewrite it with new information for the next sections

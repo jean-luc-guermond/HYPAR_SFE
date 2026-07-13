@@ -198,15 +198,18 @@ CONTAINS
     SUBROUTINE start_setup
         USE construct_mesh,     ONLY: get_mesh
         USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
+        USE options_module
         IMPLICIT NONE
         INTEGER :: rank
         PetscErrorCode :: ierr
         
         !===Start PETSC and MPI (mandatory)
-
         CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)
         communicator = PETSC_COMM_WORLD
         CALL MPI_Comm_rank(communicator, rank, ierr)
+
+        !===Read executable arguments
+        CALL read_all_arguments
 
         !===Clean data once
         CALL clean_data_once
