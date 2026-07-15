@@ -93,8 +93,8 @@ CONTAINS
 
       !=== Init Stokes
       stokes%temperature  => temperature !<=== FIXME
-      stokes%bc%vit_anal  => vit_anal_becker_stokes
-      stokes%bc%temp_anal => temp_anal_becker_stokes
+      stokes%bc%vit_anal  => vit_anal_becker
+      stokes%bc%temp_anal => temp_anal_becker
       !=== Init Stokes
 
       !=== Init Becker
@@ -115,9 +115,9 @@ CONTAINS
       eta = (un(:,k_dim+2) - 0.5d0*SUM(un(:,2:k_dim+1)**2,dim=2)/un(:,1))/un(:,1)**gamma
    END FUNCTION eta_commute
 
-   FUNCTION temp_anal_becker_stokes(this, time, rr) RESULT(vv)
+   FUNCTION temp_anal_becker(time, rr) RESULT(vv)
+      USE my_util, ONLY: local_error_petsc
       IMPLICIT NONE
-      CLASS(stokes_bc_type),        INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
@@ -127,7 +127,7 @@ CONTAINS
          CALL local_error_petsc('Bug in stokes bc, temp_anal: not defined')
       END IF
 
-   END FUNCTION temp_anal_becker_stokes
+   END FUNCTION temp_anal_becker
 
 
    FUNCTION rho_anal_becker(this, time, rr) RESULT(vv)
@@ -175,16 +175,6 @@ CONTAINS
       vv = vit_anal_becker(comp, time, rr)
    END FUNCTION vit_anal_becker_euler
    
-   FUNCTION vit_anal_becker_stokes(this, comp, time, rr) RESULT(vv)
-      IMPLICIT NONE
-      CLASS(stokes_bc_type), INTENT(INOUT) :: this
-      INTEGER, INTENT(IN) :: comp
-      REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
-      REAL(KIND = 8), INTENT(IN) :: time
-      REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
-      vv = vit_anal_becker(comp, time, rr)
-   END FUNCTION vit_anal_becker_stokes
-
    FUNCTION vit_anal_becker(comp, time, rr) RESULT(vv)
       USE becker
       IMPLICIT NONE

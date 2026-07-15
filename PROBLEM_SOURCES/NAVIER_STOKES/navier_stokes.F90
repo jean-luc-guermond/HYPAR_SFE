@@ -16,7 +16,6 @@ USE profiler_module
 
  IMPLICIT NONE
    TYPE argument_navier_stokes_type
-      CHARACTER(LEN=rec_length) :: erk_sv               = '=== ERK ? ==='
       CHARACTER(LEN=rec_length) :: mu_viscosity         = '=== Value of mu viscosity ==='
       CHARACTER(LEN=rec_length) :: lambda_viscosity     = '=== Value of lambda viscosity ==='
       CHARACTER(LEN=rec_length) :: thermal_diffusivity  = '=== Value of thermal diffusivity ==='
@@ -126,7 +125,7 @@ SUBROUTINE read_navier_stokes_data(this, section_name)
     !===lambda
     CALL read_data(argument_data%lambda_viscosity, this%lambda_viscosity, opt_name=this%name)
 
-    !===lambda
+    !===kappa
     CALL read_data(argument_data%thermal_diffusivity, this%thermal_diffusivity, opt_name=this%name)
     
     !===cv

@@ -201,14 +201,8 @@ HYPAR_SFE functionalities
 
 7. PETSc_SF for periodicity
 
-8. Developper setting for fixing data in ctest
-
 9. Factorize data in ctest
 
 10. change commutator so that the code runs even though eta_commute might be zero at some points
 
 11. By default, associate the uijbar and limiting calculations outside of the start_setup.F90
-
-12. Add support for more than 3 simultaneous ctest
-
-13. dynamic allocation of record_info_from_data, list_info_for_new_data sizes (read_inputs_module.F90): 200 elements isn't long enough anymore

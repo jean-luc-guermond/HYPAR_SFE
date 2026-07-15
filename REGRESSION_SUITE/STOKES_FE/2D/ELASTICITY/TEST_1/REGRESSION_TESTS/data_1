@@ -1,0 +1,123 @@
+=====================================
+!           MESH PARAMETERS
+=====================================
+=== Name of directory for mesh file ===
+'../../../../../MESHES'
+=== Name of mesh file ===
+unit_sq_0.1.FEM
+=== Is the mesh formatted? (True/False) ===
+F
+=== Do we read metis partition? (true/false) ===
+F
+================================
+!           MESH SETUP
+================================
+=== Type of finite element ===
+1
+=== Number of refinement steps ===
+0
+=== Factor of refinement ===
+2
+=== Number of subdomains in the mesh ===
+1
+=== List of subdomains in the mesh ===
+1
+=== How many pieces of periodic boundary? ===
+0
+======================================
+!           SETUP PARAMETERS
+======================================
+=== Do we compare with analytical reference? (true/false) ===
+T
+=== Which test case? (1:6) ===
+1
+=== Value of mu viscosity ===
+1.d-2
+0.d0
+=== Value of lambda viscosity ===
+1.d-2
+0.d0
+=== Value of thermal diffusivity ===
+0.0000000000000000
+=== Value of thermal capacity at constant volume ===
+0.0000000000000000
+=== timestep ===
+.1d-0
+=== Maximum number of timesteps ===
+100
+250
+=== Frequency for run verbose ===
+100
+=== IRK ? ===
+-21
+========================================================
+!           DIRICHLET BC PARAMETERS FOR stokes
+========================================================
+=== How many pieces of Dirichlet boundaries for bcs on ux stokes ===
+4
+=== List of Dirichlet boundaries for bcs on ux stokes ===
+1 2 3 4
+=== How many pieces of Dirichlet boundaries for bcs on temperature stokes ===
+0
+=== How many pieces of Dirichlet boundaries for bcs on uy stokes ===
+4
+=== List of Dirichlet boundaries for bcs on uy stokes ===
+1 2 3 4
+============================================================
+!           STOKES PARABOLIC PARAMETERS FOR stokes
+============================================================
+=== Which method to solve Stokes parabolic equation (lumped,full)? stokes ===
+lumped
+===================================================
+!           SOLVER PARAMETERS temperature
+===================================================
+=== Maximum number of iterations temperature ===
+5000
+=== Relative tolerance temperature ===
+1.0000000000000000E-010
+=== Absolute tolerance temperature ===
+1.0000000000000001E-018
+=== Which solver? (CG,GMRES,...) temperature ===
+CG
+GMRES
+=== Which precond? (MUMPS,HYPRE,...) temperature ===
+MUMPS
+HYPRE
+=== BoomerAMG (HYPRE): Strong threshold temperature ===
+0.1
+=== BoomerAMG : coarsening type (Falgout,...) temperature ===
+Falgout
+=== BoomerAMG : relax type (Chebyshev,...) temperature ===
+Chebyshev
+=== BoomerAMG : fixed v cycle? temperature ===
+F
+=== verbose solver? (True/False) temperature ===
+F
+=== monitor residuals? (True/False) temperature ===
+F
+==================================================
+!           SOLVER PARAMETERS elasticity
+==================================================
+=== Maximum number of iterations elasticity ===
+5000
+=== Relative tolerance elasticity ===
+1.0000000000000000E-010
+=== Absolute tolerance elasticity ===
+1.0000000000000001E-010
+=== Which solver? (CG,GMRES,...) elasticity ===
+CG
+=== Which precond? (MUMPS,HYPRE,...) elasticity ===
+MUMPS
+HYPRE
+=== BoomerAMG (HYPRE): Strong threshold elasticity ===
+0.1
+=== BoomerAMG : coarsening type (Falgout,...) elasticity ===
+Falgout
+=== BoomerAMG : relax type (Chebyshev,...) elasticity ===
+Chebyshev
+=== BoomerAMG : fixed v cycle? elasticity ===
+F
+=== verbose solver? (True/False) elasticity ===
+F
+=== monitor residuals? (True/False) elasticity ===
+F

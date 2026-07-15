@@ -1,6 +1,6 @@
+#include "petsc/finclude/petsc.h"
 MODULE stokes_parabolic_module
     USE Implicit_Butcher_tableau
-#include "petsc/finclude/petsc.h"
     USE petsc
     USE def_type_mesh,                        ONLY: mesh_type
     USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
@@ -11,15 +11,28 @@ MODULE stokes_parabolic_module
     USE stokes_bc_arrays
 USE profiler_module
 
+    PUBLIC :: stokes_parabolic_type, function_template_temperature, template_forcing
+
+    PRIVATE
+
     INTEGER, PRIVATE, PARAMETER :: METHOD_LUMPED=1, METHOD_FULL=2
     CHARACTER(LEN=20), DIMENSION(2), PRIVATE, PARAMETER  :: list_method = &
                 [CHARACTER(LEN=20) :: 'lumped', 'full']
 
     ABSTRACT INTERFACE
         FUNCTION function_template_temperature(rho, ie) RESULT(vv)
+            IMPLICIT NONE
             REAL(KIND = 8), DIMENSION(:), INTENT(IN) :: rho, ie
             REAL(KIND = 8), DIMENSION(SIZE(rho, 1))  :: vv
         END FUNCTION function_template_temperature
+
+        FUNCTION template_forcing(comp, rr, time) RESULT(vv)
+            IMPLICIT NONE
+            REAL(KIND=8), DIMENSION(:,:), INTENT(IN) :: rr
+            REAL(KIND=8), INTENT(IN) :: time
+            INTEGER,      INTENT(IN) :: comp
+            REAL(KIND = 8), DIMENSION(SIZE(rr, 2))  :: vv
+        END FUNCTION template_forcing
     END INTERFACE
 
     TYPE argument_stokes_parabolic_type
@@ -42,23 +55,24 @@ USE profiler_module
         Vec          :: temp1_vec, temp2_vec
         Vec          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
         Vec          :: sol_vel_vec, sol_temp_vec
-        Vec, DIMENSION(:), ALLOCATABLE :: vel_flux_rk_at_dof, temp_flux_rk_at_dof
+        Vec, DIMENSION(:), ALLOCATABLE :: vel_flux_rk_at_dof, temp_flux_rk_at_dof, forcing_rk_at_dof
         CHARACTER(LEN=:), ALLOCATABLE :: name
         TYPE(mesh_type),     POINTER  :: mesh
         TYPE(petsc_csr_LA)            :: LA_vel, LA_temp
         TYPE(IBT),            PUBLIC  :: IRK
-        TYPE(stokes_parabolic_matrices_type), POINTER :: matrices
+        TYPE(stokes_parabolic_matrices_type) :: matrices
         TYPE(stokes_bc_type)          :: bc
         INTEGER                       :: irk_sv
         INTEGER                       :: syst_dim
         REAL(KIND = 8)                :: dt, time, final_time
         PROCEDURE(function_template_temperature),  NOPASS, POINTER :: temperature => NULL()
+        PROCEDURE(template_forcing),               NOPASS, POINTER :: forcing => NULL()
 type(profiler_type) :: profiler
     CONTAINS
         PROCEDURE :: read => read_stokes_parabolic_data
         PROCEDURE :: init => init_stokes_parabolic
         PROCEDURE, PUBLIC :: set_times =>set_times_stokes 
-        PROCEDURE, PUBLIC  :: one_step_IRK
+        PROCEDURE, PUBLIC  :: one_step_IRK, update
         PROCEDURE, PRIVATE :: one_step_IRK_lumped
         ! PROCEDURE, PRIVATE :: one_step_IRK_full
         PROCEDURE, PRIVATE :: init_vectors
@@ -67,6 +81,12 @@ type(profiler_type) :: profiler
     END TYPE stokes_parabolic_type
 
 CONTAINS
+
+!===================================
+!==== INITIALIZATIONS ==============
+!===================================
+
+
     SUBROUTINE init_stokes_parabolic(this, communicator, name, mesh)
         USE my_util,            ONLY: error_petsc, to_str
         USE space_dim
@@ -96,7 +116,6 @@ character(len=10), dimension(:), allocatable :: list_profiler
         CALL this%IRK%init(this%irk_sv)
 
         !===Matrices/vectors
-        ALLOCATE(this%matrices)
         this%matrices%method              = this%method
         this%matrices%thermal_diffusivity = this%thermal_diffusivity
         this%matrices%mu_viscosity = this%mu_viscosity
@@ -168,6 +187,105 @@ character(len=10), dimension(:), allocatable :: list_profiler
         this%final_time = times(2) !<==final_time
     END SUBROUTINE set_times_stokes
 
+    SUBROUTINE construct_stokes_bc(this, mesh)
+        USE petsc
+        USE space_dim,           ONLY: k_dim
+        IMPLICIT NONE
+        CLASS(stokes_parabolic_type), INTENT(INOUT)        :: this
+        TYPE(mesh_type)                            :: mesh
+
+        CALL this%bc%vel(1)%set(mesh, "ux "//TRIM(ADJUSTL(this%name)), "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
+        CALL this%bc%temp%set(mesh, "temperature "//TRIM(ADJUSTL(this%name)))
+        
+        IF (k_dim>1) THEN
+            CALL this%bc%vel(2)%set(mesh, "uy "//TRIM(ADJUSTL(this%name)))
+        END IF
+
+    END SUBROUTINE construct_stokes_bc
+
+
+   SUBROUTINE init_vectors(this)
+        USE space_dim
+        USE st_matrix, ONLY : create_my_ghost
+        USE petsc
+
+        IMPLICIT NONE
+        CLASS(stokes_parabolic_type) :: this
+        INTEGER, POINTER, DIMENSION(:) :: ifrom
+        INTEGER :: n, ierr
+
+        !=== Vel vectors
+        CALL create_my_ghost(this%mesh, this%LA_vel, ifrom)
+        CALL VecCreateGhost(this%communicator, k_dim*this%mesh%dom_np, &
+            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%vel1_vec, ierr)
+        CALL VecDuplicate(this%vel1_vec, this%vel2_vec, ierr)
+        ALLOCATE(this%vel_flux_rk_at_dof(this%IRK%s))
+        DO n=1, this%IRK%s
+            CALL VecDuplicate(this%vel1_vec, this%vel_flux_rk_at_dof(n), ierr)
+        END DO
+        CALL VecDuplicate(this%vel1_vec, this%sol_vel_vec, ierr)
+        CALL VecZeroEntries(this%sol_vel_vec, ierr)
+        !=== Vel vectors
+
+        !=== Temperature vectors
+        CALL create_my_ghost(this%mesh, this%LA_temp, ifrom)
+        CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
+            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%temp1_vec, ierr)
+        CALL VecDuplicate(this%temp1_vec, this%temp2_vec, ierr)
+        ALLOCATE(this%temp_flux_rk_at_dof(this%IRK%s))
+        DO n = 1, this%IRK%s
+            CALL VecDuplicate(this%temp1_vec, this%temp_flux_rk_at_dof(n), ierr)
+        END DO
+        CALL VecDuplicate(this%temp1_vec, this%sol_temp_vec, ierr)
+        !=== Temperature vectors
+
+        !=== Forcing vectors
+        CALL create_my_ghost(this%mesh, this%LA_vel, ifrom)
+        ALLOCATE(this%forcing_rk_at_dof(this%IRK%s))
+        DO n = 1, this%IRK%s
+            CALL VecDuplicate(this%vel1_vec, this%forcing_rk_at_dof(n), ierr)
+        END DO
+        !=== Forcing vectors
+
+    END SUBROUTINE init_vectors
+
+!===================================
+!==== GENERAL UPDATES ==============
+!===================================
+
+    SUBROUTINE update(this, un_in)
+        !> IMPLICIT UPDATE of Stokes
+        !! This subroutine is only used when Stokes is decoupled from any other problem (e.g no Euler)
+        !! User requirements:
+        !!     rho
+        !!     dt
+        !! TODO:
+        !!     test of temperature stepping
+        USE space_dim
+        IMPLICIT NONE
+        CLASS(stokes_parabolic_type)                                       :: this
+        REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim), INTENT(INOUT):: un_in
+        REAL(KIND=8), DIMENSION(this%mesh%np, this%syst_dim, this%IRK%s+1) :: urk
+        INTEGER  :: stage, stage_prime, k
+
+        urk = 0.d0
+        urk(:,:,1) = un_in
+        DO stage = 2, this%IRK%s+1
+            stage_prime = this%IRK%lp_of_l(stage) 
+            urk(:,1,stage)     = this%bc%rho_imposed(this%time + this%IRK%C(stage)*this%dt, this%mesh%rr) !=== recompute rho
+            DO k=1, k_dim
+                !=== rescale momentum with new density (we are solving for vel, not momentum!!!)
+                urk(:,k+1,stage)   = urk(:,k+1,stage_prime) /  urk(:,1,stage_prime) * urk(:,1,stage)
+            END DO
+            !=== We do not care about energy, so simply copy previous step
+            urk(:,k_dim+2,stage) = urk(:,k_dim+2,stage-1) 
+
+            CALL this%one_step_IRK(stage,urk)
+        END DO
+        un_in = urk(:,:,this%IRK%s+1)
+        this%time = this%time + this%dt
+    END SUBROUTINE update
+
     SUBROUTINE one_step_IRK(this, stage, urk)
         USE my_util, ONLY : error_petsc, to_str
         IMPLICIT NONE
@@ -186,60 +304,108 @@ character(len=10), dimension(:), allocatable :: list_profiler
         END SELECT
     END SUBROUTINE one_step_IRK
 
+!===================================
+!==== NUMERICAL SCHEMES ============
+!===================================
+
     SUBROUTINE one_step_IRK_LUMPED(this,stage,urk)
         USE my_util, ONLY : error_petsc, to_str, user_time
         USE petsc_tools
         USE space_dim
         USE dir_nodes_petsc
         USE st_matrix
+        USE fem_rhs, ONLY: qs_00_dot, qs_00_block
+        USE sub_plot
+        USE fem_tn, ONLY: ns_l1_par
         IMPLICIT NONE
         CLASS(stokes_parabolic_type)                                                :: this
         REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%IRK%s+1), TARGET   :: urk
         REAL(KIND = 8), DIMENSION(:), POINTER                          :: rho_lm1, rho_l
-        REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim)                 :: velocity_lm1, vel_out
+        REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim)                 :: velocity_lm1, vel_out, ff_vel
         REAL(KIND = 8), DIMENSION(k_dim*this%mesh%np)                  :: rhs
         REAL(KIND = 8), DIMENSION(this%mesh%np)                        :: rhs_temp, scal_temp, temp_out
         REAL(KIND = 8), DIMENSION(k_dim*this%mesh%np)                  :: lhs_mass
         INTEGER, INTENT(IN) :: stage
-        INTEGER :: k, l, np, ierr! stage_prime,
-        INTEGER,        POINTER :: count_vel, count_temp
-        REAL(KIND = 8), POINTER :: tps_ratio_vel, tps_ratio_temp
-        REAL(KIND = 8), POINTER :: tps_solver_ref_vel, tps_solver_ref_temp
-        REAL(KIND = 8) :: local_tps_solver_ref, local_tps_solver_one_iter, tps_solver_one_iter, tps
-        !=== Build counters
-        count_vel          => this%matrices%elasticity_solver_param%count
-        tps_ratio_vel      => this%matrices%elasticity_solver_param%tps_ratio
-        tps_solver_ref_vel => this%matrices%elasticity_solver_param%tps_solver_ref
+        INTEGER :: k, l, np, ierr!, stage_prime
+        REAL(KIND = 8) :: local_tps_solver_ref, local_tps_solver_one_iter, tps_solver_one_iter, tps, time_stage, error, norm, max_vel_loc, max_vel
+        !=== Build pointers
         rho_lm1 => urk(:, 1, stage-1)
         rho_l   => urk(:, 1, stage)
-        !=== Build counters
+        !=== Build pointers
         np = this%mesh%np
-        !stage_prime = this%IRK%lp_of_l(stage) 
+        ! stage_prime = this%IRK%lp_of_l(stage) 
+
+        !=== Init rhs vector for velocity problem
+        CALL VecZeroEntries(this%vel1_vec, ierr)
+        !============================================================!
+        !======== FORCING CONTRIBUTION AT STAGES stage-1 & stage ====!
+        !============================================================!
+
+        !=== Forcing ===!
+        IF (ASSOCIATED(this%forcing)) THEN
+            IF (stage == 2) THEN
+                time_stage = this%time+this%IRK%C(stage-1)*this%dt
+
+                ! !=== Consistent version
+                ! DO k=1, k_dim
+                !     ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
+                ! END DO
+                ! CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage-1))
+
+                !=== Lumped version
+                DO k=1, k_dim
+                    rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
+                END DO
+                CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage-1), this%LA_vel, 'insert')
+            END IF
+            IF (stage < this%IRK%s + 1) THEN
+                time_stage = this%time+this%IRK%C(stage)*this%dt
+
+                ! !=== Consistent version
+                ! DO k=1, k_dim
+                !     ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
+                ! END DO
+                ! CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage))
+                
+                !=== Lumped version
+                DO k=1, k_dim
+                    rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
+                END DO
+                CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage), this%LA_vel, 'insert')
+
+                CALL VecMAXPY(this%vel1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), this%forcing_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of ERK forcing
+            ELSE
+                CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%forcing_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of ERK forcing
+            END IF
+        END IF
+        !=== Forcing ===!
 
         !========================================================!
         !======== VELOCITY VISCOUS DISSIPATION at stage-1========!
         !========================================================!
+
         !===Define velocity at stage-1
         DO k = 1, k_dim
             velocity_lm1(:,k) = urk(:,k+1,stage-1)/rho_lm1
             rhs((k-1)*np+1:k*np) = velocity_lm1(:,k)
         END DO
-        CALL array_to_petsc_vec(rhs, this%vel1_vec, this%LA_vel, 'insert')
+        CALL array_to_petsc_vec(rhs, this%vel2_vec, this%LA_vel, 'insert')
         !=== (-1)Div(sigma(vel))
-        CALL MatMult(this%matrices%vel_diff_mat, this%vel1_vec, this%vel_flux_rk_at_dof(stage-1), ierr) 
+        CALL MatMult(this%matrices%vel_diff_mat, this%vel2_vec, this%vel_flux_rk_at_dof(stage-1), ierr) 
 
         !================================!
         !======== VELOCITY UPDATE========!
         !================================!
         !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
-        CALL VecZeroEntries(this%vel1_vec, ierr)
+
         CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%vel_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
+
         DO k = 1, k_dim
-            !rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*urk(:,k+1,stage_prime)
+            !=== WARNING HERE: stage_prime involved in explicit step or must be set manually if no prior explicit step 
+            ! rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*urk(:,k+1,stage_prime)
             rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*urk(:,k+1,stage)
         END DO
-        CALL array_to_petsc_vec(rhs, this%vel2_vec, this%LA_vel, 'insert')
-        CALL VecAXPY(this%vel1_vec, 1.d0, this%vel2_vec, ierr)
+        CALL array_to_petsc_vec(rhs, this%vel1_vec, this%LA_vel, 'add', opt_include_ghost=.FALSE.)
 
         !===RHS stored in this%vel1_vec
         !===End Combine parabolic fluxes with IRK coefficients
@@ -252,12 +418,12 @@ character(len=10), dimension(:), allocatable :: list_profiler
         !===NOTICE: rho*ML is stored in this%vel2_vec
         
         IF (stage < this%IRK%s + 1) THEN
-            !=== rhs BC
+            !=== VB 14/07/2026: rhs BC at time_stage
+            time_stage = this%time+this%IRK%C(stage)*this%dt
             DO k = 1, k_dim
                 CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
-                                this%bc%vit_anal(k, this%time, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%vel1_vec)
+                                this%bc%vit_anal(k, time_stage, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%vel1_vec)
             END DO
-            !=== rhs BC
 
             !=== LHS matrix construction + BC
             CALL MatCopy(this%matrices%vel_diff_mat, this%matrices%vel_mat, SAME_NONZERO_PATTERN, ierr)
@@ -276,6 +442,14 @@ character(len=10), dimension(:), allocatable :: list_profiler
         ELSE
             !===Divide by rho*ML stored in this%vel2_vec
             CALL VecPointWiseDivide(this%sol_vel_vec, this%vel1_vec, this%vel2_vec, ierr)
+
+            !=== VB 14/07/2026: explicit impose BC
+            time_stage = this%time+this%IRK%C(stage)*this%dt
+            DO k = 1, k_dim
+                CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
+                                this%bc%vit_anal(k, time_stage, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%sol_vel_vec)
+            END DO
+            !=== explicit impose BC
         END IF
         !====extract velocity and update momentum
         DO k=1, k_dim
@@ -310,17 +484,11 @@ character(len=10), dimension(:), allocatable :: list_profiler
             CALL VecMAXPY(this%temp1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), & 
                                                 this%temp_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
         END IF
-        !=== E(l') - (1/2)*rho(l)*vel_out(l)**2 
+
         scal_temp = urk(:,k_dim+2,stage) - 0.5d0*rho_l*sum(vel_out**2,dim=2)
-        ! scal_temp = urk(:,k_dim+2,stage_prime) - 0.5d0*rho_l*sum(vel_out**2,dim=2)
         !=== Multiply by lumped mass
         rhs_temp = this%matrices%scal_lumped_mass*scal_temp
-        !TESTTTTTTTTTTTTTTTTTTt
-        CALL array_to_petsc_vec(rhs_temp, this%temp2_vec, this%LA_temp, 'insert')
-        CALL VecAXPY(this%temp1_vec, 1.d0, this%temp2_vec, ierr)
-        !TESTTTTTTT
-        ! CALL array_to_petsc_vec(rhs_temp, this%temp1_vec, this%LA_temp, 'insert')
-        !TESTTT
+        CALL array_to_petsc_vec(rhs_temp, this%temp1_vec, this%LA_temp, 'add', opt_include_ghost=.FALSE.)
         !===RHS stored in this%temp1_vec
         !===End Combine parabolic fluxes with IRK coefficients
 
@@ -352,68 +520,6 @@ character(len=10), dimension(:), allocatable :: list_profiler
         CALL extract_through_ghost(this%sol_temp_vec, 1, 1, this%LA_temp, temp_out, opt_assemble=.FALSE.)
         urk(:,k_dim+2, stage) = rho_l*this%cv*temp_out + 0.5d0*rho_l*sum(vel_out**2,dim=2)
     END SUBROUTINE one_step_IRK_LUMPED
-
-    SUBROUTINE construct_stokes_bc(this, mesh)
-        USE petsc
-#include "petsc/finclude/petsc.h"
-        USE space_dim,           ONLY: k_dim
-        IMPLICIT NONE
-        CLASS(stokes_parabolic_type), INTENT(INOUT)        :: this
-        TYPE(mesh_type)                            :: mesh
-
-        CALL this%bc%vel(1)%set(mesh, "ux "//TRIM(ADJUSTL(this%name)), "DIRICHLET BC PARAMETERS FOR "//TRIM(ADJUSTL(this%name)))
-        CALL this%bc%temp%set(mesh, "temperature "//TRIM(ADJUSTL(this%name)))
-        
-        IF (k_dim>1) THEN
-            CALL this%bc%vel(2)%set(mesh, "uy "//TRIM(ADJUSTL(this%name)))
-        END IF
-
-    END SUBROUTINE construct_stokes_bc
-
-
-   SUBROUTINE init_vectors(this)
-        USE space_dim
-        USE st_matrix, ONLY : create_my_ghost
-        USE petsc
-#include "petsc/finclude/petsc.h"
-
-        IMPLICIT NONE
-        CLASS(stokes_parabolic_type) :: this
-        INTEGER, POINTER, DIMENSION(:) :: ifrom
-        INTEGER :: n, ierr
-
-        !=== Vel vectors
-        CALL create_my_ghost(this%mesh, this%LA_vel, ifrom)
-        CALL VecCreateGhost(this%communicator, k_dim*this%mesh%dom_np, &
-            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%vel1_vec, ierr)
-        CALL VecDuplicate(this%vel1_vec, this%vel2_vec, ierr)
-        ALLOCATE(this%vel_flux_rk_at_dof(this%IRK%s))
-        DO n=1, this%IRK%s
-            CALL VecDuplicate(this%vel1_vec, this%vel_flux_rk_at_dof(n), ierr)
-        END DO
-        CALL VecDuplicate(this%vel1_vec, this%sol_vel_vec, ierr)
-        CALL VecZeroEntries(this%sol_vel_vec, ierr)
-        !=== Vel vectors
-
-        !=== Temperature vectors
-        CALL create_my_ghost(this%mesh, this%LA_temp, ifrom)
-        CALL VecCreateGhost(this%communicator, this%mesh%dom_np, &
-            PETSC_DETERMINE, SIZE(ifrom), ifrom, this%temp1_vec, ierr)
-        CALL VecDuplicate(this%temp1_vec, this%temp2_vec, ierr)
-        ALLOCATE(this%temp_flux_rk_at_dof(this%IRK%s))
-        DO n = 1, this%IRK%s
-            CALL VecDuplicate(this%temp1_vec, this%temp_flux_rk_at_dof(n), ierr)
-        END DO
-        CALL VecDuplicate(this%temp1_vec, this%sol_temp_vec, ierr)
-        !=== Temperature vectors
-
-
-        ! CALL VecDuplicate(this%x1vec, this%x2vec, ierr)
-        ! CALL VecDuplicate(this%x1vec, this%x3vec, ierr)
-        ! CALL VecDuplicate(this%x1vec, this%x4vec, ierr)
-        ! CALL VecDuplicate(this%x1vec, this%x5vec, ierr)
-
-    END SUBROUTINE init_vectors
 
     SUBROUTINE iterative_LA(this, solver_param, matrix, matrix_ksp, matrix_precond, vec_rhs, vec_sol)
         USE my_util
@@ -523,12 +629,5 @@ character(len=10), dimension(:), allocatable :: list_profiler
         !===Try to use on long vector of size np to do the VecAssembly
 
     END SUBROUTINE viscous_production
-
-
-
-
-
-
-
 
 END MODULE stokes_parabolic_module

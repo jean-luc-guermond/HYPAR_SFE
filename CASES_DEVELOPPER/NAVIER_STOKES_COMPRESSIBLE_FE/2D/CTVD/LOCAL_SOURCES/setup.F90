@@ -72,9 +72,8 @@ CONTAINS
       eta = (un(:,k_dim+2) - 0.5d0*SUM(un(:,2:k_dim+1)**2,dim=2)/un(:,1))/un(:,1)**gamma
    END FUNCTION eta_commute
 
-   FUNCTION temp_anal_stokes(this, time, rr) RESULT(vv)
+   FUNCTION temp_anal_stokes(time, rr) RESULT(vv)
       IMPLICIT NONE
-      CLASS(stokes_bc_type),        INTENT(INOUT) :: this
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time
       REAL(KIND = 8), DIMENSION(SIZE(rr, 2)) :: vv
@@ -142,9 +141,8 @@ CONTAINS
       vv = 0.d0
    END FUNCTION vit_anal_euler
    
-   FUNCTION vit_anal_stokes(this, comp, time, rr) RESULT(vv)
+   FUNCTION vit_anal_stokes(comp, time, rr) RESULT(vv)
       IMPLICIT NONE
-      CLASS(stokes_bc_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN) :: comp
       REAL(KIND = 8), DIMENSION(:, :), INTENT(IN) :: rr
       REAL(KIND = 8), INTENT(IN) :: time

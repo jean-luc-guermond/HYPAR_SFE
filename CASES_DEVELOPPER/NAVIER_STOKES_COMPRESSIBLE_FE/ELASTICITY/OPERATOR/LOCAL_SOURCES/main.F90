@@ -77,13 +77,12 @@ PROGRAM test_matrix
     !=== Build LHS operator
 
     !=== Build RHS
-    mmt_contiguous(1:mesh%np) =  momentum(1, mesh%rr, time) * stokes_matrices%scal_lumped_mass
-    mmt_contiguous(mesh%np+1:) = momentum(2, mesh%rr, time) * stokes_matrices%scal_lumped_mass
-    CALL array_to_petsc_vec(mmt_contiguous, x2vec_vel, stokes_matrices%LA_vel, 'insert')
-
     ff_vel = dt * source(mesh%rr,setup_data%mu_viscosity,setup_data%lambda_viscosity)
     CALL qs_00_block (mesh, LA_vel, ff_vel, x1vec_vel)
-    CALL VecAXPY(x1vec_vel, 1.d0, x2vec_vel, ierr)
+    mmt_contiguous(1:mesh%np) =  momentum(1, mesh%rr, time) * stokes_matrices%scal_lumped_mass
+    mmt_contiguous(mesh%np+1:) = momentum(2, mesh%rr, time) * stokes_matrices%scal_lumped_mass
+    CALL array_to_petsc_vec(mmt_contiguous, x1vec_vel, stokes_matrices%LA_vel, 'add', opt_include_ghost=.FALSE.)
+
     DO k = 1, k_dim
       CALL dirichlet_rhs(stokes_matrices%LA_vel%loc_to_glob(k, dir%jsd)-1, velocity(k, mesh%rr(:,dir%jsd)), x1vec_vel)
     END DO

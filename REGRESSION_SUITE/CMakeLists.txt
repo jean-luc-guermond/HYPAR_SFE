@@ -22,6 +22,9 @@ add_subdirectory(SCALAR_CONS_FE)
 # SCALAR_CONS_FFT
 add_subdirectory(SCALAR_CONS_FFT)
 
+# STOKES_FE
+add_subdirectory(STOKES_FE)
+
 # NAVIER_STOKES_COMPRESSIBLE_FE
 add_subdirectory(NAVIER_STOKES_COMPRESSIBLE_FE)
 
