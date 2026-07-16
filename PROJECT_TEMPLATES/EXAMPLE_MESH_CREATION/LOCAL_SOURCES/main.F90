@@ -1,5 +1,5 @@
 PROGRAM test_matrix
-#include "petsc/finclude/petsc.h"
+
    USE construct_mesh
    USE def_type_mesh
    USE periodic_data_module
@@ -15,16 +15,16 @@ PROGRAM test_matrix
    TYPE(mesh_type) :: mesh
    TYPE(petsc_csr_LA) :: LA
    TYPE(dirichlet_bc) :: dir
-   Mat :: mass
-   Vec :: test_vec, test_vec2, test_vec3
-   KSP   :: my_ksp
+   TYPE(tMat) :: mass
+   TYPE(tVec) :: test_vec, test_vec2, test_vec3
+   TYPE(tKSP)   :: my_ksp
    INTEGER, POINTER, DIMENSION(:) :: js_d_loc
    INTEGER, POINTER, DIMENSION(:) :: ifrom
    REAL(KIND = 8) :: error
    TYPE(solver_param) :: my_par
    TYPE(periodic_type), DIMENSION(1) :: opt_pers
-   MPI_Comm       :: communicator
-   PetscErrorCode :: ierr
+   INTEGER       :: communicator
+   INTEGER :: ierr
    INTEGER :: rank
    !===Start PETSC and MPI (mandatory)=============================================
 

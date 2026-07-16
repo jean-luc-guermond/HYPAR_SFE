@@ -10,8 +10,6 @@ CONTAINS
     !>  This subroutine performs FFT of a 2D array r_in(mesh_np, Theta)
     !!  along its second dimension
 
-    USE petsc
-#include "petsc/finclude/petsc.h"
     IMPLICIT NONE
     INCLUDE 'fftw3.f'
     REAL(KIND=8), DIMENSION(:,:), INTENT(IN) :: r_in !===size 2N-1
@@ -71,8 +69,6 @@ CONTAINS
     !>  This subroutine performs IFFT of a 3D array r_in(mesh_np, MF, cs)
     !!  along its second/third dimension
 
-    USE petsc
-#include "petsc/finclude/petsc.h"
     IMPLICIT NONE
     INCLUDE 'fftw3.f'
     REAL(KIND=8),    DIMENSION(:,:,:), INTENT(IN)            :: cs_in !===(N,2)

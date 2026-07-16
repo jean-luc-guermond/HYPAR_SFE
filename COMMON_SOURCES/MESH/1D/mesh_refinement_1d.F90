@@ -1,6 +1,5 @@
 MODULE mesh_refinement_1d
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
    USE mesh_tools
    USE mesh_distribution_1d
    PUBLIC :: refinement_P1_mesh_1D, build_jce_1D, refinement_P1_mesh_1D_arbitrary_factor

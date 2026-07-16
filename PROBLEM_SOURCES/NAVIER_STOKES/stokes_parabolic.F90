@@ -1,7 +1,7 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE stokes_parabolic_module
     USE Implicit_Butcher_tableau
-    USE petsc
+    USE petscvec
     USE def_type_mesh,                        ONLY: mesh_type
     USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
 
@@ -50,12 +50,12 @@ USE profiler_module
         REAL(KIND = 8)                :: cv                  = 2.5d0
         INTEGER                       :: ratio_reinit_precond_vel = 2.d0
         !===Parameters built along the way
-        MPI_Comm :: communicator
-        Vec          :: vel1_vec, vel2_vec
-        Vec          :: temp1_vec, temp2_vec
-        Vec          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
-        Vec          :: sol_vel_vec, sol_temp_vec
-        Vec, DIMENSION(:), ALLOCATABLE :: vel_flux_rk_at_dof, temp_flux_rk_at_dof, forcing_rk_at_dof
+        INTEGER :: communicator
+        TYPE(tVec)          :: vel1_vec, vel2_vec
+        TYPE(tVec)          :: temp1_vec, temp2_vec
+        TYPE(tVec)          :: x4vec, x5vec !!!!!Conveniance vectors to be used only inside procedures!!!!
+        TYPE(tVec)          :: sol_vel_vec, sol_temp_vec
+        TYPE(tVec), DIMENSION(:), ALLOCATABLE :: vel_flux_rk_at_dof, temp_flux_rk_at_dof, forcing_rk_at_dof
         CHARACTER(LEN=:), ALLOCATABLE :: name
         TYPE(mesh_type),     POINTER  :: mesh
         TYPE(petsc_csr_LA)            :: LA_vel, LA_temp
@@ -94,7 +94,7 @@ CONTAINS
 
         IMPLICIT NONE
         CLASS(stokes_parabolic_type), INTENT(INOUT) :: this
-        MPI_Comm,                   INTENT(IN) :: communicator
+        INTEGER,                   INTENT(IN) :: communicator
         CHARACTER(LEN=*),             INTENT(IN) :: name
         TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
 character(len=10), dimension(:), allocatable :: list_profiler
@@ -188,7 +188,6 @@ character(len=10), dimension(:), allocatable :: list_profiler
     END SUBROUTINE set_times_stokes
 
     SUBROUTINE construct_stokes_bc(this, mesh)
-        USE petsc
         USE space_dim,           ONLY: k_dim
         IMPLICIT NONE
         CLASS(stokes_parabolic_type), INTENT(INOUT)        :: this
@@ -207,7 +206,6 @@ character(len=10), dimension(:), allocatable :: list_profiler
    SUBROUTINE init_vectors(this)
         USE space_dim
         USE st_matrix, ONLY : create_my_ghost
-        USE petsc
 
         IMPLICIT NONE
         CLASS(stokes_parabolic_type) :: this
@@ -745,6 +743,7 @@ character(len=10), dimension(:), allocatable :: list_profiler
     END SUBROUTINE one_step_IRK_FULL
 
     SUBROUTINE iterative_LA(this, solver_param, matrix, matrix_ksp, matrix_precond, vec_rhs, vec_sol)
+        USE petscksp
         USE my_util
         USE solver_petsc
         IMPLICIT NONE
@@ -752,9 +751,9 @@ character(len=10), dimension(:), allocatable :: list_profiler
         TYPE(solver_data_type)       :: solver_param
         REAL(KIND = 8) :: tps, local_tps_solver_ref, local_tps_solver_one_iter, tps_solver_one_iter
         INTEGER :: ierr
-        Mat :: matrix, matrix_precond
-        KSP :: matrix_ksp
-        Vec :: vec_rhs, vec_sol
+        TYPE(tMat) :: matrix, matrix_precond
+        TYPE(tKSP) :: matrix_ksp
+        TYPE(tVec) :: vec_rhs, vec_sol
 
         !=== Solver linear system
         IF (solver_param%tps_ratio>2) THEN
@@ -804,8 +803,8 @@ character(len=10), dimension(:), allocatable :: list_profiler
         INTEGER,      DIMENSION(this%mesh%np)       :: idx
         REAL(KIND=8)     :: bulk_visc, divl
         INTEGER          ::  m, l, ni, k, kp, i, iglob
-        Vec              :: vect
-        PetscErrorCode   :: ierr
+        TYPE(tVec)              :: vect
+        INTEGER   :: ierr
         CALL VecZeroEntries(vect, ierr)
 
         DO i = 1, this%mesh%np

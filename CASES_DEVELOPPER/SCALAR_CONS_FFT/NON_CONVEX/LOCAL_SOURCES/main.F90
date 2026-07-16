@@ -1,6 +1,6 @@
 PROGRAM nl_scalar_cons_fft_1d
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE setup_module
   USE start_setup_MODULE
   USE my_util

@@ -1,6 +1,7 @@
 MODULE hyperbolic_matrices_module
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
+   USE petscvec
+   USE petscmat
    USE def_type_mesh
    USE solver_petsc
    USE periodic_data_module
@@ -12,16 +13,15 @@ MODULE hyperbolic_matrices_module
       !=== START Objects eventually on low order stencil  ===!
       REAL(KIND=8), DIMENSION(:,:,:),   ALLOCATABLE :: cijL_norm_loc_array
       REAL(KIND=8), DIMENSION(:,:,:,:), ALLOCATABLE :: nijL_loc_array
-      Mat                              :: dijL, dijH, stiffL
-      Mat, DIMENSION(:,:), ALLOCATABLE :: cij_loc         !=== temporary
-      Mat, DIMENSION(:),   POINTER     :: cijL
-      Vec,                 POINTER     :: lump_mass_vec_L !=== for dt
+      TYPE(tMat)                              :: dijL, dijH, stiffL
+      TYPE(tMat), DIMENSION(:),   POINTER     :: cijL
+      TYPE(tVec),                 POINTER     :: lump_mass_vec_L !=== for dt
       !=== END   Objects eventually on low order stencil  ===!
       !=== START Objects eventually on high order stencil ===!
-      Mat, DIMENSION(:), POINTER     :: cij
-      Vec,               POINTER     :: lump_mass_vec
-      Mat                            :: mass, Al_mass 
-      KSP                            :: ksp_consistent_mass
+      TYPE(tMat), DIMENSION(:), POINTER     :: cij
+      TYPE(tVec),               POINTER     :: lump_mass_vec
+      TYPE(tMat)                            :: mass, Al_mass 
+      TYPE(tKSP)                            :: ksp_consistent_mass
       !=== END   Objects eventually on high order stencil ===!
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_hyperbolic_matrices
@@ -44,8 +44,7 @@ CONTAINS
       type(petsc_csr_LA), INTENT(IN) :: LA,   LA_L
       INTEGER                        :: k, ierr
       INTEGER, DIMENSION(:), POINTER :: ifrom
-      MPI_Comm                       :: communicator
-      IS,      DIMENSION(1)          :: is !<=== FIXME
+      INTEGER                        :: communicator
 
       !========================================================!
       !=== START BY CONSTRUCTING LOW ORDER STENCIL MATRICES ===!
@@ -56,7 +55,6 @@ CONTAINS
       !=== temporary, to be reassigned to high order stencil later
 
       ALLOCATE(this%cijL(k_dim))
-      ALLOCATE(this%cij_loc(1, k_dim))
       ALLOCATE(this%lump_mass_vec_L)
       DO k = 1, k_dim
          CALL create_local_petsc_matrix(mesh%comm, LA_L, this%cijL(k), clean = .FALSE.)
@@ -74,21 +72,10 @@ CONTAINS
       
       !=== Construct cij for low order stencil (for viscous method)
       CALL construct_cij(mesh_L, LA_L, this%cijL)
-      CALL ISCreateGeneral(mesh%comm, mesh_L%np, LA_L%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
-      DO k = 1, k_dim
-         CALL MatCreateSubMatrices(this%cijL(k), 1, is, is, MAT_INITIAL_MATRIX, this%cij_loc(:, k), ierr)
-      END DO
       ALLOCATE(this%cijL_norm_loc_array(mesh_L%gauss%n_w, mesh_L%gauss%n_w, mesh_L%me))
       ALLOCATE(this%nijL_loc_array(mesh_L%gauss%n_w, mesh_L%gauss%n_w, k_dim, mesh_L%me))
-      CALL this%construct_loc_nij(mesh_L)
+      CALL this%construct_loc_nij(mesh_L, LA_L)
       !=== END Construct cij for low order stencil (for viscous method)
-
-      !=== Cleanup
-      DO k=1, k_dim
-         CALL MatDestroy(this%cij_loc(1, k), ierr)
-      END DO
-      DEALLOCATE(this%cij_loc)
-      !=== End   Cleanup
 
       CALL create_local_petsc_matrix(mesh%comm, LA_L, this%dijL, clean = .FALSE.)
       IF (this%method == METHOD_HIGH) THEN
@@ -143,18 +130,39 @@ CONTAINS
 
    END SUBROUTINE construct_hyperbolic_matrices
 
-   SUBROUTINE construct_loc_nij(this, mesh)
+   SUBROUTINE construct_loc_nij(this, mesh, LA)
+      USE petscis
       USE space_dim
       USE def_type_mesh
+      USE petsc_csr_LA_module
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
-      TYPE(mesh_type), INTENT(IN) :: mesh
+      TYPE(mesh_type)   , INTENT(IN) :: mesh
+      TYPE(petsc_csr_LA), INTENT(IN) :: LA
       REAL(KIND = 8), DIMENSION(1, k_dim) :: cij_c
       REAL(KIND = 8), DIMENSION(1, 1) :: nij_c, norm
       REAL(KIND =8) :: xx
       INTEGER, DIMENSION(1) :: i, j
       LOGICAL, DIMENSION(mesh%medge) :: virgin_edge
       INTEGER :: k, m, n, ni, nj, ierr, nw, edge
+      TYPE(tIS),  DIMENSION(1)          :: is
+#if (PETSC_VERSION_MINOR < 23)
+      TYPE(tMat), DIMENSION(1, k_dim), TARGET :: cur_cij_loc
+      TYPE(tMat), DIMENSION(:), POINTER :: cij_loc
+      CALL ISCreateGeneral(mesh%comm, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
+      DO k = 1, k_dim
+         CALL MatCreateSubMatrices(this%cijL(k), 1, is, is, MAT_INITIAL_MATRIX, cur_cij_loc(:,k), ierr)
+      END DO
+      cij_loc => cur_cij_loc(1,:)
+#else
+      TYPE(tMat), DIMENSION(k_dim)      :: cij_loc
+      TYPE(tMat), DIMENSION(:), POINTER :: cur_cij_loc
+      CALL ISCreateGeneral(mesh%comm, mesh%np, LA%loc_to_glob(1, :) - 1, PETSC_COPY_VALUES, is(1), ierr)
+      DO k = 1, k_dim
+         CALL MatCreateSubMatrices(this%cijL(k), 1, is, is, MAT_INITIAL_MATRIX, cur_cij_loc, ierr)
+         cij_loc(k) = cur_cij_loc(1)
+      END DO
+#endif
 
       nw = mesh%gauss%n_w
       this%cijL_norm_loc_array = 0.d0
@@ -168,7 +176,7 @@ CONTAINS
 
                xx = 0.d0
                DO k = 1, k_dim
-                  CALL MatGetValues(this%cij_loc(1, k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
+                  CALL MatGetValues(cij_loc(k), 1, i - 1, 1, j - 1, cij_c(:, k), ierr)
                   xx = xx + cij_c(1, k)**2
                END DO
                xx = SQRT(xx)
@@ -182,6 +190,12 @@ CONTAINS
          END DO
       END DO
 
+      !=== CLEANUP ===!
+      CALL ISDestroy(is(1), ierr)
+      DO k=1, k_dim
+         CALL MatDestroy(cij_loc(k), ierr)
+      END DO
+      !=== CLEANUP ===!
 
    END SUBROUTINE construct_loc_nij
 
@@ -190,7 +204,7 @@ CONTAINS
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
       TYPE(solver_data_type)          :: my_par_solver
-      MPI_Comm                        :: communicator
+      INTEGER                        :: communicator
 
       !===Create ksp solver
       CALL init_solver(communicator, my_par_solver, this%ksp_consistent_mass, this%mass)      
@@ -201,7 +215,7 @@ CONTAINS
       IMPLICIT NONE
       CLASS(hyperbolic_matrices_type) :: this
       INTEGER :: ierr
-      Vec     :: xx
+      TYPE(tVec)     :: xx
       CALL VecDuplicate(this%lump_mass_vec, xx, ierr)
       CALL VecSet(xx, 1.d0, ierr)
       CALL MatDuplicate(this%mass, MAT_COPY_VALUES, this%Al_mass, ierr)

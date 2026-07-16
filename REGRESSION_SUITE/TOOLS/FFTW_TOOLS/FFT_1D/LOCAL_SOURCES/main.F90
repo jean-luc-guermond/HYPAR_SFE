@@ -1,8 +1,9 @@
 PROGRAM test_fourier_1D
    USE fft_1d
    USE fourier_param_module
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
+   USE petscmpi
+   USE petscdmda
    USE read_inputs_module, ONLY : clean_data_once
 
    IMPLICIT NONE
@@ -14,8 +15,8 @@ PROGRAM test_fourier_1D
    REAL(KIND=8) :: theta, h,  x, r_tol, err
    INTEGER :: i, k, rank
    LOGICAL :: test_passed
-   MPI_Comm       :: communicator
-   PetscErrorCode :: ierr
+   INTEGER       :: communicator
+   INTEGER :: ierr
 
 !===Start PETSC and MPI (mandatory)
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)

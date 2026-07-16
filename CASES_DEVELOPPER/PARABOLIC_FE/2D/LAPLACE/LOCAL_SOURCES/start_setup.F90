@@ -1,6 +1,6 @@
 MODULE start_setup_MODULE
 
-#include "petsc/finclude/petsc.h"
+
     USE petsc
     USE def_type_mesh
     USE read_inputs_module
@@ -26,7 +26,7 @@ MODULE start_setup_MODULE
     TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
     TYPE(laplace_solver_type),         PUBLIC :: Laplace
 
-    MPI_Comm :: communicator
+    INTEGER :: communicator
     PUBLIC :: start_setup
     PRIVATE
 
@@ -40,7 +40,7 @@ CONTAINS
     IMPLICIT NONE
     CHARACTER(100) :: name
     INTEGER        :: rank
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
 
     !===Start PETSC and MPI (mandatory)
 

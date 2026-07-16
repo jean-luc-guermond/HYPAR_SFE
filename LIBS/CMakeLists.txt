@@ -1,5 +1,5 @@
 # Project name and version
-project(hypar_lib)
+project(HYPAR_SFE_LIBS)
 MESSAGE(STATUS "")
 message(STATUS "===== compiling project ${PROJECT_NAME} =====")
 MESSAGE(STATUS "")
@@ -26,26 +26,57 @@ message(STATUS "Working in: ${HYPAR_SFE_DIR}")
 message(STATUS "ZLIB_LIBRARIES=${ZLIB_LIBRARIES}")
 message(STATUS "MPI_Fortran_LIBRARIES=${MPI_Fortran_LIBRARIES}")
 
+#======================================#
 #==== load and check PETSc version ====#
+#======================================#
+
+#=== Get Petsc
 pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc)
 
+#=== Verbose version and paths
 get_target_property(PETSC_INC PkgConfig::PETSC INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "PETSC includes: ${PETSC_INC}")
 message(STATUS "PETSC version: ${PETSC_VERSION}")
+
+#=== Version checks
 if(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION})
     MESSAGE(FATAL_ERROR "PETSC version: must be at least ${PETSC_MIN_VERSION}")
+elseif(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION_WARNING})
+    MESSAGE(WARNING "It is strongly encouraged to used at least PETSC version ${PETSC_MIN_VERSION_WARNING}")
 elseif((${PETSC_VERSION} VERSION_GREATER ${PETSC_MAX_VERSION}) OR (${PETSC_VERSION} VERSION_EQUAL ${PETSC_MAX_VERSION}))
     MESSAGE(FATAL_ERROR "PETSC version: must be at most ${PETSC_MAX_VERSION}")
 endif()
-#==== load and check PETSc version ====#
 
+#=== Prepare macros for compilation
+string(REPLACE "." ";" PETSC_VERSION_LIST "${PETSC_VERSION}")
+# list(GET PETSC_VERSION_LIST 0 PETSC_VERSION_MAJOR)
+list(GET PETSC_VERSION_LIST 1 PETSC_VERSION_MINOR)
+# list(GET PETSC_VERSION_LIST 2 PETSC_VERSION_SUBMINOR)
+if(${PETSC_VERSION} VERSION_LESS "3.23")
+    set(PETSC_INCLUDE_MACRO "#include <petsc/finclude/petsc.h>")
+else()
+    set(PETSC_INCLUDE_MACRO "")
+endif()
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/CMAKE_SOURCES/petsc_include.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/petsc_include.h
+    @ONLY
+)
+#======================================#
+#==== load and check PETSc version ====#
+#======================================#
+
+#===================#
 #==== load FFTw ====#
+#===================#
 pkg_check_modules(FFTW REQUIRED IMPORTED_TARGET fftw3)
 
 get_target_property(FFTW_INC PkgConfig::FFTW INTERFACE_INCLUDE_DIRECTORIES)
 message(STATUS "FFTW includes: ${FFTW_INC}")
 message(STATUS "FFTW version: ${FFTW_VERSION}")
+#===================#
 #==== load FFTw ====#
+#===================#
 
 #==========================================================================
 #=============== HYPAR_SFE sources pre-generation (using python and fypp)
@@ -95,7 +126,6 @@ endforeach(infile)
 #=============== Building fortran HYPAR_SFE library
 #==========================================================================
 
-# file(GLOB_RECURSE hypar_SFE_sources CONFIGURE_DEPENDS
 file(GLOB_RECURSE hypar_SFE_sources CONFIGURE_DEPENDS
 ${HYPAR_SFE_DIR}/COMMON_SOURCES/*.F90
 ${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*.F90
@@ -131,8 +161,6 @@ foreach(dim IN LISTS DIMS)
     foreach(type_lib IN LISTS LIBRARIES)
         set(CUR_HYPAR_SFE_LIB hypar_lib_F_${dim}D_${type_lib})
 
-        target_compile_definitions(${CUR_HYPAR_SFE_LIB} PUBLIC K_DIM_FE=${dim})
-        
         set_target_properties(${CUR_HYPAR_SFE_LIB} PROPERTIES
             Fortran_MODULE_DIRECTORY ${MY_HYPAR_SFE_MODULE_SOURCES}
             POSITION_INDEPENDENT_CODE ON)
@@ -143,7 +171,12 @@ foreach(dim IN LISTS DIMS)
             ${ZLIB_LIBRARIES}
             ${ADDITIONAL_LINKS})
 
-        target_include_directories(${CUR_HYPAR_SFE_LIB} PUBLIC ${PETSC_INC})
+        target_include_directories(${CUR_HYPAR_SFE_LIB} PUBLIC ${PETSC_INC} ${CMAKE_CURRENT_BINARY_DIR})
+
+        target_compile_definitions(${CUR_HYPAR_SFE_LIB} PUBLIC 
+        K_DIM_FE=${dim}
+        PETSC_VERSION_MINOR=${PETSC_VERSION_MINOR}
+        )
 
     endforeach()
 

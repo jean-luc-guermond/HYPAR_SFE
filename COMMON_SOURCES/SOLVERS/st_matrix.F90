@@ -8,7 +8,7 @@ MODULE st_matrix
 !!!>>> Old subroutines removed here, can still be found in SFEMaNS
    PUBLIC :: extract, extract_through_ghost, create_my_ghost, tri_jlg, st_aij_csr_glob_block_with_extra_layer
    PRIVATE
-#include "petsc/finclude/petsc.h"
+
 CONTAINS
 
    !=========================================================================
@@ -37,8 +37,8 @@ CONTAINS
       !> Subroutine to extract values of xghost(vec_ghost PETSc) to phi(HYPAR)
       !! ks/ke ==> positions inside xghost: if xghost is the concatenation of n components
       !!           then phi will receive components between ks-ke (both included)
-#include "petsc/finclude/petscvec.h"
-      use petsc
+
+      use petscvec
       USE def_type_mesh
       USE petsc_csr_LA_module
       IMPLICIT NONE
@@ -46,10 +46,14 @@ CONTAINS
       type(petsc_csr_LA) :: LA
       INTEGER :: ks, ke
       INTEGER :: k, start, fin, nbghost, s, f
-      Vec            :: xghost
-      PetscErrorCode :: ierr
-      PetscScalar, POINTER :: x_loc(:)
+      TYPE(tVec)            :: xghost
+      INTEGER :: ierr
+      REAL(KIND=8), POINTER :: x_loc(:)
+#if (PETSC_VERSION_MINOR < 23)
       CALL VecGetArrayF90(xghost, x_loc, ierr)
+#else
+      CALL VecGetArray(xghost, x_loc, ierr)
+#endif
       DO k = ks, ke
          start = SUM(LA%dom_np(1:k - 1)) + 1
          fin = start + LA%dom_np(k) - 1
@@ -63,7 +67,11 @@ CONTAINS
          f = s + nbghost - 1
          phi(s:f) = x_loc(start:fin)
       END DO
+#if (PETSC_VERSION_MINOR < 23)
       CALL VecRestoreArrayF90(xghost, x_loc, ierr)
+#else
+      CALL VecRestoreArray(xghost, x_loc, ierr)
+#endif
    END SUBROUTINE extract
 
    SUBROUTINE extract_through_ghost(xvec, ks, ke, LA, phi, opt_assemble)
@@ -75,15 +83,14 @@ CONTAINS
 
       USE petsc_csr_LA_module
       USE my_util,       ONLY : error_Petsc
-#include "petsc/finclude/petsc.h"
-      USE petsc
+      USE petscvec
       IMPLICIT NONE
       INTEGER,                      INTENT(IN)  :: ks, ke
       REAL(KIND = 8), DIMENSION(:), INTENT(OUT) :: phi
       LOGICAL, OPTIONAL                         :: opt_assemble
       TYPE(petsc_csr_LA)                        :: LA    
       INTEGER :: ierr
-      Vec :: xvec, xghost
+      TYPE(tVec) :: xvec, xghost
 
       IF (PRESENT(opt_assemble)) THEN
          IF (opt_assemble) THEN
@@ -103,22 +110,20 @@ CONTAINS
    SUBROUTINE block_index(communicator, kmax, mesh, loc_to_glob_LA)
       USE def_type_mesh
       USE my_util
-#include "petsc/finclude/petsc.h"
-      use petsc
+      use petscmpi
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       INTEGER, INTENT(IN) :: kmax
       INTEGER, DIMENSION(:, :), POINTER :: loc_to_glob_LA
       INTEGER, DIMENSION(:), POINTER :: dom_np, disp
-      INTEGER :: code, nb_procs, rank
       INTEGER :: i, p, n, k, i_loc, proc, iglob
-      MPI_Comm       :: communicator
+      INTEGER :: communicator, ierr, nb_procs, rank
 
-      CALL MPI_COMM_SIZE(communicator, nb_procs, code)
-      CALL MPI_COMM_RANK(communicator, rank, code)
+      CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
+      CALL MPI_COMM_RANK(communicator, rank, ierr)
       ALLOCATE(dom_np(nb_procs), disp(nb_procs + 1))
       CALL MPI_ALLGATHER(mesh%dom_np, 1, MPI_INTEGER, dom_np, 1, &
-           MPI_INTEGER, communicator, code)
+           MPI_INTEGER, communicator, ierr)
       disp(1) = 1
       DO n = 1, nb_procs
          disp(n + 1) = disp(n) + dom_np(n)
@@ -220,9 +225,7 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE :: nja, a_d
       INTEGER, DIMENSION(:), ALLOCATABLE :: per_loc
       LOGICAL :: out
-
-      !#include "petsc/finclude/petsc.h"
-      MPI_Comm       :: communicator
+      INTEGER :: communicator
 
       CALL block_index(communicator, kmax, mesh, LA%loc_to_glob)
       nw = SIZE(mesh%jj, 1)

@@ -1,6 +1,6 @@
 MODULE euler_post_proc_module
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE euler_type_MODULE, ONLY : euler_type
   USE petsc_tools,       ONLY : array_to_petsc_vec
   USE st_matrix,         ONLY : extract_through_ghost

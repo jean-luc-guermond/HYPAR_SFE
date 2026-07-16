@@ -1,7 +1,8 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE fem_rhs
-   USE petsc
-   CONTAINS
+   USE petscvec
+
+CONTAINS
    
    SUBROUTINE qs_00 (mesh, LA, ff, vect)
       !> Projection of ff(Fortran array) onto test functions phi_i
@@ -22,8 +23,8 @@ MODULE fem_rhs
       INTEGER, DIMENSION(mesh%gauss%n_w)        :: idxm
       INTEGER        :: i, m, l, ni, iglob
       REAL(KIND = 8) :: fl
-      Vec                                         :: vect
-      PetscErrorCode                              :: ierr
+      TYPE(tVec)                                         :: vect
+      INTEGER                              :: ierr
       
       CALL VecZeroEntries(vect, ierr)
       
@@ -68,8 +69,8 @@ MODULE fem_rhs
       INTEGER, DIMENSION(mesh%gauss%n_w)        :: idxm
       INTEGER        :: i, m, l, ni, iglob, k, k_max
       REAL(KIND = 8) :: fl
-      Vec                                         :: vect
-      PetscErrorCode                              :: ierr
+      TYPE(tVec)                                         :: vect
+      INTEGER                              :: ierr
       
       CALL VecZeroEntries(vect, ierr)
       k_max = SIZE(ff, 2)
@@ -108,7 +109,6 @@ MODULE fem_rhs
       !=================================
       USE def_type_mesh
       USE petsc_csr_LA_module
-      USE petscvec
       IMPLICIT NONE
       TYPE(mesh_type), TARGET :: mesh
       type(petsc_csr_LA) :: LA
@@ -121,8 +121,8 @@ MODULE fem_rhs
       REAL(KIND = 8) :: fl
       TYPE(tVec) :: vect
       INTEGER :: ierr
-      ! Vec                                         :: vect
-      ! PetscErrorCode                              :: ierr
+      ! TYPE(tVec)                                         :: vect
+      ! INTEGER                              :: ierr
 
       CALL VecZeroEntries(vect, ierr)
 
@@ -178,8 +178,8 @@ MODULE fem_rhs
       INTEGER, DIMENSION(mesh%gauss%n_w)        :: idxm
       INTEGER        :: i, k, m, l, ni, iglob
       REAL(KIND = 8) :: dfl(mesh%gauss%k_d)
-      Vec                                         :: vect
-      PetscErrorCode                              :: ierr
+      TYPE(tVec)                                         :: vect
+      INTEGER                              :: ierr
       
       CALL VecZeroEntries(vect, ierr)
       

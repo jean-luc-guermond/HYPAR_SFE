@@ -1,10 +1,8 @@
-#include "petsc/finclude/petsc.h"
 MODULE  template_uij_bar_bounds
 #:set list_name = list_limiters_input
 #:set n_lim = n_lim_input
 #:set syst_dim = syst_dim_input
     USE template_abstract_hyperbolic_module
-    USE petsc
 CONTAINS
 
 #:def compute_bounds_uijbar(syst_dim, n_lim)

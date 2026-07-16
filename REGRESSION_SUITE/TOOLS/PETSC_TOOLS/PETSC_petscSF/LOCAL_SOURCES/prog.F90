@@ -1,7 +1,8 @@
 PROGRAM prog_petscSF
 
-#include "petsc/finclude/petsc.h"
-    USE petsc
+
+    USE petscvec
+    USE petscmpi
     USE def_type_mesh
     USE read_inputs_module
     USE my_util
@@ -25,8 +26,8 @@ PROGRAM prog_petscSF
     !=== TEST CASES
     INTEGER, PARAMETER :: n_max=10000
     REAL(KIND=8) :: tps
-    MPI_Comm :: communicator
-    Vec :: xx
+    INTEGER :: communicator
+    TYPE(tVec) :: xx
     !====== INITIALIZE PETSC AND MPI
     CALL start_setup
     rank = mesh%rank
@@ -130,7 +131,7 @@ CONTAINS
         USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
         USE options_module
         IMPLICIT NONE
-        PetscErrorCode :: ierr
+        INTEGER :: ierr
         INTEGER :: rank
 
         !===Start PETSC and MPI (mandatory)
@@ -200,14 +201,14 @@ CONTAINS
         CHARACTER(LEN = *),           INTENT(IN) :: operation
         INTEGER, DIMENSION(SIZE(uu)) :: idxm
         INTEGER :: i, np, k, kmax, ierr
-        Vec     :: xx, xx_ghost
+        TYPE(tVec)     :: xx, xx_ghost
         SELECT CASE (operation)
         CASE('min')
             !=== Define ghost vectors LOCALLY
             CALL VecGhostGetLocalForm(xx, xx_ghost, ierr)
-            CALL VecGetArrayF90(xx_ghost, x_loc, ierr)
+            CALL VecGetArray(xx_ghost, x_loc, ierr)
             x_loc(:) = uu(:)
-            CALL VecRestoreArrayF90(xx_ghost, x_loc, ierr)
+            CALL VecRestoreArray(xx_ghost, x_loc, ierr)
             CALL VecGhostRestoreLocalForm(xx, xx_ghost, ierr)
 
             !=== At global level, computing min values on Ghost points across processes and:
@@ -221,9 +222,9 @@ CONTAINS
         CASE('max')
             !=== Define ghost vectors LOCALLY
             CALL VecGhostGetLocalForm(xx, xx_ghost, ierr)
-            CALL VecGetArrayF90(xx_ghost, x_loc, ierr)
+            CALL VecGetArray(xx_ghost, x_loc, ierr)
             x_loc(:) = uu(:)
-            CALL VecRestoreArrayF90(xx_ghost, x_loc, ierr)
+            CALL VecRestoreArray(xx_ghost, x_loc, ierr)
             CALL VecGhostRestoreLocalForm(xx, xx_ghost, ierr)
             !=== At global level, computing max values on Ghost points across processes and:
                 !=== 1) Update dom_np+1:np (compute max between overlapping values, update ghost values)

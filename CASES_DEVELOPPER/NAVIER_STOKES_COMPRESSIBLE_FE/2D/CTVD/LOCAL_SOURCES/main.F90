@@ -1,6 +1,6 @@
 PROGRAM prog
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE start_setup_MODULE
   USE setup
   USE sub_plot

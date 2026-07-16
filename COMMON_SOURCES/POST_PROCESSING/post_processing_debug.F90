@@ -15,24 +15,6 @@ MODULE post_processing_debug_MODULE
   /)
 
 CONTAINS
-  
-!   SUBROUTINE get_num_test(num_test)
-!      IMPLICIT NONE
-!       INTEGER, INTENT(OUT) :: num_test
-!       CHARACTER(LEN=100) :: string
-
-!       CALL getarg(2, string)
-!       IF (trim(adjustl(string))=='1') THEN
-!          num_test = 1
-!       ELSE IF (trim(adjustl(string))=='2') THEN
-!          num_test = 2
-!       ELSE IF (trim(adjustl(string))=='3') THEN
-!          num_test = 3
-!       ELSE
-!          WRITE(*,*) "Invalid test number ", trim(adjustl(string)), ". Allowed: 1, 2, 3"
-!          STOP
-!       END IF
-!   END SUBROUTINE get_num_test
 
   SUBROUTINE regression(absolute_error, opt_num_test, opt_tol)
       USE my_util, ONLY: pack_opt, error_petsc, to_str

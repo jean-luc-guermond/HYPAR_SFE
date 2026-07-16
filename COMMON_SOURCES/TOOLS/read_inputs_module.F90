@@ -84,7 +84,7 @@ CONTAINS
    
    
    SUBROUTINE clean_data_once
-      USE PETSC
+      USE petscmpi
       USE my_util, ONLY: to_str
       USE options_module
       IMPLICIT NONE
@@ -179,7 +179,7 @@ CONTAINS
    !===================================================================================
    
    SUBROUTINE read_data_init_list(raw_section_name)
-      USE PETSC
+      USE petscmpi
       USE my_util, ONLY: error_Petsc
       USE options_module
       IMPLICIT NONE
@@ -306,7 +306,7 @@ CONTAINS
    END SUBROUTINE read_data_init_list
    
    SUBROUTINE finalize_rewrite_data
-      USE petsc
+      USE petscmpi
       USE options_module
       IMPLICIT NONE
       

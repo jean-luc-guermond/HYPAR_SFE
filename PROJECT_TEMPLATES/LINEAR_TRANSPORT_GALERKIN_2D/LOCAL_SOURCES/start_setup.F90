@@ -1,5 +1,5 @@
 MODULE start_setup_MODULE
-#include "petsc/finclude/petsc.h"
+
   USE petsc
   USE def_type_mesh
   USE linear_transport_type_module
@@ -38,7 +38,7 @@ MODULE start_setup_MODULE
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
   TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
-  MPI_Comm :: communicator
+  INTEGER :: communicator
   PUBLIC :: start_setup
   PRIVATE
 
@@ -50,7 +50,7 @@ CONTAINS
     USE setup
     USE limiting_functionals_euler_module, ONLY: psi_rho_min, zero_of_psi_rho_min, psi_rho_max, zero_of_psi_rho_max
     IMPLICIT NONE
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'linear_transport 1'
     INTEGER :: rank

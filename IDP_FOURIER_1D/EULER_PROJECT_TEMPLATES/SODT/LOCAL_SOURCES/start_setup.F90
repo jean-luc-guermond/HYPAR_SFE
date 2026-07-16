@@ -23,7 +23,7 @@ MODULE start_setup_MODULE
   TYPE(euler_type) :: euler
 CONTAINS
   SUBROUTINE start_setup
-#include "petsc/finclude/petsc.h"
+
     USE petsc
     !USE euler_flux
     USE arbitrary_eos_lambda_module

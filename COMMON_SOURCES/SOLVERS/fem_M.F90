@@ -1,8 +1,7 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE fem_M
    USE petsc_csr_LA_module
    USE def_type_mesh
-   USE petsc
 
    PUBLIC :: qs_mass_diff_M, qs_mass_block_M, qs_var_mass_block_M
    PRIVATE
@@ -10,6 +9,7 @@ CONTAINS
 
    SUBROUTINE qs_mass_diff_M (mesh, mass, visco, LA, matrix)
       !=================================================
+      USE petscmat
       IMPLICIT NONE
       TYPE(mesh_type), TARGET :: mesh
       REAL(KIND = 8), INTENT(IN) :: mass, visco
@@ -19,8 +19,8 @@ CONTAINS
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idxn
       INTEGER :: m, ni, nj, k
       REAL(KIND = 8), DIMENSION(mesh%gauss%l_G) :: al, bl
-      Mat            :: matrix
-      PetscErrorCode :: ierr
+      TYPE(tMat)            :: matrix
+      INTEGER :: ierr
       CALL MatZeroEntries (matrix, ierr)
 
       DO m = 1, mesh%me
@@ -36,7 +36,11 @@ CONTAINS
                END DO
             ENDDO
          ENDDO
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+         CALL MatSetValues(matrix, mesh%gauss%n_w, idxn, mesh%gauss%n_w, idxn, reshape(mat_loc, [mesh%gauss%n_w**2]), ADD_VALUES, ierr)
+#else
          CALL MatSetValues(matrix, mesh%gauss%n_w, idxn, mesh%gauss%n_w, idxn, mat_loc, ADD_VALUES, ierr)
+#endif
       ENDDO
 
       CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
@@ -93,7 +97,11 @@ CONTAINS
                   END DO
                END DO
          END DO
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+         CALL MatSetValues(matrix, k_dim * n_w, idxm, k_dim * n_w, idxn, reshape(mat_loc, [(k_dim * n_w)**2]), ADD_VALUES, ierr)
+#else
          CALL MatSetValues(matrix, k_dim * n_w, idxm, k_dim * n_w, idxn, mat_loc, ADD_VALUES, ierr)
+#endif
       ENDDO
 
       CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
@@ -157,7 +165,11 @@ CONTAINS
                   END DO
                END DO
          END DO
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+         CALL MatSetValues(matrix, k_max*n_w, idxm, k_max*n_w, idxn, reshape(mat_loc, [(k_max*n_w)**2]), ADD_VALUES, ierr)
+#else
          CALL MatSetValues(matrix, k_max*n_w, idxm, k_max*n_w, idxn, mat_loc, ADD_VALUES, ierr)
+#endif
       ENDDO
 
       CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)

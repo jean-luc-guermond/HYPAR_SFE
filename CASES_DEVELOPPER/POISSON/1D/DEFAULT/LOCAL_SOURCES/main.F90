@@ -1,6 +1,6 @@
 PROGRAM test_matrix
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE fem_tn, ONLY: ns_l1_par
   USE start_setup_MODULE
 
@@ -15,7 +15,7 @@ PROGRAM test_matrix
   INTEGER      :: tot_np
   CHARACTER(5) :: char
 
-  PetscErrorCode :: ierr
+  INTEGER :: ierr
 
 
 !========================!

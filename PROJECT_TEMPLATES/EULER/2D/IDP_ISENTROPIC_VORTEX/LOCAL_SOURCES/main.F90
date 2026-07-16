@@ -1,5 +1,5 @@
 PROGRAM prog
-#include "petsc/finclude/petsc.h"
+
   USE petsc
   USE start_setup_MODULE
   USE setup

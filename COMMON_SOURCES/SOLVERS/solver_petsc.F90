@@ -1,35 +1,34 @@
+#include "petsc_include.h"
 MODULE solver_petsc
     USE my_util
     USE def_type_mesh
-#include "petsc/finclude/petsc.h"
-    USE petsc
+
     USE solver_data_module
-   
+    USE petscksp
+    USE petscvec
+    USE petscmat
+
 CONTAINS
 
-    SUBROUTINE init_solver(communicator, solver_paramater, my_ksp, matrix, opt_mat_pre, opt_re_init)          
+    SUBROUTINE init_solver(communicator, solver_parameter, my_ksp, matrix, opt_mat_pre, opt_re_init)          
         USE character_strings
-        USE petsc
-        USE petscmat
-        USE petscsys
         USE my_util
         IMPLICIT NONE
         LOGICAL, INTENT(IN), OPTIONAL :: opt_re_init
-        TYPE(solver_data_type) :: solver_paramater
+        TYPE(solver_data_type) :: solver_parameter
         CHARACTER(LEN=:), ALLOCATABLE :: solver, precond
         LOGICAL :: re_init
         INTEGER :: deb, fin
 
-        Mat            :: matrix, matrix_shell
-        Mat, OPTIONAL :: opt_mat_pre
-        KSP            :: my_ksp
-        PC             :: prec
-        PetscErrorCode :: ierr
-        MPI_Comm       :: communicator
-        PetscViewerAndFormat :: vf
+        TYPE(tMat)            :: matrix, matrix_shell
+        TYPE(tMat), OPTIONAL  :: opt_mat_pre
+        TYPE(tKSP)            :: my_ksp
+        TYPE(tPC)             :: prec
+        INTEGER               :: communicator, ierr
+        TYPE(tKSP)  :: vf
 
-        solver = TRIM(ADJUSTL(solver_paramater%solver))
-        precond = TRIM(ADJUSTL(solver_paramater%precond))
+        solver = TRIM(ADJUSTL(solver_parameter%solver))
+        precond = TRIM(ADJUSTL(solver_parameter%precond))
 
         IF (.NOT.PRESENT(opt_re_init)) THEN
             re_init = .FALSE.
@@ -37,14 +36,14 @@ CONTAINS
             re_init = opt_re_init
         END IF
 
-        IF (solver_paramater%it_max.LE.0) THEN
-            !   solver_paramater%it_max = 100
+        IF (solver_parameter%it_max.LE.0) THEN
+            !   solver_parameter%it_max = 100
         END IF
-        IF (solver_paramater%rel_tol.LE.0.d0) THEN
-            solver_paramater%rel_tol = 1.d-8
+        IF (solver_parameter%rel_tol.LE.0.d0) THEN
+            solver_parameter%rel_tol = 1.d-8
         END IF
-        IF (solver_paramater%abs_tol.LE.0.d0) THEN
-            solver_paramater%abs_tol = 1.d-14
+        IF (solver_parameter%abs_tol.LE.0.d0) THEN
+            solver_parameter%abs_tol = 1.d-14
         END IF
         IF (.NOT.re_init) CALL KSPCreate(communicator, my_ksp, ierr)
 
@@ -54,7 +53,7 @@ CONTAINS
             CALL KSPSetOperators(my_ksp, matrix, matrix, ierr) !Petsc 3.7.2
         END IF
 
-        IF (solver_paramater%if_residual) CALL KSPMonitorSet(my_ksp, MyKSPMonitor, vf, PetscViewerAndFormatDestroy, ierr)
+        IF (solver_parameter%if_residual) CALL KSPMonitorSet(my_ksp, MyKSPMonitor, vf, PetscViewerAndFormatDestroy, ierr)
 
         SELECT CASE(solver)
         CASE('BCGS')
@@ -77,8 +76,8 @@ CONTAINS
         END SELECT
 
         CALL KSPGetPC(my_ksp, prec, ierr)
-        CALL KSPSetTolerances(my_ksp, solver_paramater%rel_tol, solver_paramater%abs_tol, &
-            PETSC_DEFAULT_REAL, solver_paramater%it_max, ierr)
+        CALL KSPSetTolerances(my_ksp, solver_parameter%rel_tol, solver_parameter%abs_tol, &
+            PETSC_DEFAULT_REAL, solver_parameter%it_max, ierr)
 
         !  CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-ksp_initial_guess_nonzero', 'true', ierr)
         SELECT CASE(precond)
@@ -86,17 +85,17 @@ CONTAINS
             !CALL PCSetType(prec, PCJACOBI, ierr)
             CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_type', 'jacobi', ierr)
         CASE('HYPRE')
-            IF (solver_paramater%if_fixed_v_cycle) THEN
+            IF (solver_parameter%if_fixed_v_cycle) THEN
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_type', 'hypre', ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_type', 'boomeramg', ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_strong_threshold', &
-                    solver_paramater%boomeramg_strong_threshold, ierr)
+                    solver_parameter%boomeramg_strong_threshold, ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_coarsen_type', &
-                    solver_paramater%boomeramg_coarsen_type, ierr)
+                    solver_parameter%boomeramg_coarsen_type, ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_relax_type_all', &
-                    solver_paramater%boomeramg_relax_type_all, ierr)
+                    solver_parameter%boomeramg_relax_type_all, ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_max_iter', &
-                    solver_paramater%number_v_cycle, ierr)
+                    solver_parameter%number_v_cycle, ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_tol', &
                     '0.0', ierr)
             ELSE
@@ -107,15 +106,15 @@ CONTAINS
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_nodal_coarsen', '1', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_coarsen_type', '0', ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_strong_threshold', &
-                    solver_paramater%boomeramg_strong_threshold, ierr)
+                    solver_parameter%boomeramg_strong_threshold, ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_coarsen_type', &
-                    solver_paramater%boomeramg_coarsen_type, ierr)
+                    solver_parameter%boomeramg_coarsen_type, ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_agg_nl', '2', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_agg_num_paths', '4', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_truncfactor','.05', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_interp_type', 'multipass', ierr)
                CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_relax_type_all', &
-                    solver_paramater%boomeramg_relax_type_all, ierr)
+                    solver_parameter%boomeramg_relax_type_all, ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_relax_type_down', 'Chebyshev', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_relax_type_up', 'Chebyshev', ierr)
                !CALL PetscOptionsSetValue(PETSC_NULL_OPTIONS, '-pc_hypre_boomeramg_relax_type_coarse', 'Gaussian-elimination', ierr)
@@ -188,15 +187,17 @@ CONTAINS
     END SUBROUTINE init_solver
 
     SUBROUTINE solver(my_ksp, b, x, reinit, verbose, type)
-        use petsc
         IMPLICIT NONE
         LOGICAL, OPTIONAL :: reinit, verbose
         CHARACTER(*), OPTIONAL, INTENT(IN) :: type
-        INTEGER :: its, rank
-        KSP            :: my_ksp
-        PetscErrorCode :: ierr
-        Vec            :: x, b
+        TYPE(tKSP)                :: my_ksp
+        TYPE(tVec)                :: x, b
+#if (PETSC_VERSION_MINOR < 23)
         KSPConvergedReason :: reason
+#else
+        TYPE(eKSPConvergedReason) :: reason
+#endif
+        INTEGER :: its, rank, ierr
         IF (.NOT.PRESENT(reinit)) reinit = .TRUE.
         IF (.NOT.PRESENT(verbose)) verbose = .FALSE.
 
@@ -210,7 +211,11 @@ CONTAINS
         IF (verbose) THEN
             CALL KSPGetIterationNumber(my_ksp, its, ierr)
             CALL KSPGetConvergedReason(my_ksp, reason, ierr)
-            SELECT CASE(reason)
+#if (PETSC_VERSION_MINOR < 23)
+        SELECT CASE(reason)
+#else
+        SELECT CASE(reason%v)
+#endif
             CASE(2)
                 WRITE(*, *) "KSP_CONVERGED_RTOL, Nb of iterations", its
             CASE(3)
@@ -242,7 +247,6 @@ CONTAINS
 
    SUBROUTINE create_local_petsc_matrix(communicator, LA, matrix, clean)
       USE def_type_mesh
-      use petsc
       USE petsc_csr_LA_module
       IMPLICIT NONE
       TYPE(petsc_csr_LA) :: LA
@@ -251,9 +255,8 @@ CONTAINS
       INTEGER :: nnzm1, dom_np
       LOGICAL :: test_clean
       !!$  INTEGER, DIMENSION(:), POINTER :: ia, ja
-      MPI_Comm       :: communicator
-      Mat            :: matrix
-      PetscErrorCode :: ierr
+      TYPE(tMat)   :: matrix
+      INTEGER      :: communicator, ierr
       !------------------------------------------------------------------------------
       dom_np = SIZE(LA%ia) - 1
       nnzm1 = LA%ia(dom_np) - LA%ia(0) - 1
@@ -285,7 +288,6 @@ CONTAINS
 
    SUBROUTINE create_local_petsc_matrix_a_detruire(communicator, aij, i_loc, matrix)
       USE def_type_mesh
-      use petsc
       IMPLICIT NONE
       TYPE(aij_type), INTENT(IN) :: aij
       INTEGER, DIMENSION(2) :: i_loc
@@ -293,9 +295,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), POINTER :: aa
       INTEGER :: nnzm1, dom_np, p, i, n
 
-      MPI_Comm       :: communicator
-      Mat            :: matrix
-      PetscErrorCode :: ierr
+      TYPE(tMat)    :: matrix
+      INTEGER       :: communicator, ierr
       !------------------------------------------------------------------------------
       dom_np = i_loc(2) - i_loc(1) + 1
       nnzm1 = aij%ia(i_loc(2) + 1) - aij%ia(i_loc(1)) - 1
@@ -319,7 +320,6 @@ CONTAINS
 
    SUBROUTINE create_local_petsc_block_matrix(communicator, n_b, aij, i_loc, matrix)
       USE def_type_mesh
-      use petsc
       IMPLICIT NONE
       TYPE(aij_type), INTENT(IN) :: aij
       INTEGER, DIMENSION(2) :: i_loc
@@ -328,9 +328,8 @@ CONTAINS
       REAL(KIND = 8), DIMENSION(:), POINTER :: aa
       INTEGER :: nnzm1, dom_np, p, i, n, ib, k
 
-      MPI_Comm       :: communicator
-      Mat            :: matrix
-      PetscErrorCode :: ierr
+      TYPE(tMat)   :: matrix
+      INTEGER      :: communicator, ierr
 
       dom_np = i_loc(2) - i_loc(1) + 1
       nnzm1 = n_b * (aij%ia(i_loc(2) + 1) - aij%ia(i_loc(1)) - 1)
@@ -356,14 +355,12 @@ CONTAINS
    END SUBROUTINE create_local_petsc_block_matrix
 
    subroutine MyKSPMonitor(ksp, n, rnorm, dummy, ierr)
-      use petscksp
-
-      KSP         ::     ksp
-      Vec        ::      x
-      PetscErrorCode :: ierr
-      PetscInt :: n, dummy
-      PetscMPIInt :: rank
-      PetscReal :: rnorm
+      USE petscmpi
+      IMPLICIT NONE
+      TYPE(tKSP)   :: ksp
+      TYPE(tVec)   :: x
+      REAL(KIND=8) :: rnorm
+      INTEGER      :: n, dummy, rank, ierr
       CALL MPI_Comm_rank(PETSC_COMM_WORLD, rank, ierr)
       IF (rank == 0)  WRITE(*, *) 'Residual', rnorm
 

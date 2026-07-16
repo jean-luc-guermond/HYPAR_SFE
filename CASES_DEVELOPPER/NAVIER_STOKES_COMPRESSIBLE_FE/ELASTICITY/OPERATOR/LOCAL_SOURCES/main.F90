@@ -1,6 +1,6 @@
 PROGRAM test_matrix
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE fem_tn, ONLY: ns_l1_par
   USE fem_rhs
   USE start_setup_MODULE
@@ -25,8 +25,8 @@ PROGRAM test_matrix
   INTEGER      :: tot_np, k, np, n, count
   CHARACTER(5) :: char
 
-  Vec :: x1vec_vel, x2vec_vel, x3vec_vel, sol_vec
-  PetscErrorCode :: ierr
+  TYPE(tVec) :: x1vec_vel, x2vec_vel, x3vec_vel, sol_vec
+  INTEGER :: ierr
 
 
 !========================!
@@ -190,9 +190,9 @@ CONTAINS
         TYPE(solver_data_type)       :: solver_param
         REAL(KIND = 8) :: tps, local_tps_solver_ref, local_tps_solver_one_iter, tps_solver_one_iter
         INTEGER :: ierr
-        Mat :: matrix, matrix_precond
-        KSP :: matrix_ksp
-        Vec :: vec_rhs, vec_sol
+        TYPE(tMat) :: matrix, matrix_precond
+        TYPE(tKSP) :: matrix_ksp
+        TYPE(tVec) :: vec_rhs, vec_sol
 
         !=== Solver linear system
         IF (solver_param%tps_ratio>2) THEN

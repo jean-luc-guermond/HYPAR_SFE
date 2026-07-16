@@ -1,6 +1,6 @@
 MODULE start_setup_MODULE
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   USE def_type_mesh, ONLY: mesh_type
   USE linear_transport_type_module, ONLY: linear_transport_type
   USE petsc_csr_LA_module, ONLY: petsc_csr_LA
@@ -41,7 +41,7 @@ MODULE start_setup_MODULE
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
   TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_linear_transport
-  MPI_Comm :: communicator
+  INTEGER :: communicator
   PUBLIC :: start_setup
   PRIVATE
 
@@ -53,7 +53,7 @@ CONTAINS
     USE setup
     USE options_module
     IMPLICIT NONE
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'linear_transport 1'
     INTEGER :: rank

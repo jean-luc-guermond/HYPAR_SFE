@@ -1,8 +1,6 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE euler_type_module
 !>> limited global uses to avoid unexpected behaviors
-   USE petsc
-
    USE read_inputs_module,    ONLY : rec_length
 
    USE euler_bc_arrays,                  ONLY: euler_bc_type
@@ -188,9 +186,6 @@ CONTAINS
    END SUBROUTINE lambda_euler
 
    SUBROUTINE construct_euler_bc(this, mesh, LA)
-      USE petsc
-#include "petsc/finclude/petsc.h"
-
       USE petsc_csr_LA_module,   ONLY : petsc_csr_LA
       USE def_type_mesh,         ONLY : mesh_type
       USE space_dim,           ONLY: k_dim

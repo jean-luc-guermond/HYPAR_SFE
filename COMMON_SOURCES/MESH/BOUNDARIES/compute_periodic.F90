@@ -1,4 +1,4 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE compute_periodic
    USE def_type_mesh
    USE periodic_data_module
@@ -14,23 +14,27 @@ CONTAINS
     USE def_type_mesh
     USE petsc_csr_LA_module
     USE my_util
-#include "petsc/finclude/petsc.h"
-    USE petsc
+    USE petscmat
     IMPLICIT NONE
     TYPE(periodic_type), INTENT(IN) :: periodic
     INTEGER :: nb_per_edges
     TYPE(petsc_csr_la), INTENT(IN) :: LA
     INTEGER, PARAMETER :: nmaxcols = 300
     INTEGER :: ncols
+#if (PETSC_VERSION_MINOR < 23)
     INTEGER, DIMENSION(nmaxcols) :: cols
     REAL(KIND = 8), DIMENSION(nmaxcols) :: vals
+#else
+    INTEGER,        DIMENSION(:), POINTER :: cols
+    REAL(KIND = 8), DIMENSION(:), POINTER :: vals
+#endif
     INTEGER, DIMENSION(:), ALLOCATABLE :: n_cols_i
     INTEGER, DIMENSION(1) :: idxn
     INTEGER, DIMENSION(:, :), ALLOCATABLE :: jdxn
     REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: vals_pi
     INTEGER :: n, l, i, pi, n_D, k
-    Mat                                          :: matrix
-    PetscErrorCode                               :: ierr
+    TYPE(tMat)                                          :: matrix
+    INTEGER                               :: ierr
 
     CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
     CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
@@ -42,7 +46,6 @@ CONTAINS
           n_D = SIZE(periodic%list(n)%DIL)
           IF (n_D /=0) THEN
              ALLOCATE(jdxn(n_D, nmaxcols), vals_pi(n_D, nmaxcols), n_cols_i(n_D))
-             jdxn = 0
              vals_pi = 0.d0
              n_cols_i = 0
 
@@ -57,8 +60,13 @@ CONTAINS
 
              DO l = 1, n_D
                 idxn(1) = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l)) - 1
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+                CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
+                     vals_pi(l, 1:n_cols_i(l)), ADD_VALUES, ierr)
+#else
                 CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
                      vals_pi(l:l, 1:n_cols_i(l)), ADD_VALUES, ierr)
+#endif
              END DO
              DEALLOCATE(jdxn, vals_pi, n_cols_i)
 
@@ -91,8 +99,8 @@ CONTAINS
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
-#include "petsc/finclude/petsc.h"
-      USE petsc
+
+      USE petscvec
       IMPLICIT NONE
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
       TYPE(petsc_csr_la),               INTENT(IN) :: LA
@@ -100,8 +108,8 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals, bs
       INTEGER :: n, k, n_D
-      Vec                                          :: v_rhs
-      PetscErrorCode                               :: ierr
+      TYPE(tVec)                                          :: v_rhs
+      INTEGER                               :: ierr
 
       nb_per_edges = SIZE(list)
 
@@ -133,8 +141,8 @@ CONTAINS
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
-#include "petsc/finclude/petsc.h"
-      USE petsc
+
+      USE petscvec
       IMPLICIT NONE
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
       TYPE(petsc_csr_la),               INTENT(IN) :: LA
@@ -142,8 +150,8 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals, bs
       INTEGER :: n, k, n_D
-      Vec                                          :: vec_in
-      PetscErrorCode                               :: ierr
+      TYPE(tVec)                                          :: vec_in
+      INTEGER                               :: ierr
 
       nb_per_edges = SIZE(list)
 
@@ -171,7 +179,7 @@ CONTAINS
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
-      USE petsc
+      USE petscvec
       IMPLICIT NONE
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
       TYPE(petsc_csr_la),               INTENT(IN) :: LA
@@ -179,8 +187,8 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals_list, vals_perlist, bs
       INTEGER :: n, k, n_D
-      Vec                                          :: vec_in
-      PetscErrorCode                               :: ierr
+      TYPE(tVec)                                          :: vec_in
+      INTEGER                               :: ierr
 
       nb_per_edges = SIZE(list)
 

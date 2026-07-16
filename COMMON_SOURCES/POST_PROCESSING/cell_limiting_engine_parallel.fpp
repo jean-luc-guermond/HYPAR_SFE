@@ -1,7 +1,7 @@
 #:set syst_dim = syst_dim_input
-#include "petsc/finclude/petsc.h"
 MODULE template_cell_limiting_engine_parallel_module
-   USE petsc
+   USE petscvec
+   USE petscmat
    USE def_type_mesh
    USE petsc_csr_LA_module
    USE st_matrix, ONLY : extract_through_ghost, create_my_ghost
@@ -25,7 +25,7 @@ MODULE template_cell_limiting_engine_parallel_module
       REAL(KIND = 8), DIMENSION(:),   POINTER :: lumped_mass
       TYPE(petsc_csr_LA),  POINTER :: LA
       TYPE(periodic_type), POINTER :: per
-      Vec, PUBLIC :: xvect1, xvect2, x_ghost
+      TYPE(tVec), PUBLIC :: xvect1, xvect2, x_ghost
 
    CONTAINS
       PROCEDURE, PUBLIC  :: init => init_limiting
@@ -56,8 +56,8 @@ MODULE template_cell_limiting_engine_parallel_module
       TYPE(mesh_type), POINTER      :: mesh
       INTEGER                       :: nl
       CHARACTER(LEN=:), ALLOCATABLE :: name
-      Vec :: xvect1, xvect2, xvect3, stiffness_RowSumAbs, avg_row_sum, ones_row_sum
-      Mat :: stiffness, ones, avg
+      TYPE(tVec) :: xvect1, xvect2, xvect3, stiffness_RowSumAbs, avg_row_sum, ones_row_sum
+      TYPE(tMat) :: stiffness, ones, avg
    CONTAINS
       PROCEDURE, PUBLIC :: init => init_limiting_functionals
       PROCEDURE :: RELAX_BOUNDS
@@ -105,8 +105,6 @@ CONTAINS
 !=====================================
 
    SUBROUTINE init_limiting(this, name, mesh, LA)
-#include "petsc/finclude/petsc.h"
-      USE petsc 
       USE solver_petsc
       USE def_type_mesh
       USE compute_periodic
@@ -124,8 +122,7 @@ CONTAINS
       INTEGER, POINTER, DIMENSION(:) :: ifrom
       INTEGER :: m, n, ierr, k
       REAL(KIND=8) :: volK
-      Mat :: mass
-    
+      TYPE(tMat) :: mass
       !===Start reading limiting data
       this%name = name
       CALL this%read("LIMITING PARAMETERS FOR "//TRIM(ADJUSTL(name)))
@@ -203,11 +200,14 @@ CONTAINS
             jdx = j
             IF (idx(1) /= jdx(1)) THEN
                mat_loc = 1.d0
-               CALL MatSetValues(this%avg, 1, idx, 1, jdx, mat_loc, INSERT_VALUES, ierr)
             ELSE
                mat_loc = nb
-               CALL MatSetValues(this%avg, 1, idx, 1, jdx, mat_loc, INSERT_VALUES, ierr)
             END IF
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+            CALL MatSetValues(this%avg, 1, idx, 1, jdx, reshape(mat_loc,[1**2]), INSERT_VALUES, ierr)
+#else
+            CALL MatSetValues(this%avg, 1, idx, 1, jdx, mat_loc, INSERT_VALUES, ierr)
+#endif
          END DO
       END DO
 
@@ -237,7 +237,11 @@ CONTAINS
             j = this%LA%ja(p)
             jdx = j
             mat_loc = 1.d0
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+            CALL MatSetValues(this%ones, 1, idx, 1, jdx, reshape(mat_loc,[1**2]), INSERT_VALUES, ierr)
+#else
             CALL MatSetValues(this%ones, 1, idx, 1, jdx, mat_loc, INSERT_VALUES, ierr)
+#endif
          END DO
       END DO
 
@@ -249,8 +253,6 @@ CONTAINS
    END SUBROUTINE init_mat_relax_minmod
 
    SUBROUTINE init_limiting_functionals(this, limiting_functionals, name, LA, mesh)
-#include "petsc/finclude/petsc.h"
-      USE petsc 
       USE solver_petsc
       USE def_type_mesh
       USE compute_periodic
@@ -383,7 +385,6 @@ CONTAINS
 !=====================================
 
    SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, xx_out)  
-      USE petsc 
       USE compute_periodic
       USE my_util, ONLY: error_petsc
       IMPLICIT NONE

@@ -42,33 +42,33 @@ CONTAINS
    !========================================================================
 
     SUBROUTINE error_Petsc(string)
-#include "petsc/finclude/petsc.h"
-      USE petsc
+
+      USE petscmpi
       IMPLICIT NONE
       CHARACTER(LEN=*),  INTENT(IN) :: string
-      PetscErrorCode :: ierr
+      INTEGER :: ierr
       CALL write_rank_0(string)
       CALL PetscFinalize(ierr)
       STOP
     END SUBROUTINE error_Petsc
 
     SUBROUTINE local_error_petsc(string)
-#include "petsc/finclude/petsc.h"
-      USE petsc
+
+      USE petscmpi
       IMPLICIT NONE
       CHARACTER(LEN=*),  INTENT(IN) :: string
-      PetscErrorCode :: ierr
+      INTEGER :: ierr
       WRITE(*,*) string
       CALL MPI_Abort(PETSC_COMM_WORLD, 1, ierr)
     END SUBROUTINE local_error_petsc
 
     SUBROUTINE write_rank_0(string)
-#include "petsc/finclude/petsc.h"
-      USE petsc
+
+      USE petscmpi
       IMPLICIT NONE
       CHARACTER(LEN=*),  INTENT(IN) :: string
       INTEGER                            :: rank
-      PetscErrorCode :: ierr
+      INTEGER :: ierr
       CALL MPI_Comm_rank(PETSC_COMM_WORLD,rank,ierr)
       IF (rank==0) WRITE(*,*) string
     END SUBROUTINE write_rank_0

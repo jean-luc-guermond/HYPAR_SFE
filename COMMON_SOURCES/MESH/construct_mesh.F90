@@ -1,8 +1,8 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE construct_mesh
    USE def_type_mesh
    USE st_matrix
-   USE petsc
+   USE petscmpi
    USE mesh_data_module
    USE mesh_tools
    USE space_dim
@@ -33,7 +33,7 @@ CONTAINS
       CHARACTER(LEN = 100) :: mesh_part_name
       CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: opt_name
       TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
-      MPI_Comm       :: communicator
+      INTEGER       :: communicator
 
       CALL mesh_data_info%init
       CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)
@@ -396,7 +396,7 @@ CONTAINS
 !!$    LOGICAL :: edge_stab
 !!$    CHARACTER(LEN = 100) :: mesh_part_name
 !!$    TYPE(mesh_type) :: mesh_glob, mesh, mesh_r
-!!$    MPI_Comm       :: communicator
+!!$    INTEGER       :: communicator
 !!$
 !!$    CALL mesh_data_info%init
 !!$    CALL MPI_Comm_SIZE(communicator, nb_proc, ierr)

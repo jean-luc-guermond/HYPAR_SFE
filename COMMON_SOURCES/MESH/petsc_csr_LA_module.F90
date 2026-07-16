@@ -74,7 +74,11 @@ CONTAINS
         LOGICAL :: if_test, local_if_found_all_pairs, local_saw_all_stencils, saw_all_stencils, if_found_all_pairs
         
         INTEGER, DIMENSION(:),           ALLOCATABLE :: other_j_loc, idx_loc_stencil
+#if (PETSC_VERSION_MINOR < 23)
         TYPE(PetscSFNode), DIMENSION(:), ALLOCATABLE :: roots
+#else
+        TYPE(sPetscSFNode), DIMENSION(:), ALLOCATABLE :: roots
+#endif
 
         !=== Consistency checks
         IF (.NOT. ASSOCIATED(this%loc_to_glob)) THEN
@@ -235,7 +239,11 @@ CONTAINS
             roots(n)%index = this%mat_proc_np_loc(2, n) - 1
             !=== WARNING: petsc conventions indexing starts from 0, not 1
         END DO
-        CALL PetscSFSetGraph(this%sf_node, this%nroots, nleaves, PETSC_NULL_INTEGER_ARRAY, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#if (PETSC_VERSION_MINOR <= 21)
+    CALL PetscSFSetGraph(this%sf_node, this%nroots, nleaves, PETSC_NULL_INTEGER, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#else
+    CALL PetscSFSetGraph(this%sf_node, this%nroots, nleaves, PETSC_NULL_INTEGER_ARRAY, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#endif
 
         !=========================!
         !===== END STEP 3 ========!  Now everything is known to use MatUpdateMPIAIJ
@@ -248,8 +256,8 @@ CONTAINS
 
     SUBROUTINE fill_mat(this, matrix, zz_contig)
         !=== WARNING 02/07/2026 MATRIX MUST NOT HAVE BEEN GENERATED USING MATDUPLICATE
-#include "petsc/finclude/petsc.h"
-        USE petsc
+        USE petscmat
+        USE petscvec
         USE my_util
         IMPLICIT NONE
         CLASS(petsc_csr_LA) :: this

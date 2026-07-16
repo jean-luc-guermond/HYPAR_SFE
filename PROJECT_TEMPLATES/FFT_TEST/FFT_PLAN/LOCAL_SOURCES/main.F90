@@ -3,7 +3,7 @@ PROGRAM test_fourier_1D_plan
    USE fft_1d_plan
    USE fourier_param_module
    ! USE fourier_param_plan_module
-#include "petsc/finclude/petsc.h"
+
    USE petsc
    USE read_inputs_module, ONLY : clean_data_once
    USE my_util, ONLY : error_petsc, itoa
@@ -26,8 +26,8 @@ PROGRAM test_fourier_1D_plan
    TYPE(mesh_type)    :: mesh
    TYPE(petsc_csr_LA) :: LA
 
-   MPI_Comm       :: communicator
-   PetscErrorCode :: ierr
+   INTEGER       :: communicator
+   INTEGER :: ierr
 
 !===Start PETSC and MPI (mandatory)
    CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)

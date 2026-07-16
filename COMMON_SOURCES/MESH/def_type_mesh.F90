@@ -6,8 +6,9 @@ MODULE def_type_mesh
    USE space_dim
    USE periodic_data_module
    USE mesh_data_module, ONLY: mesh_info_type
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
+   USE petscmpi
+   USE petscvec
    IMPLICIT NONE
 
    INTEGER, DIMENSION(5), PARAMETER :: op_tab = (/MPI_REPLACE, MPI_SUM, MPI_PROD, MPI_MIN, MPI_MAX/)
@@ -112,7 +113,7 @@ MODULE def_type_mesh
       INTEGER                       :: rank, proc, nb_proc !VB 11/05/2026
       CHARACTER(LEN=:), ALLOCATABLE :: name
       TYPE(mesh_info_type)          :: info
-      MPI_Comm, POINTER             :: comm !VB 11/05/2026
+      INTEGER, POINTER             :: comm !VB 11/05/2026
       TYPE(tPetscSF)                :: sf_node !VB 01/07/2026
    CONTAINS
       PROCEDURE :: jj_glob
@@ -198,7 +199,7 @@ CONTAINS
       IMPLICIT NONE
       CLASS(mesh_type) :: this
       INTEGER          :: ierr
-      MPI_Comm, TARGET :: communicator
+      INTEGER, TARGET :: communicator
 
       this%comm => communicator
       CALL MPI_Comm_rank(this%comm, this%rank, ierr)
@@ -363,8 +364,11 @@ CONTAINS
       IMPLICIT NONE
       CLASS(mesh_type) :: this
       INTEGER :: n, nleaves, nroots, ierr
+#if (PETSC_VERSION_MINOR <= 22)
       TYPE(PetscSFNode), DIMENSION(:), ALLOCATABLE :: roots
-
+#else
+      TYPE(sPetscSFNode), DIMENSION(:), ALLOCATABLE :: roots
+#endif
       !=== CREATE PETSC SF
       CALL PetscSFCreate(this%comm, this%sf_node, ierr)
       CALL PetscSFSetFromOptions(this%sf_node, ierr)
@@ -378,7 +382,11 @@ CONTAINS
           roots(n)%index = this%proc_np_loc(2, n) - 1
           !=== WARNING: petsc conventions indexing starts from 0, not 1
       END DO
-      CALL PetscSFSetGraph(this%sf_node, nroots, nleaves, PETSC_NULL_INTEGER_ARRAY, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#if (PETSC_VERSION_MINOR <= 21)
+   CALL PetscSFSetGraph(this%sf_node, nroots, nleaves, PETSC_NULL_INTEGER, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#else
+   CALL PetscSFSetGraph(this%sf_node, nroots, nleaves, PETSC_NULL_INTEGER_ARRAY, PETSC_COPY_VALUES, roots, PETSC_COPY_VALUES, ierr)
+#endif
       !=== CREATE PETSC SF
 
    END SUBROUTINE build_petscSF

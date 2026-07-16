@@ -1,6 +1,6 @@
 MODULE mesh_distribution_1d
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
+   USE petscmpi
    USE mesh_tools
    PUBLIC :: extract_mesh_1d, create_Pk_mesh_1D
    PRIVATE
@@ -13,9 +13,9 @@ CONTAINS
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh_glob, mesh_loc
       INTEGER :: n, m, np_start, np_end, me_start, me_end, p, n_glob
-      PetscErrorCode :: ierr
-      PetscMPIInt    :: rank, nb_procs
-      MPI_Comm       :: communicator
+      INTEGER :: rank, nb_procs, ierr
+      INTEGER :: communicator
+
       CALL MPI_Comm_rank(communicator, rank, ierr)
       CALL MPI_COMM_SIZE(communicator, nb_procs, ierr)
       rank = rank + 1

@@ -1,6 +1,6 @@
 MODULE plot_vtu_module
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
   LOGICAL, PARAMETER, PRIVATE :: if_xml=.true.
   CONTAINS
 SUBROUTINE make_vtu_file_2D(communicator, mesh_in, header, field_in, field_name, what, opt_it)
@@ -19,9 +19,7 @@ SUBROUTINE make_vtu_file_2D(communicator, mesh_in, header, field_in, field_name,
     INTEGER                                   :: j, it
     CHARACTER(LEN=200), DIMENSION(:), POINTER :: file_list
     CHARACTER(LEN=3)                          :: st_rank, st_it
-    PetscErrorCode                            :: ierr
-    PetscMPIInt                               :: rank, nb_procs
-    MPI_Comm                                  :: communicator
+    INTEGER                                   :: rank, nb_procs, ierr, communicator
     CALL MPI_Comm_rank(communicator, rank, ierr)
     CALL MPI_Comm_size(communicator, nb_procs, ierr)
     ALLOCATE(file_list(nb_procs))
@@ -69,10 +67,7 @@ SUBROUTINE make_vtu_file_2D(communicator, mesh_in, header, field_in, field_name,
     CHARACTER(LEN=200), DIMENSION(:), POINTER :: dummy_list
     INTEGER, DIMENSION(SIZE(file_list)) :: check_mylist
     INTEGER                             :: check, n, count
-    !#include "petsc/finclude/petsc.h"
-    MPI_Comm                            :: communicator
-    PetscMPIInt                         :: rank, nb_procs
-    PetscErrorCode                      :: ierr
+    INTEGER                             :: rank, nb_procs, ierr, communicator
     CALL MPI_Comm_rank(communicator, rank, ierr)
     CALL MPI_Comm_size(communicator, nb_procs, ierr)
 
@@ -131,7 +126,7 @@ SUBROUTINE make_vtu_file_2D(communicator, mesh_in, header, field_in, field_name,
     CLOSE(unit_file) !Ecriture pour paraview
   END SUBROUTINE create_pvd_file
 
-    SUBROUTINE create_xml_vtu_scal_file(field, mesh, file_name, field_name)
+  SUBROUTINE create_xml_vtu_scal_file(field, mesh, file_name, field_name)
     USE def_type_mesh
     !USE input_data
     USE zlib_base64

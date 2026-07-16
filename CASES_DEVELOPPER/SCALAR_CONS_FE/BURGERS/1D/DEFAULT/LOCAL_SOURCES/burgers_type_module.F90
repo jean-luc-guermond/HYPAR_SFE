@@ -1,7 +1,6 @@
 MODULE burgers_type_module
 !>> limited global uses to avoid unexpected behaviors
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
    USE burgers_abstract_hyperbolic_module,   ONLY: hyperbolic_type
    USE burgers_bc_arrays,                    ONLY: burgers_bc_type
 
@@ -150,8 +149,7 @@ CONTAINS
    END SUBROUTINE lambda_burgers
 
    SUBROUTINE construct_burgers_bc(this, mesh, LA)
-      USE petsc
-#include "petsc/finclude/petsc.h"
+
       USE def_type_mesh,                        ONLY: mesh_type
       USE petsc_csr_LA_module,                  ONLY: petsc_csr_LA
       IMPLICIT NONE

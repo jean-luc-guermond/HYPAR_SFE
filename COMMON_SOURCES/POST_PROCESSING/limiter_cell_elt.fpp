@@ -1,7 +1,6 @@
 #:set list_name = list_limiters_input
 #:set n_lim = n_lim_input
 #:set syst_dim = syst_dim_input
-#include "petsc/finclude/petsc.h"
 MODULE  template_limiter_cell_elt
     USE template_cell_limiting_engine_parallel_module
 
@@ -10,7 +9,6 @@ CONTAINS
 #:def limiter_spe(name, syst_dim)
     SUBROUTINE iterative_cell_limiting_procedure_${name}$(this, xx_inout, loc_min)  
         USE petsc_tools
-        USE petsc 
         USE compute_periodic
         USE my_util, ONLY: error_petsc
         IMPLICIT NONE

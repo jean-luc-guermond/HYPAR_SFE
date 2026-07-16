@@ -3,8 +3,8 @@ MODULE hyperbolic_bc_tools
 CONTAINS
 
    SUBROUTINE construct_udotn(mesh, LA, udotn_bc, udotn_normal_vtx)
-      USE petsc
-#include "petsc/finclude/petsc.h"
+      USE petscvec
+
       !  USE sub_plot
       USE dirichlet_type_module, ONLY : dirichlet_bc
       USE space_dim
@@ -24,7 +24,7 @@ CONTAINS
       INTEGER,        DIMENSION(SIZE(mesh%jjs,1)):: idxms
       INTEGER, DIMENSION(:), POINTER :: ifrom
       INTEGER :: ms, ns, js, n, ierr
-      Vec :: x1vec, x2vec
+      TYPE(tVec) :: x1vec, x2vec
 
 
       !===Normal at vertices

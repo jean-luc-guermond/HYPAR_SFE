@@ -6,7 +6,7 @@ List of mandatory dependencies
 
 0. **cmake**: must be at least 3.29
 
-1. **PETSc**: version must be at least 3.22, and installation made by the user
+1. **PETSc**: version must be at least 3.21 (3.25 strongly encouraged), and installation made by the user
 
 >wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.22.5.tar.gz
 
@@ -196,8 +196,6 @@ HYPAR_SFE functionalities
 4. Euler Fourier with padding
 
 5. Stokes optimization
-
-6. PETSc > 3.23
 
 9. Factorize data in ctest
 

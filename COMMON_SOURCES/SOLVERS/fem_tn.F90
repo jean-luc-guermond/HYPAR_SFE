@@ -48,15 +48,14 @@ CONTAINS
 
    SUBROUTINE ns_l1_PAR(mesh, f_in, norm_glob, communicator)
       USE def_type_mesh
-      USE petsc
-#include "petsc/finclude/petsc.h"
+      USE petscmpi
+
       IMPLICIT NONE
       REAL(KIND=8), DIMENSION(:),   INTENT(IN)  :: f_in
       REAL(KIND=8),                 INTENT(OUT) :: norm_glob
       TYPE(mesh_type)                           :: mesh
-      INTEGER      :: ierr
       REAL(KIND=8) :: norm_loc
-      MPI_Comm :: communicator
+      INTEGER :: communicator, ierr
 
       CALL ns_l1(mesh, f_in, norm_loc)
       CALL MPI_ALLREDUCE(norm_loc,norm_glob,1,MPI_DOUBLE_PRECISION,MPI_SUM,communicator,ierr)
@@ -65,15 +64,14 @@ CONTAINS
 
    SUBROUTINE ns_mass_PAR(mesh, f_in, norm_glob, communicator)
       USE def_type_mesh
-      USE petsc
-#include "petsc/finclude/petsc.h"
+      USE petscmpi
+
       IMPLICIT NONE
       REAL(KIND=8), DIMENSION(:),   INTENT(IN)  :: f_in
       REAL(KIND=8),                 INTENT(OUT) :: norm_glob
       TYPE(mesh_type)                           :: mesh
-      INTEGER      :: ierr
       REAL(KIND=8) :: norm_loc
-      MPI_Comm :: communicator
+      INTEGER :: communicator, ierr
 
       CALL ns_mass(mesh, f_in, norm_loc)
       CALL MPI_ALLREDUCE(norm_loc,norm_glob,1,MPI_DOUBLE_PRECISION,MPI_SUM,communicator,ierr)

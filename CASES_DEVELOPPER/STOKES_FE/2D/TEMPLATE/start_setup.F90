@@ -1,7 +1,7 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE start_setup_MODULE
 
-    USE petsc
+    USE petscmpi
     USE def_type_mesh
     USE read_inputs_module
     USE setup
@@ -50,7 +50,7 @@ MODULE start_setup_MODULE
     TYPE(stokes_parabolic_type),       PUBLIC :: stokes
 
     TYPE(solver_data_type), PUBLIC :: elasticity_solver_param
-    MPI_Comm, PUBLIC :: communicator
+    INTEGER, PUBLIC :: communicator
     PUBLIC :: start_setup
     PRIVATE
 

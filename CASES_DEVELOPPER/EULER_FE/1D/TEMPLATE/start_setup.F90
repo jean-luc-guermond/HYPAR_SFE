@@ -1,6 +1,7 @@
 MODULE start_setup_MODULE
-#include "petsc/finclude/petsc.h"
-  USE petsc
+
+  USE petscmpi
+  USE petscdmda
   USE def_type_mesh
   USE petsc_csr_LA_module, ONLY: petsc_csr_LA
   USE euler_type_module
@@ -50,7 +51,7 @@ MODULE start_setup_MODULE
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(limiting_functional_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
-  MPI_Comm :: communicator
+  INTEGER :: communicator
   PUBLIC :: start_setup
   PRIVATE
 
@@ -62,7 +63,7 @@ CONTAINS
     USE setup
     USE options_module
     IMPLICIT NONE
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'Euler_1'
     INTEGER :: rank

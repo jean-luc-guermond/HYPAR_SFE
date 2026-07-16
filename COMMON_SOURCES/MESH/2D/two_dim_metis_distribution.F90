@@ -1,6 +1,5 @@
 MODULE two_dim_metis_distribution
-#include "petsc/finclude/petsc.h"
-   USE petsc
+
    USE mesh_tools
    PUBLIC :: part_mesh, extract_mesh
    PRIVATE
@@ -12,6 +11,7 @@ CONTAINS
       USE sub_plot
       ! USE periodic_data_module
       USE mesh_parameters
+      USE petscmpi
       IMPLICIT NONE
    !!$ Dummy for metis...
       INTEGER, PARAMETER :: METIS_NOPTIONS = 40
@@ -33,10 +33,8 @@ CONTAINS
       REAL(KIND = 4), DIMENSION(1) :: ubvec
       !===(JLG)Feb 20, 2019.
       INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
-      PetscMPIInt    :: nb_proc
    !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
-      PetscErrorCode :: ierr
-      PetscMPIInt    :: rank
+      INTEGER :: nb_proc, rank, ierr
       CALL MPI_Comm_rank(MPI_COMM_WORLD, rank, ierr)
    !!$ WARNING, FL 1/2/13 : TO BE ADDED IN NEEDED
 
@@ -152,7 +150,7 @@ CONTAINS
          REAL(KIND = 4) :: one_K4 = 1.0
          !===(JLG)Feb 20, 2019.
          INTEGER, DIMENSION(METIS_NOPTIONS) :: metis_opt
-         PetscMPIInt    :: nb_proc
+         INTEGER    :: nb_proc
          !===Create partitions
    !VB 05/05/2026 useless?
          ! opts = 0
@@ -531,9 +529,9 @@ CONTAINS
       INTEGER, DIMENSION(2) :: np_loc, me_loc, mes_loc
       INTEGER, DIMENSION(:), ALLOCATABLE :: list_m, tab, tabs
       INTEGER :: nb_proc, ms, i, index, m, mop, n, j
-      PetscErrorCode :: ierr
-      PetscMPIInt    :: rank
-      MPI_Comm       :: communicator
+      INTEGER :: ierr
+      INTEGER    :: rank
+      INTEGER       :: communicator
       CALL MPI_Comm_rank(communicator, rank, ierr)
       CALL mesh_loc%create_comm(communicator)
       nb_proc = mesh_loc%nb_proc

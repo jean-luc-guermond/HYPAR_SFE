@@ -36,8 +36,10 @@ CONTAINS
   
 
   SUBROUTINE start_setup
-#include "petsc/finclude/petsc.h"
-    USE petsc
+    USE petscsysdef
+    USE petscmpi
+    USE petscdmda
+
     USE read_inputs_module, ONLY : clean_data_once
     USE my_util, ONLY: error_petsc, to_str
     USE options_module

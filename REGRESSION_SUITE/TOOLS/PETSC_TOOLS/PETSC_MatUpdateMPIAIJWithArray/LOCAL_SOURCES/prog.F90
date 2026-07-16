@@ -1,7 +1,8 @@
 PROGRAM prog_petscSF
 
-#include "petsc/finclude/petsc.h"
-    USE petsc
+
+    USE petscmat
+    USE petscmpi
     USE def_type_mesh
     USE read_inputs_module
     USE my_util
@@ -25,8 +26,8 @@ PROGRAM prog_petscSF
     INTEGER, PARAMETER :: test=1
     !=== TEST CASES
     INTEGER :: n_max
-    Mat :: matrix_1, matrix_2
-    MPI_Comm :: communicator
+    TYPE(tMat) :: matrix_1, matrix_2
+    INTEGER :: communicator
     
     SELECT CASE(test)
     CASE(1)
@@ -73,7 +74,11 @@ PROGRAM prog_petscSF
                 END DO
             END DO
             idxm = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+            CALL MatSetValues(matrix_2, nw, idxm, nw, idxm, reshape(un_small_block(:,:), [nw**2]), ADD_VALUES, ierr)
+#else
             CALL MatSetValues(matrix_2, nw, idxm, nw, idxm, un_small_block(:,:), ADD_VALUES, ierr)
+#endif
         END DO
 
         CALL MatAssemblyBegin(matrix_2, MAT_FINAL_ASSEMBLY, ierr)
@@ -89,7 +94,11 @@ PROGRAM prog_petscSF
         CALL MatZeroEntries(matrix_2, ierr)
         DO m=1, mesh%me
             idxm = LA%loc_to_glob(1, mesh%jj(:, m)) - 1
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+            CALL MatSetValues(matrix_2, nw, idxm, nw, idxm, reshape(un_block(m,:,:), [nw**2]), ADD_VALUES, ierr)
+#else
             CALL MatSetValues(matrix_2, nw, idxm, nw, idxm, un_block(m,:,:), ADD_VALUES, ierr)
+#endif
         END DO
 
         CALL MatAssemblyBegin(matrix_2, MAT_FINAL_ASSEMBLY, ierr)
@@ -201,7 +210,7 @@ CONTAINS
         USE options_module
         IMPLICIT NONE
         INTEGER :: rank
-        PetscErrorCode :: ierr
+        INTEGER :: ierr
         
         !===Start PETSC and MPI (mandatory)
         CALL PetscInitialize(PETSC_NULL_CHARACTER, ierr)

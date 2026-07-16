@@ -1,8 +1,10 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE stokes_parabolic_matrices_module
    !> Module to build matrices used for solving 
    !! the velocity and the temperature successively
-   USE petsc
+   USE petscmat
+   USE petscvec
+   USE petscksp
    USE def_type_mesh
    USE petsc_csr_LA_module
 
@@ -20,10 +22,10 @@ TYPE stokes_parabolic_matrices_type
       REAL(KIND=8), DIMENSION(:), POINTER :: scal_lumped_mass
       TYPE(petsc_csr_LA), POINTER      :: LA_vel, LA_temp
       TYPE(solver_data_type)           :: elasticity_solver_param, temperature_solver_param
-      Mat :: vel_mass_mat,  vel_diff_mat,  vel_mat,  precond_vel_mat
-      Mat :: temp_mass_mat, temp_diff_mat, temp_mat, precond_temp_mat
-      Vec :: temp_lumped_mass_vec
-      KSP :: vel_ksp, temp_ksp 
+      TYPE(tMat) :: vel_mass_mat,  vel_diff_mat,  vel_mat,  precond_vel_mat
+      TYPE(tMat) :: temp_mass_mat, temp_diff_mat, temp_mat, precond_temp_mat
+      TYPE(tVec) :: temp_lumped_mass_vec
+      TYPE(tKSP) :: vel_ksp, temp_ksp 
    CONTAINS
       PROCEDURE, PUBLIC :: construct => construct_stokes_parabolic_matrices
    END TYPE stokes_parabolic_matrices_type
@@ -42,20 +44,20 @@ CONTAINS
       type(petsc_csr_LA), TARGET, INTENT(IN) :: LA_vel, LA_temp
       INTEGER                        :: k, ierr
       INTEGER, DIMENSION(:), POINTER :: ifrom
-      MPI_Comm                       :: communicator
+      INTEGER                       :: communicator
       
       this%LA_temp => LA_temp
       this%LA_vel => LA_vel
 
-   !===Mat allocations temperature (temp_diff_mat)
+   !===TYPE(tMat) allocations temperature (temp_diff_mat)
       CALL create_local_petsc_matrix(communicator, LA_temp, this%temp_mass_mat, clean = .FALSE.)
       CALL MatDuplicate(this%temp_mass_mat, MAT_DO_NOT_COPY_VALUES, this%temp_diff_mat, ierr)
       CALL MatDuplicate(this%temp_mass_mat, MAT_DO_NOT_COPY_VALUES, this%temp_mat, ierr)
 
-      !===Temperature diffusion Mat construction (temp_diff_mat)
+      !===Temperature diffusion TYPE(tMat) construction (temp_diff_mat)
       CALL qs_mass_diff_M (mesh, 0.d0, this%thermal_diffusivity, LA_temp, this%temp_diff_mat)! <=== construct this%temp_diff_mat
       ! CALL periodic_matrix_petsc(mesh%per, LA_temp, this%temp_diff_mat)
-      !===Temperature diffusion Mat construction
+      !===Temperature diffusion TYPE(tMat) construction
 
       !===Temperature mass construction (temp_mass_mat)
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA_temp, this%temp_mass_mat) !<=== construct this%temp_mass_mat
@@ -74,14 +76,14 @@ CONTAINS
       CALL construct_lumped_mass_vector(mesh, LA_temp, this%temp_mass_mat, this%temp_lumped_mass_vec, opt_per=.FALSE.)
       !===Temperature lumped mass construction
 
-      !===Init KSP temp
+      !===Init TYPE(tKSP) temp
       CALL this%temperature_solver_param%init('temperature')
       CALL init_solver(communicator, this%temperature_solver_param, this%temp_ksp, this%temp_mat, opt_mat_pre=this%precond_temp_mat) 
-      !===Init KSP temp
+      !===Init TYPE(tKSP) temp
 
-   !===Mat allocations temperature (temp_diff_mat)
+   !===TYPE(tMat) allocations temperature (temp_diff_mat)
 
-   !===Mat allocations & construction Velocity (vel_diff_mat)
+   !===TYPE(tMat) allocations & construction Velocity (vel_diff_mat)
       !===vel_dif_mat
       CALL create_local_petsc_matrix(communicator, LA_vel, this%vel_diff_mat, clean = .FALSE.)
       CALL MatSetOption (this%vel_diff_mat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
@@ -106,18 +108,18 @@ CONTAINS
       CALL MatSetOption (this%precond_vel_mat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
 
 
-      !===Init KSP vel
+      !===Init TYPE(tKSP) vel
       CALL this%elasticity_solver_param%init('elasticity')
       CALL MatCopy(this%vel_diff_mat, this%vel_mat, SAME_NONZERO_PATTERN, ierr)
       CALL MatCopy(this%vel_diff_mat, this%precond_vel_mat, SAME_NONZERO_PATTERN, ierr)
       CALL init_solver(communicator, this%elasticity_solver_param, this%vel_ksp, this%vel_mat, opt_mat_pre=this%precond_vel_mat) 
-      !===Init KSP vel
+      !===Init TYPE(tKSP) vel
    
 
       !scal_lumped_mass
       ALLOCATE(this%scal_lumped_mass(mesh%np))
       CALL extract_through_ghost(this%temp_lumped_mass_vec, 1, 1, LA_temp, this%scal_lumped_mass, opt_assemble=.FALSE.)
-   !===End Mat Velocity (vel_diff_mat)
+   !===End TYPE(tMat) Velocity (vel_diff_mat)
 
    END SUBROUTINE construct_stokes_parabolic_matrices
 

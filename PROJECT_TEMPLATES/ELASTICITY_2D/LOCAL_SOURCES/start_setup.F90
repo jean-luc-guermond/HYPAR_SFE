@@ -1,6 +1,6 @@
 MODULE start_setup_MODULE
 
-#include "petsc/finclude/petsc.h"
+
     USE petsc
     USE def_type_mesh
     USE read_inputs_module
@@ -40,7 +40,7 @@ MODULE start_setup_MODULE
     TYPE(stokes_parabolic_matrices_type), PUBLIC :: stokes_matrices
 
     TYPE(solver_data_type), PUBLIC :: elasticity_solver_param
-    MPI_Comm, PUBLIC :: communicator
+    INTEGER, PUBLIC :: communicator
     PUBLIC :: start_setup
     PRIVATE
 
@@ -54,7 +54,7 @@ CONTAINS
     IMPLICIT NONE
     CHARACTER(100) :: name
     INTEGER        :: rank
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
 
     !===Start PETSC and MPI (mandatory)
 

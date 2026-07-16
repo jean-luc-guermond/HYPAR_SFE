@@ -1,5 +1,5 @@
 MODULE start_setup_MODULE
-#include "petsc/finclude/petsc.h"
+
   USE petsc
   USE def_type_mesh
   USE euler_type_module
@@ -38,7 +38,7 @@ MODULE start_setup_MODULE
   TYPE(setup_data_type),             PUBLIC :: setup_data
   TYPE(limiting_functionals_type), DIMENSION(:), ALLOCATABLE, PRIVATE :: limiting_functionals_euler
   TYPE(periodic_type), DIMENSION(1), PUBLIC :: per
-  MPI_Comm :: communicator
+  INTEGER :: communicator
   PUBLIC :: start_setup
   PRIVATE
 
@@ -50,7 +50,7 @@ CONTAINS
     USE st_matrix,          ONLY: st_aij_csr_glob_block_with_extra_layer
     USE setup
     IMPLICIT NONE
-    PetscErrorCode :: ierr
+    INTEGER :: ierr
     REAL(KIND = 8), DIMENSION(2) :: times = (/0.d0,1.d0/)
     CHARACTER(100) :: name = 'Euler 1'
     INTEGER :: rank

@@ -1,6 +1,7 @@
 PROGRAM test_matrix
-#include "petsc/finclude/petsc.h"
-    USE petsc
+
+    USE petscmat
+    USE petscmpi
 
     INTEGER :: rank, ierr, ni, m, nj
     INTEGER, DIMENSION(2) :: idx, jdx
@@ -8,10 +9,12 @@ PROGRAM test_matrix
     INTEGER, DIMENSION(0:3) :: ja
     REAL(KIND=8), DIMENSION(0:3) :: aa
     REAL(KIND=8), DIMENSION(2,2) :: block_1, block_2, mat_loc
+    REAL(KIND=8), DIMENSION(2*2) :: block_contiguous
+
     REAL(KIND=8), DIMENSION(2,2) :: mat_ref, mat_ref_transpose 
     LOGICAL :: test
 
-    Mat :: mass_block, mass_seq
+    TYPE(tMat) :: mass_block, mass_seq
 
     !===== CTEST
     mat_ref(1,1) = 0.d0
@@ -57,7 +60,11 @@ PROGRAM test_matrix
     DO ni=1, 2
         mat_loc(ni, :) = idx(:)*1.d0
     END DO
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+    CALL MatSetValues(mass_block, 2, idx(:), 2, idx(:), reshape(mat_loc, [2**2]), INSERT_VALUES, ierr)
+#else
     CALL MatSetValues(mass_block, 2, idx(:), 2, idx(:), mat_loc, INSERT_VALUES, ierr)
+#endif
     CALL MatAssemblyBegin(mass_block, MAT_FINAL_ASSEMBLY, ierr)
     CALL MatAssemblyEnd  (mass_block, MAT_FINAL_ASSEMBLY, ierr)
 
@@ -67,6 +74,17 @@ PROGRAM test_matrix
    !=== Extract results from mass_seq
     block_1 = -1.d0
     block_2 = -1.d0
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+    !=== Extract in block
+    CALL MatGetValues(mass_seq, 2, idx(:), 2, idx(:), block_contiguous, ierr)
+    block_1 = reshape(block_contiguous, [2,2])
+    !=== Extract by loops
+    DO ni=1, 2
+        DO nj=1, 2
+            CALL MatGetValues(mass_seq, 1, idx(ni:ni), 1, idx(nj:nj), block_2(ni:ni, nj), ierr)
+        END DO
+    END DO 
+#else
     !=== Extract in block
     CALL MatGetValues(mass_seq, 2, idx(:), 2, idx(:), block_1, ierr)
     !=== Extract by loops
@@ -74,7 +92,8 @@ PROGRAM test_matrix
         DO nj=1, 2
             CALL MatGetValues(mass_seq, 1, idx(ni:ni), 1, idx(nj:nj), block_2(ni:ni, nj:nj), ierr)
         END DO
-    END DO  
+    END DO 
+#endif     
     CALL MatAssemblyBegin(mass_seq, MAT_FINAL_ASSEMBLY, ierr)
     CALL MatAssemblyEnd  (mass_seq, MAT_FINAL_ASSEMBLY, ierr)
     !=== Write results from mass_seq
@@ -100,6 +119,17 @@ PROGRAM test_matrix
    !=== Extract results from mass_block
     block_1 = -1.d0
     block_2 = -1.d0  
+#if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
+    !=== Extract in block
+    CALL MatGetValues(mass_block, 2, idx(:), 2, idx(:), block_contiguous, ierr)
+    block_1= reshape(block_contiguous, [2,2])
+    !=== Extract by loops
+    DO ni=1, 2
+        DO nj=1, 2
+            CALL MatGetValues(mass_block, 1, idx(ni:ni), 1, idx(nj:nj), block_2(ni:ni, nj), ierr)
+        END DO
+    END DO 
+#else
     !=== Extract in block
     CALL MatGetValues(mass_block, 2, idx(:), 2, idx(:), block_1, ierr)
     !=== Extract by loops
@@ -107,7 +137,8 @@ PROGRAM test_matrix
         DO nj=1, 2
             CALL MatGetValues(mass_block, 1, idx(ni:ni), 1, idx(nj:nj), block_2(ni:ni, nj:nj), ierr)
         END DO
-    END DO  
+    END DO 
+#endif   
     CALL MatAssemblyBegin(mass_block, MAT_FINAL_ASSEMBLY, ierr)
     CALL MatAssemblyEnd  (mass_block, MAT_FINAL_ASSEMBLY, ierr)
     !=== Write results from mass_block

@@ -3,8 +3,8 @@
 MODULE template_abstract_hyperbolic_module
 
 !>> limited global uses to avoid unexpected behaviors
-#include "petsc/finclude/petsc.h"
-   USE petsc
+   USE petscvec
+   USE petscmat
    USE petsc_tools,                          ONLY: array_to_petsc_vec
    USE Butcher_tableau
    USE hyperbolic_matrices_module,           ONLY: hyperbolic_matrices_type
@@ -51,10 +51,10 @@ MODULE template_abstract_hyperbolic_module
       INTEGER                      :: nb_correction_mass      = 1
 
       !===Parameters built along way
-      MPI_Comm :: communicator
-      Vec          :: x1vec, x2vec, x2_ghost, x3vec
-      Vec          :: x4vec, x5vec, x6vec !!!!!Conveniance vectors to be used only inside procedures!!!!
-      Vec, DIMENSION(:,:), ALLOCATABLE :: flux_rk_at_dof
+      INTEGER :: communicator
+      TYPE(tVec)          :: x1vec, x2vec, x2_ghost, x3vec
+      TYPE(tVec)          :: x4vec, x5vec, x6vec !!!!!Conveniance vectors to be used only inside procedures!!!!
+      TYPE(tVec), DIMENSION(:,:), ALLOCATABLE :: flux_rk_at_dof
       CHARACTER(LEN=:), ALLOCATABLE :: name
       INTEGER :: syst_dim = ${syst_dim}$
       REAL(KIND = 8) :: dt, time, final_time
@@ -167,9 +167,9 @@ CONTAINS
 
       IMPLICIT NONE
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
-      MPI_Comm,                   INTENT(IN) :: communicator
-      CHARACTER(LEN=*),             INTENT(IN) :: name
-      TYPE(mesh_type), TARGET,    INTENT(IN) :: mesh
+      INTEGER,                   INTENT(IN) :: communicator
+      CHARACTER(LEN=*),          INTENT(IN) :: name
+      TYPE(mesh_type), TARGET,   INTENT(IN) :: mesh
       TYPE(limiting_functional_type), DIMENSION(:), TARGET :: limiting_functionals
       ! character(len=10), dimension(:), allocatable :: list_profiling
 
@@ -182,7 +182,6 @@ CONTAINS
       CALL st_aij_csr_glob_block_with_extra_layer(communicator, 1, mesh, this%LA)
 
       CALL this%read_hyperbolic_data("HYPERBOLIC PARAMETERS FOR "//trim(adjustl(this%name)))
-
       !=== Build ERK structure
       CALL this%ERK%init(this%erk_sv)
 
@@ -364,8 +363,6 @@ CONTAINS
 
    SUBROUTINE init_vectors(this)
       USE st_matrix, ONLY : create_my_ghost
-      USE petsc
-#include "petsc/finclude/petsc.h"
 
       IMPLICIT NONE
       CLASS(hyperbolic_type) :: this
@@ -759,7 +756,8 @@ CONTAINS
 
    SUBROUTINE compute_dij(this, un)
       USE space_dim
-      USE petsc
+      USE petscmat
+      USE petscvec
       USE def_type_mesh
       USE compute_periodic
       USE st_matrix, ONLY: extract_through_ghost
@@ -920,7 +918,7 @@ CONTAINS
       CLASS(hyperbolic_type), INTENT(INOUT) :: this
       INTEGER, INTENT(IN) :: which_mass
       INTEGER :: it, ierr
-      Vec     :: vec_rhs, vec_lhs
+      TYPE(tVec)     :: vec_rhs, vec_lhs
 
       SELECT CASE(which_mass)
       CASE(LUMPED_MASS)
@@ -1015,9 +1013,15 @@ CONTAINS
          norm_log = norm_log/np_tot
 
          CALL VecGhostGetLocalForm(this%x6vec, this%x2_ghost, ierr)
+#if (PETSC_VERSION_MINOR < 23)
          CALL VecGetArrayF90(this%x2_ghost, dummy, ierr)
          dummy = max(dummy,1.d-1*norm_log,1d-30)
          CALL VecRestoreArrayF90(this%x2_ghost, dummy, ierr)
+#else
+         CALL VecGetArray(this%x2_ghost, dummy, ierr)
+         dummy = max(dummy,1.d-1*norm_log,1d-30)
+         CALL VecRestoreArray(this%x2_ghost, dummy, ierr)
+#endif
          CALL VecGhostUpdateBegin(this%x6vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
          CALL VecGhostUpdateEnd(this%x6vec, INSERT_VALUES, SCATTER_FORWARD, ierr)
 

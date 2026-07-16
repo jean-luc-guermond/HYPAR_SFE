@@ -1,6 +1,5 @@
-#include "petsc/finclude/petsc.h"
+
 MODULE fem_petsc_matrix_factory_module
-   USE petsc
    USE def_type_mesh
    USE petsc_csr_LA_module
    PUBLIC :: construct_lumped_mass, construct_lumped_mass_vector, construct_cij, &
@@ -10,13 +9,15 @@ MODULE fem_petsc_matrix_factory_module
 CONTAINS
 
    SUBROUTINE construct_lumped_mass(mesh, LA, mass, lumped_mass)
+      USE petscvec
+      USE petscmat
       USE st_matrix
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      Mat, INTENT(IN) :: mass
+      TYPE(tMat), INTENT(IN) :: mass
       REAL(KIND = 8), DIMENSION(:), POINTER :: lumped_mass
-      Vec :: vec_one, xx, x_ghost
+      TYPE(tVec) :: vec_one, xx, x_ghost
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       INTEGER :: ierr
 
@@ -38,11 +39,13 @@ CONTAINS
       USE st_matrix, ONLY : create_my_ghost
       USE compute_periodic, ONLY : periodic_vector_petsc
       USE my_util
+      USE petscvec
+      USE petscmat
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      Mat, INTENT(IN) :: mass
-      Vec :: vec_one, lumped_mass
+      TYPE(tMat), INTENT(IN) :: mass
+      TYPE(tVec) :: vec_one, lumped_mass
       INTEGER, POINTER, DIMENSION(:) :: ifrom  ! for ghost structure
       INTEGER :: ierr
       LOGICAL, OPTIONAL :: opt_per
@@ -68,10 +71,11 @@ CONTAINS
    SUBROUTINE construct_cij(mesh, LA, cij)
       USE space_dim
       USE def_type_mesh
+      USE petscmat
       IMPLICIT NONE
       TYPE(mesh_type), INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
-      Mat, DIMENSION(:) :: cij
+      TYPE(tMat), DIMENSION(:) :: cij
       REAL(KIND = 8), DIMENSION(mesh%gauss%n_w * mesh%gauss%n_w) :: vv_rowise
       INTEGER, DIMENSION(mesh%gauss%n_w) :: idx
       INTEGER :: m, ni, nj, l, k, ierr
@@ -91,8 +95,6 @@ CONTAINS
          CALL MatAssemblyBegin(cij(k), MAT_FINAL_ASSEMBLY, ierr)
          CALL MatAssemblyEnd  (cij(k), MAT_FINAL_ASSEMBLY, ierr)
       END DO
-
-
    END SUBROUTINE construct_cij
 
 
@@ -108,6 +110,7 @@ CONTAINS
       USE space_dim
       USE def_type_mesh,       ONLY: mesh_type
       USE petsc_csr_la_module, ONLY: petsc_csr_LA
+      USE petscmat
       IMPLICIT NONE
       TYPE(mesh_type),    INTENT(IN) :: mesh
       type(petsc_csr_LA), INTENT(IN) :: LA
@@ -118,7 +121,7 @@ CONTAINS
       REAL(KIND=8) :: x, y, lambda_elast
       REAL(KIND = 8), DIMENSION(k_dim*mesh%gauss%n_w, k_dim*mesh%gauss%n_w) :: mat_loc
       TYPE(tMat) :: elasticity_M
-      PetscErrorCode                     :: ierr
+      INTEGER                     :: ierr
 
 
       lambda_elast = lambda_viscosity-2.d0/3.d0*mu_viscosity
@@ -158,7 +161,11 @@ CONTAINS
                END DO
             END DO
          END DO
+#if (23 <= PETSC_VERSION_MINOR) || (PETSC_VERSION_MINOR < 25)
+         CALL MatSetValues(elasticity_M, k_dim * n_w, idxm, k_dim * n_w, idxn, reshape(mat_loc, [(k_dim*n_w)**2]), ADD_VALUES, ierr)
+#else
          CALL MatSetValues(elasticity_M, k_dim * n_w, idxm, k_dim * n_w, idxn, mat_loc, ADD_VALUES, ierr)
+#endif
       ENDDO
 
       CALL MatAssemblyBegin(elasticity_M, MAT_FINAL_ASSEMBLY, ierr)

@@ -1,6 +1,8 @@
 MODULE create_laplace_solver_ksp_module
-#include "petsc/finclude/petsc.h"
-    USE petsc
+
+    USE petscvec
+    USE petscmat
+    USE petscksp
     USE def_type_mesh,         ONLY: mesh_type
     USE petsc_csr_LA_module,   ONLY: petsc_csr_LA
 
@@ -22,10 +24,10 @@ MODULE create_laplace_solver_ksp_module
         TYPE(dirichlet_bc)            :: dir
         TYPE(solver_data_type)        :: solver_data
 
-        Vec :: vec, vec_ghost, rhs
-        Mat :: laplace_operator
-        KSP :: my_ksp
-        MPI_Comm, POINTER :: communicator
+        TYPE(tVec) :: vec, vec_ghost, rhs
+        TYPE(tMat) :: laplace_operator
+        TYPE(tKSP) :: my_ksp
+        INTEGER, POINTER :: communicator
     CONTAINS
         PROCEDURE, PUBLIC  :: init     => init_laplace
         PROCEDURE, PRIVATE :: read     => read_laplace
@@ -57,7 +59,7 @@ CONTAINS
         CHARACTER(LEN=100), OPTIONAL :: opt_name
         TYPE(mesh_type),    TARGET :: mesh
         TYPE(petsc_csr_LA), TARGET :: LA
-        MPI_Comm,           TARGET :: communicator
+        INTEGER,           TARGET :: communicator
 
         CALL this%read(opt_name)
         CALL this%init_lhs(mesh, LA, communicator, opt_name=opt_name)
@@ -117,7 +119,7 @@ CONTAINS
         CHARACTER(LEN=100), OPTIONAL :: opt_name
         TYPE(mesh_type),    TARGET :: mesh
         TYPE(petsc_csr_LA), TARGET :: LA
-        MPI_Comm,           TARGET :: communicator
+        INTEGER,           TARGET :: communicator
 
     
         CALL pack_opt(this%name, "Laplace", opt_name)
