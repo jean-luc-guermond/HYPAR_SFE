@@ -8,7 +8,7 @@ MODULE  template_limiter_cell_elt
 CONTAINS
 
 #:def limiter_spe(name, syst_dim)
-    SUBROUTINE iterative_cell_limiting_procedure_${name}$(this, xx_in, loc_min)  
+    SUBROUTINE iterative_cell_limiting_procedure_${name}$(this, xx_inout, loc_min)  
         USE petsc_tools
         USE petsc 
         USE compute_periodic
@@ -16,8 +16,8 @@ CONTAINS
         IMPLICIT NONE
         CLASS(limiting_type),             INTENT(IN) :: this
         REAL(KIND=8), DIMENSION(:),                           INTENT(IN) :: loc_min
-        REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$),  INTENT(INOUT) :: xx_in
-        REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$) :: xx_out
+        REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$),  INTENT(INOUT) :: xx_inout
+        REAL(KIND=8), DIMENSION(SIZE(loc_min),${syst_dim}$) :: xx_lim
         REAL(KIND=8), DIMENSION(${syst_dim}$)               :: uk_minus, uk_plus, uu, pp
         LOGICAL,      DIMENSION(SIZE(loc_min))              :: mask_up_vec, mask_down_vec
         REAL(KIND=8), DIMENSION(k_dim+1,${syst_dim}$)       :: xx_loc
@@ -32,10 +32,10 @@ CONTAINS
                 lambda_minus, lambda_plus
 
         me = SIZE(this%jj,2)
-        xx_out = 0.d0
+        xx_lim = 0.d0
 
-        mask_up_vec   = psi_${name}$(xx_in,loc_min + this%epsilon*ABS(loc_min(:)))>0
-        mask_down_vec = psi_${name}$(xx_in,loc_min - this%epsilon*ABS(loc_min))<0
+        mask_up_vec   = psi_${name}$(xx_inout,loc_min + this%epsilon*ABS(loc_min(:)))>0
+        mask_down_vec = psi_${name}$(xx_inout,loc_min - this%epsilon*ABS(loc_min))<0
 
         DO m = 1, me
             weight_mass_minus = 0.d0
@@ -52,7 +52,7 @@ CONTAINS
                 mask_up(n)   = mask_up_vec(jloc(n))
                 mask_down(n) = mask_down_vec(jloc(n))
                 DO comp=1, syst_size
-                    xx_loc(n,comp) = xx_in(jloc(n),comp)
+                    xx_loc(n,comp) = xx_inout(jloc(n),comp)
                 END DO
                 IF ( mask_down(n) ) THEN
                     wp = 0.d0
@@ -114,7 +114,7 @@ CONTAINS
                 dummy = xx_loc(:,comp)*mass_loc  &
                         +weight_mass_minus(:)*(1-Lambda_K_minus)*(uk_plus(comp)-xx_loc(:,comp))&
                         +weight_mass_plus(:) *     Lambda_K_plus*(uK_minus(comp)-xx_loc(:,comp)) 
-                xx_out(jloc,comp) = xx_out(jloc,comp) + dummy
+                xx_lim(jloc,comp) = xx_lim(jloc,comp) + dummy
                 ! dummy  = limit_zero(:)*xx_loc(:,k) &
                 ! +limit_minus(:)*(xx_loc(:,k)+(1-Lambda_K_minus)*(uk_plus(k)-xx_loc(:,k)))&
                 ! +limit_plus(:) *(xx_loc(:,k)+     Lambda_K_plus*(uK_minus(k)-xx_loc(:,k)))
@@ -124,19 +124,23 @@ CONTAINS
 
     !===Now we average over the nodes=========
 
-        xx_in = xx_out
         DO comp = 1, syst_size
-            CALL this%mesh%reduce_through_ghost(xx_in(:,comp), MPI_SUM)
-            xx_in(:,comp) = xx_in(:,comp)/this%lumped_mass
 
-            ! CALL VecSetValues(this%xvect1, np, this%LA%loc_to_glob(1, :) - 1, xx_out(:,k), ADD_VALUES, ierr)
-            ! CALL VecAssemblyBegin(this%xvect1, ierr)
-            ! CALL VecAssemblyEnd(this%xvect1, ierr)
-            ! CALL VecZeroEntries(this%xvect1, ierr)
-            ! xx_out(:,k) = xx_out(:,k)/this%lumped_mass
-            CALL array_to_petsc_vec(xx_in(:,comp), this%xvect1, this%LA, 'insert')
-            CALL periodic_add_vector_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%xvect1, this%LA)
-            CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, xx_in(:,comp), opt_assemble=.TRUE.)
+            !=== Sum over cells
+            CALL this%mesh%reduce_through_ghost(xx_lim(:,comp), MPI_SUM)            
+
+            !=== Periodicity manually handled (avoid using periodic_add_vector_petsc)
+            ASSOCIATE(per => this%mesh%per)
+                DO n = 1, per%nb_bords
+                    xx_lim(per%list(n)%DIL(:),comp)    = xx_lim(per%perlist(n)%DIL(:),comp) + xx_lim(per%list(n)%DIL(:),comp)
+                    xx_lim(per%perlist(n)%DIL(:),comp) = xx_lim(per%list(n)%DIL(:),comp)
+                END DO
+                CALL this%mesh%bulk_to_ghost_real(xx_lim(:,comp), MPI_REPLACE)
+            END ASSOCIATE
+
+            !=== Renormalize with lumped mass
+            xx_inout(:,comp) = xx_lim(:,comp)/this%lumped_mass
+
         END DO    
     CONTAINS
 $:limiter_func(name)

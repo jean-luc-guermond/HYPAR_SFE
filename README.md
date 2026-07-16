@@ -199,10 +199,8 @@ HYPAR_SFE functionalities
 
 6. PETSc > 3.23
 
-7. PETSc_SF for periodicity
-
 9. Factorize data in ctest
 
 10. change commutator so that the code runs even though eta_commute might be zero at some points
 
-11. By default, associate the uijbar and limiting calculations outside of the start_setup.F90
+11. By default, associate the uijbar and limiting calculations outside of the start_setup.F90?

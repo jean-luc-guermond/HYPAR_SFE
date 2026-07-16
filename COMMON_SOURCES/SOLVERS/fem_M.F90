@@ -49,9 +49,9 @@ CONTAINS
       !! (IN): mass
       !! (OUT): matrix
       !! WARNING ON DIMENSION:
-      !!     - LA%loc_to_glob(loc_dim, mesh%np) where loc_dim is arbitrary (say 1, k_dim, 3, etc...)
+      !!     - LA%loc_to_glob(k_max, mesh%np) where k_max is arbitrary (say 1, k_dim, 3, etc...)
       !!     - mass: scalar
-      !!     - matrix : (loc_dim*np) x (loc_dim*np) is filled by blocks of mass matrices along its diagonal
+      !!     - matrix : (k_max*np) x (k_max*np) is filled by blocks of mass matrices along its diagonal
       !=================================================
       USE petscmat
       USE space_dim
@@ -107,10 +107,10 @@ CONTAINS
       !! (IN): mass, rho
       !! (OUT): matrix
       !! WARNING ON DIMENSION:
-      !!     - LA%loc_to_glob(loc_dim, mesh%np) where loc_dim is arbitrary (say 1, k_dim, 3, etc...)
+      !!     - LA%loc_to_glob(k_max, mesh%np) where k_max is arbitrary (say 1, k_dim, 3, etc...)
       !!     - mass: scalar
       !!     - rho(mesh%np)
-      !!     - matrix : (loc_dim*np) x (loc_dim*np) is filled by blocks of mass matrices along its diagonal
+      !!     - matrix : (k_max*np) x (k_max*np) is filled by blocks of mass matrices along its diagonal
       !=================================================
       USE petscmat
       IMPLICIT NONE
@@ -122,18 +122,18 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, idxm
 
       INTEGER, DIMENSION(mesh%gauss%n_w) :: jj_loc
-      INTEGER :: m, ni, nj, ki, kj, l, loc_dim, n_w
+      INTEGER :: m, ni, nj, ki, kj, l, k_max, n_w
       REAL(KIND = 8), DIMENSION(mesh%gauss%l_G) :: bl
       TYPE(tMat) :: matrix
       INTEGER :: ierr
       INTEGER :: i, iglob, ix, j, jglob, jx
 
       CALL MatZeroEntries (matrix, ierr)
-      loc_dim = SIZE(LA%loc_to_glob, 1)
+      k_max = SIZE(LA%loc_to_glob, 1)
       n_w = mesh%gauss%n_w
-      ALLOCATE(mat_loc(loc_dim*n_w, loc_dim*n_w))
-      ALLOCATE(idxn(loc_dim*n_w))
-      ALLOCATE(idxm(loc_dim*n_w))
+      ALLOCATE(mat_loc(k_max*n_w, k_max*n_w))
+      ALLOCATE(idxn(k_max*n_w))
+      ALLOCATE(idxm(k_max*n_w))
 
       DO m = 1, mesh%me
          jj_loc = mesh%jj(:, m)
@@ -143,7 +143,7 @@ CONTAINS
          END DO
          DO ni=1, n_w
                i = jj_loc(ni)
-               DO ki=1, loc_dim
+               DO ki=1, k_max
                   iglob = LA%loc_to_glob(ki, i)
                   ix = (ki - 1) * n_w + ni
                   idxm(ix) = iglob - 1
@@ -157,7 +157,7 @@ CONTAINS
                   END DO
                END DO
          END DO
-         CALL MatSetValues(matrix, loc_dim*n_w, idxm, loc_dim*n_w, idxn, mat_loc, ADD_VALUES, ierr)
+         CALL MatSetValues(matrix, k_max*n_w, idxm, k_max*n_w, idxn, mat_loc, ADD_VALUES, ierr)
       ENDDO
 
       CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)

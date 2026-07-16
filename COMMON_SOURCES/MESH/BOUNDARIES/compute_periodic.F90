@@ -1,3 +1,4 @@
+#include "petsc/finclude/petsc.h"
 MODULE compute_periodic
    USE def_type_mesh
    USE periodic_data_module
@@ -17,7 +18,7 @@ CONTAINS
     USE petsc
     IMPLICIT NONE
     TYPE(periodic_type), INTENT(IN) :: periodic
-    INTEGER :: n_bord
+    INTEGER :: nb_per_edges
     TYPE(petsc_csr_la), INTENT(IN) :: LA
     INTEGER, PARAMETER :: nmaxcols = 300
     INTEGER :: ncols
@@ -34,10 +35,10 @@ CONTAINS
     CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
     CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
 
-    n_bord = periodic%nb_bords
+    nb_per_edges = periodic%nb_bords
 
     DO k = 1, SIZE(LA%loc_to_glob, 1)
-       DO n = 1, n_bord
+       DO n = 1, nb_per_edges
           n_D = SIZE(periodic%list(n)%DIL)
           IF (n_D /=0) THEN
              ALLOCATE(jdxn(n_D, nmaxcols), vals_pi(n_D, nmaxcols), n_cols_i(n_D))
@@ -66,13 +67,13 @@ CONTAINS
           CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
        END DO
 
-       DO n = 1, n_bord
+       DO n = 1, nb_per_edges
           n_D = SIZE(periodic%list(n)%DIL)
           CALL MatZeroRows(matrix, n_D, LA%loc_to_glob(k, periodic%list(n)%DIL(:)) - 1, 1.d0, &
                PETSC_NULL_VEC, PETSC_NULL_VEC, ierr) !(JLG) Feb 20, 2019, petsc.3.8.4
        END DO
 
-       DO n = 1, n_bord
+       DO n = 1, nb_per_edges
           DO l = 1, SIZE(periodic%list(n)%DIL)
              i = LA%loc_to_glob(k, periodic%list(n)%DIL(l))
              pi = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l))
@@ -86,24 +87,26 @@ CONTAINS
 
   END SUBROUTINE periodic_matrix_petsc
 
-   SUBROUTINE periodic_rhs_petsc(n_bord, list, perlist, v_rhs, LA)
+   SUBROUTINE periodic_rhs_petsc(list, perlist, v_rhs, LA)
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: n_bord
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
-      TYPE(petsc_csr_la), INTENT(IN) :: LA
+      TYPE(petsc_csr_la),               INTENT(IN) :: LA
+      INTEGER                            :: nb_per_edges
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals, bs
       INTEGER :: n, k, n_D
       Vec                                          :: v_rhs
       PetscErrorCode                               :: ierr
 
+      nb_per_edges = SIZE(list)
+
       DO k = 1, SIZE(LA%loc_to_glob, 1)
-         DO n = 1, n_bord
+         DO n = 1, nb_per_edges
             n_D = SIZE(list(n)%DIL)
             ALLOCATE(idxn(n_D), vals(n_D), jdxn(n_D), bs(n_D))
             idxn = LA%loc_to_glob(k, list(n)%DIL(:)) - 1
@@ -126,21 +129,23 @@ CONTAINS
 
    END SUBROUTINE periodic_rhs_petsc
 
-   SUBROUTINE periodic_vector_petsc(nb_per_edges, list, perlist, vec_in, LA)
+   SUBROUTINE periodic_vector_petsc(list, perlist, vec_in, LA)
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
 #include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: nb_per_edges
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
-      TYPE(petsc_csr_la), INTENT(IN) :: LA
+      TYPE(petsc_csr_la),               INTENT(IN) :: LA
+      INTEGER                            :: nb_per_edges
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals, bs
       INTEGER :: n, k, n_D
       Vec                                          :: vec_in
       PetscErrorCode                               :: ierr
+
+      nb_per_edges = SIZE(list)
 
       DO k = 1, SIZE(LA%loc_to_glob, 1)
          DO n = 1, nb_per_edges
@@ -162,21 +167,22 @@ CONTAINS
 
    END SUBROUTINE periodic_vector_petsc
 
-   SUBROUTINE periodic_add_vector_petsc(nb_per_edges, list, perlist, vec_in, LA)
+   SUBROUTINE periodic_add_vector_petsc(list, perlist, vec_in, LA)
       USE dyn_line_type
       USE def_type_mesh
       USE petsc_csr_LA_module
-#include "petsc/finclude/petsc.h"
       USE petsc
       IMPLICIT NONE
-      INTEGER, INTENT(IN) :: nb_per_edges
       TYPE(dyn_int_line), DIMENSION(:), INTENT(IN) :: list, perlist
-      TYPE(petsc_csr_la), INTENT(IN) :: LA
+      TYPE(petsc_csr_la),               INTENT(IN) :: LA
+      INTEGER                            :: nb_per_edges
       INTEGER, DIMENSION(:), ALLOCATABLE :: idxn, jdxn
       REAL(KIND = 8), DIMENSION(:), ALLOCATABLE :: vals_list, vals_perlist, bs
       INTEGER :: n, k, n_D
       Vec                                          :: vec_in
       PetscErrorCode                               :: ierr
+
+      nb_per_edges = SIZE(list)
 
       DO k = 1, SIZE(LA%loc_to_glob, 1)
          DO n = 1, nb_per_edges

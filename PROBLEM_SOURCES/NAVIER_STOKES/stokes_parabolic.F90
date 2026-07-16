@@ -297,8 +297,9 @@ character(len=10), dimension(:), allocatable :: list_profiler
         SELECT CASE(this%method)
         CASE(METHOD_LUMPED)
             CALL one_step_IRK_LUMPED(this,stage,urk)
-        ! CASE(METHOD_FULL)
-            ! CALL one_step_IRK_FULL(this,stage,urk)
+        CASE(METHOD_FULL)
+            CALL error_petsc("BUG in stokes%one_step_IRK: method full not validated on temperature yet, please use lumped")
+            CALL one_step_IRK_FULL(this,stage,urk)
         CASE DEFAULT
             CALL error_petsc("wrong method in one_step_IRK "//to_str(this%method))
         END SELECT
@@ -314,7 +315,7 @@ character(len=10), dimension(:), allocatable :: list_profiler
         USE space_dim
         USE dir_nodes_petsc
         USE st_matrix
-        USE fem_rhs, ONLY: qs_00_dot, qs_00_block
+        USE fem_rhs, ONLY: qs_00_block
         USE sub_plot
         USE fem_tn, ONLY: ns_l1_par
         IMPLICIT NONE
@@ -520,6 +521,228 @@ character(len=10), dimension(:), allocatable :: list_profiler
         CALL extract_through_ghost(this%sol_temp_vec, 1, 1, this%LA_temp, temp_out, opt_assemble=.FALSE.)
         urk(:,k_dim+2, stage) = rho_l*this%cv*temp_out + 0.5d0*rho_l*sum(vel_out**2,dim=2)
     END SUBROUTINE one_step_IRK_LUMPED
+
+    SUBROUTINE one_step_IRK_FULL(this,stage,urk)
+        USE my_util, ONLY : error_petsc, to_str, user_time
+        USE petsc_tools
+        USE space_dim
+        USE dir_nodes_petsc
+        USE st_matrix
+        USE fem_rhs, ONLY: qs_00_block, qs_00
+        USE fem_M,   ONLY: qs_var_mass_block_M
+        USE sub_plot
+        USE fem_tn, ONLY: ns_l1_par
+        IMPLICIT NONE
+        CLASS(stokes_parabolic_type)                                                :: this
+        REAL(KIND = 8), DIMENSION(this%mesh%np, this%syst_dim, this%IRK%s+1), TARGET   :: urk
+        REAL(KIND = 8), DIMENSION(:), POINTER                          :: rho_lm1, rho_l
+        REAL(KIND = 8), DIMENSION(this%mesh%np, k_dim)                 :: velocity_lm1, vel_out, ff_vel
+        REAL(KIND = 8), DIMENSION(k_dim*this%mesh%np)                  :: rhs
+        REAL(KIND = 8), DIMENSION(this%mesh%np)                        :: rhs_temp, scal_temp, temp_out
+        REAL(KIND = 8), DIMENSION(k_dim*this%mesh%np)                  :: lhs_mass
+        INTEGER, INTENT(IN) :: stage
+        INTEGER :: k, l, np, ierr!, stage_prime
+        REAL(KIND = 8) :: local_tps_solver_ref, local_tps_solver_one_iter, tps_solver_one_iter, tps, time_stage, error, norm, max_vel_loc, max_vel
+        !=== Build pointers
+        rho_lm1 => urk(:, 1, stage-1)
+        rho_l   => urk(:, 1, stage)
+        !=== Build pointers
+        np = this%mesh%np
+        ! stage_prime = this%IRK%lp_of_l(stage) 
+
+        !=== Init rhs vector for velocity problem
+        CALL VecZeroEntries(this%vel1_vec, ierr)
+        !============================================================!
+        !======== FORCING CONTRIBUTION AT STAGES stage-1 & stage ====!
+        !============================================================!
+
+        !=== Forcing ===!
+        IF (ASSOCIATED(this%forcing)) THEN
+            IF (stage == 2) THEN
+                time_stage = this%time+this%IRK%C(stage-1)*this%dt
+
+                !=== Consistent version
+                DO k=1, k_dim
+                    ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
+                END DO
+                CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage-1))
+
+                !=== Lumped version
+                ! DO k=1, k_dim
+                !     rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
+                ! END DO
+                ! CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage-1), this%LA_vel, 'insert')
+            END IF
+            IF (stage < this%IRK%s + 1) THEN
+                time_stage = this%time+this%IRK%C(stage)*this%dt
+
+                !=== Consistent version
+                DO k=1, k_dim
+                    ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
+                END DO
+                CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage))
+                
+                !=== Lumped version
+                ! DO k=1, k_dim
+                !     rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
+                ! END DO
+                ! CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage), this%LA_vel, 'insert')
+
+                CALL VecMAXPY(this%vel1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), this%forcing_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of ERK forcing
+            ELSE
+                CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%forcing_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of ERK forcing
+            END IF
+        END IF
+        !=== Forcing ===!
+
+        !========================================================!
+        !======== VELOCITY VISCOUS DISSIPATION at stage-1========!
+        !========================================================!
+
+        !===Define velocity at stage-1
+        DO k = 1, k_dim
+            velocity_lm1(:,k) = urk(:,k+1,stage-1)/rho_lm1
+            rhs((k-1)*np+1:k*np) = velocity_lm1(:,k)
+        END DO
+        CALL array_to_petsc_vec(rhs, this%vel2_vec, this%LA_vel, 'insert')
+        !=== (-1)Div(sigma(vel))
+        CALL MatMult(this%matrices%vel_diff_mat, this%vel2_vec, this%vel_flux_rk_at_dof(stage-1), ierr) 
+
+        !================================!
+        !======== VELOCITY UPDATE========!
+        !================================!
+        !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
+
+        CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%vel_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
+
+        ! DO k = 1, k_dim
+        !     !=== WARNING HERE: stage_prime involved in explicit step or must be set manually if no prior explicit step 
+        !     rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*urk(:,k+1,stage)
+        ! END DO
+        ! CALL array_to_petsc_vec(rhs, this%vel1_vec, this%LA_vel, 'add', opt_include_ghost=.FALSE.)
+        CALL qs_00_block (this%mesh, this%LA_vel, urk(:,2:k_dim+1,stage), this%vel2_vec)
+        CALL VecAXPY(this%vel1_vec, 1.d0, this%vel2_vec, ierr)
+
+
+        !===RHS stored in this%vel1_vec
+        !===End Combine parabolic fluxes with IRK coefficients
+
+        !====Construct matrix
+        ! DO k = 1, k_dim
+            ! lhs_mass((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*rho_l
+        ! END DO
+        ! CALL array_to_petsc_vec(lhs_mass, this%vel2_vec, this%matrices%LA_vel, 'insert')
+        CALL qs_var_mass_block_M (this%matrices%vel_mass_mat, this%mesh, this%LA_vel, 1.d0, rho_l)
+        !===NOTICE: rho*ML is stored in this%vel2_vec
+
+        !=== VB 14/07/2026: rhs BC at time_stage
+        time_stage = this%time+this%IRK%C(stage)*this%dt
+        DO k = 1, k_dim
+            CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
+                            this%bc%vit_anal(k, time_stage, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%vel1_vec)
+        END DO       
+
+        IF (stage < this%IRK%s + 1) THEN
+            !=== LHS matrix construction + BC
+            CALL MatCopy(this%matrices%vel_diff_mat, this%matrices%vel_mat, SAME_NONZERO_PATTERN, ierr)
+            CALL MatScale(this%matrices%vel_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
+            CALL MatAXPY(this%matrices%vel_mat, 1.d0, this%matrices%vel_mass_mat, SAME_NONZERO_PATTERN, ierr)
+        ELSE
+            ! CALL MatZeroEntries(this%matrices%vel_mat, ierr)
+            CALL MatCopy(this%matrices%vel_mass_mat, this%matrices%vel_mat, SAME_NONZERO_PATTERN, ierr)
+        ENDIF
+        ! CALL MatDiagonalSet(this%matrices%vel_mat, this%vel2_vec, ADD_VALUES, ierr)
+        
+            !CALL periodic_matrix_petsc(mesh%per, this%matrices%LA_vel, this%matrices%vel_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
+        
+        DO k = 1, k_dim
+            CALL Dirichlet_M_parallel(this%matrices%vel_mat, this%LA_vel%loc_to_glob(k,this%bc%vel(k)%jsd))
+        END DO
+        !=== LHS matrix construction + BC
+
+        !=== Solver linear system
+        CALL this%iterative_LA(this%matrices%elasticity_solver_param, &
+                            this%matrices%vel_mat, this%matrices%vel_ksp, this%matrices%precond_vel_mat,&
+                            this%vel1_vec, this%sol_vel_vec)
+
+
+        !====extract velocity and update momentum
+        DO k=1, k_dim
+            CALL extract_through_ghost(this%sol_vel_vec, k, k, this%LA_vel, vel_out(:, k), opt_assemble=.FALSE.)
+            urk(:,k+1, stage) = rho_l*vel_out(:, k)
+        END DO
+
+        !===================================!
+        !======== TEMPERATURE UPDATE========!
+        !===================================!
+
+        !=== (-1)Div(sigma(vel).vel)
+        IF (stage==2) THEN
+            CALL viscous_production (this, velocity_lm1, this%temp_flux_rk_at_dof(stage-1))
+        END IF
+        !===Define temperature at stage-1
+        scal_temp = ((urk(:,k_dim+2,stage-1)/rho_lm1 - 0.5d0*SUM(velocity_lm1**2,DIM=2)))/this%cv !<===Temp= (E/rho - 1/2 * vel**2)/cv
+        CALL array_to_petsc_vec(scal_temp, this%temp1_vec, this%LA_temp, 'insert')
+        CALL MatMult(this%matrices%temp_diff_mat, this%temp1_vec, this%temp2_vec, ierr)
+        CALL VecAXPY(this%temp_flux_rk_at_dof(stage-1), 1.d0, this%temp2_vec, ierr)
+
+        CALL VecZeroEntries(this%temp1_vec, ierr)
+        IF (stage < this%IRK%s + 1) THEN
+            CALL viscous_production (this, vel_out, this%temp_flux_rk_at_dof(stage))
+
+            !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
+            !=== Notice: sum goes from 1 to stage, not stage - 1!! (first solve for vel, then for temp)
+            CALL VecMAXPY(this%temp1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), & 
+                                                this%temp_flux_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of IRK fluxes
+        ELSE
+            CALL VecMAXPY(this%temp1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), & 
+                                                this%temp_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
+        END IF
+
+        scal_temp = urk(:,k_dim+2,stage) - 0.5d0*rho_l*sum(vel_out**2,dim=2)
+        !=== Multiply by lumped mass
+        ! CALL qs_00(this%mesh, this%LA_temp, scal_temp, this%temp2_vec)
+        ! CALL VecAXPY(this%temp1_vec, 1.d0, this%temp2_vec, ierr)
+        rhs_temp = this%matrices%scal_lumped_mass*scal_temp
+        CALL array_to_petsc_vec(rhs_temp, this%temp1_vec, this%LA_temp, 'add', opt_include_ghost=.FALSE.)
+        !===RHS stored in this%temp1_vec
+        !===End Combine parabolic fluxes with IRK coefficients
+
+        !===Construct Matrix  
+        ! CALL qs_var_mass_block_M (this%matrices%temp_mass_mat, this%mesh, this%LA_temp, this%cv, rho_l)
+        scal_temp = this%matrices%scal_lumped_mass*rho_l*this%cv
+        CALL array_to_petsc_vec(scal_temp, this%temp2_vec, this%matrices%LA_temp, 'insert')
+        !===NOTICE: rho*cv*ML is stored in this%vel2_vec
+        !=== rhs BC
+        CALL dirichlet_rhs(this%matrices%LA_temp%loc_to_glob(1, this%bc%temp%jsd)-1, &
+                        this%bc%temp_anal(this%time, this%mesh%rr(:,this%bc%temp%jsd)), this%temp1_vec)
+        !=== rhs BC
+
+        IF (stage < this%IRK%s + 1) THEN
+
+            !=== LHS matrix construction + BC
+            CALL MatCopy(this%matrices%temp_diff_mat, this%matrices%temp_mat, SAME_NONZERO_PATTERN, ierr)
+            CALL MatScale(this%matrices%temp_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
+            ! CALL MatAXPY(this%matrices%temp_mat, 1.d0, this%matrices%temp_mass_mat, SAME_NONZERO_PATTERN, ierr)
+            CALL MatDiagonalSet(this%matrices%temp_mat, this%temp2_vec, ADD_VALUES, ierr)
+            !CALL periodic_matrix_petsc(mesh%per, this%matrices%LA_temp, this%matrices%temp_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
+        ELSE
+            CALL MatZeroEntries(this%matrices%temp_mat, ierr)
+            CALL MatDiagonalSet(this%matrices%temp_mat, this%temp2_vec, ADD_VALUES, ierr)
+            ! CALL MatCopy(this%matrices%temp_mass_mat, this%matrices%temp_mat, SAME_NONZERO_PATTERN, ierr)
+        ENDIF
+
+        CALL Dirichlet_M_parallel(this%matrices%temp_mat, this%LA_temp%loc_to_glob(1,this%bc%temp%jsd))
+        !=== LHS matrix construction + BC
+
+        CALL this%iterative_LA(this%matrices%temperature_solver_param, &
+                    this%matrices%temp_mat, this%matrices%temp_ksp, this%matrices%precond_temp_mat,&
+                    this%temp1_vec, this%sol_temp_vec)
+        
+        !====extract velocity and update momentum
+        CALL extract_through_ghost(this%sol_temp_vec, 1, 1, this%LA_temp, temp_out, opt_assemble=.FALSE.)
+        urk(:,k_dim+2, stage) = rho_l*this%cv*temp_out + 0.5d0*rho_l*sum(vel_out**2,dim=2)
+    END SUBROUTINE one_step_IRK_FULL
 
     SUBROUTINE iterative_LA(this, solver_param, matrix, matrix_ksp, matrix_precond, vec_rhs, vec_sol)
         USE my_util

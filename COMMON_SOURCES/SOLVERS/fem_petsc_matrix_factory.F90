@@ -59,7 +59,7 @@ CONTAINS
       CALL VecSet(vec_one, 1.d0, ierr)
       CALL MatMult(mass, vec_one, lumped_mass, ierr)
       IF (per) THEN
-         CALL periodic_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, lumped_mass, LA)
+         CALL periodic_vector_petsc(mesh%per%list, mesh%per%perlist, lumped_mass, LA)
       END IF
       CALL VecDestroy(vec_one, ierr)
    END SUBROUTINE construct_lumped_mass_vector

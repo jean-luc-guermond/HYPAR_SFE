@@ -173,7 +173,7 @@ CONTAINS
 
         !=== Building rhs vector
         CALL qs_00 (this%mesh, this%LA, u_in, this%rhs)
-        CALL periodic_rhs_petsc(this%mesh%per%nb_bords, this%mesh%per%list, this%mesh%per%perlist, this%rhs, this%LA)
+        CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%rhs, this%LA)
         CALL dirichlet_rhs(this%LA%loc_to_glob(1, this%dir%jsd) - 1, this%dir_bc(this%mesh%rr(:, this%dir%jsd)), this%rhs)
 
         !=== Solving the linear system

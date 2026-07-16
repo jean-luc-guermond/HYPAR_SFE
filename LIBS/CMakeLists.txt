@@ -63,6 +63,15 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "BUG in HYPAR_SFE/LIBS/CMakeLists.txt: python_precompile.py failed")
 endif()
 
+file(GLOB_RECURSE commonFppFiles 
+CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" 
+"${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp"
+"${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc")
+MESSAGE(STATUS ${commonFppFiles})
+set_property(DIRECTORY APPEND PROPERTY
+    CMAKE_CONFIGURE_DEPENDS ${commonFppFiles})
+     
+
 file(GLOB_RECURSE fppFiles CONFIGURE_DEPENDS ${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*.fpp)
 
 # Pre-process with fpp files
@@ -87,7 +96,7 @@ endforeach(infile)
 #==========================================================================
 
 # file(GLOB_RECURSE hypar_SFE_sources CONFIGURE_DEPENDS
-file(GLOB_RECURSE hypar_SFE_sources
+file(GLOB_RECURSE hypar_SFE_sources CONFIGURE_DEPENDS
 ${HYPAR_SFE_DIR}/COMMON_SOURCES/*.F90
 ${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*.F90
 ${HYPAR_SFE_DIR}/COMMON_SOURCES/POST_PROCESSING/*.c

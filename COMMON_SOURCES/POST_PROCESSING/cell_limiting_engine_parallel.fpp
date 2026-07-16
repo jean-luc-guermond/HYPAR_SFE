@@ -145,7 +145,7 @@ CONTAINS
       ALLOCATE(this%lumped_mass(mesh%np))
       CALL qs_mass_diff_M (mesh, 1.d0, 0.d0, LA, mass)
       CALL construct_lumped_mass_vector(mesh, LA, mass, this%xvect1)
-      CALL periodic_add_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, this%xvect1, LA)
+      CALL periodic_add_vector_petsc(mesh%per%list, mesh%per%perlist, this%xvect1, LA)
       CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, this%lumped_mass, opt_assemble=.TRUE.)
    
       !===Localized mass construction
@@ -166,7 +166,7 @@ CONTAINS
       CALL VecAssemblyBegin(this%xvect1, ierr)
       CALL VecAssemblyEnd(this%xvect1, ierr)
 
-      CALL periodic_add_vector_petsc(mesh%per%nb_bords, mesh%per%list, mesh%per%perlist, this%xvect1, LA)
+      CALL periodic_add_vector_petsc(mesh%per%list, mesh%per%perlist, this%xvect1, LA)
       CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, vol_of_Ti, opt_assemble=.FALSE.)
 !VB CORRECTED VERSION WHEN SEVERAL PROCESSES
 
@@ -383,7 +383,6 @@ CONTAINS
 !=====================================
 
    SUBROUTINE iterative_cell_limiting_procedure(this, xx_in, loc_min, lim_bounds, xx_out)  
-#include "petsc/finclude/petsc.h"
       USE petsc 
       USE compute_periodic
       USE my_util, ONLY: error_petsc
@@ -504,14 +503,29 @@ CONTAINS
    !===Now we average over the nodes=========
 
       DO k = 1, syst_size
-         CALL VecZeroEntries(this%xvect1, ierr)
-         CALL VecSetValues(this%xvect1, np, this%LA%loc_to_glob(1, :) - 1, xx_out(:,k), ADD_VALUES, ierr)
-         CALL VecAssemblyBegin(this%xvect1, ierr)
-         CALL VecAssemblyEnd(this%xvect1, ierr)
+         !=== Sum over cells
+         CALL this%mesh%reduce_through_ghost(xx_out(:,k), MPI_SUM)
 
-         CALL periodic_add_vector_petsc(this%per%nb_bords, this%per%list, this%per%perlist, this%xvect1, this%LA)
-         CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, xx_out(:,k), opt_assemble=.TRUE.)
+         !=== Periodicity manually handled (avoid using periodic_add_vector_petsc)
+         ASSOCIATE(per => this%mesh%per)
+            DO i = 1, per%nb_bords
+               xx_out(per%list(i)%DIL(:),k) = xx_out(per%perlist(i)%DIL(:),k) + xx_out(per%list(i)%DIL(:),k)
+               xx_out(per%perlist(i)%DIL(:),k) = xx_out(per%list(i)%DIL(:),k)
+            END DO
+            CALL this%mesh%bulk_to_ghost_real(xx_out(:,k), MPI_REPLACE)
+         END ASSOCIATE
+
+         !=== Renormalize with lumped mass
          xx_out(:,k) = xx_out(:,k)/this%lumped_mass
+
+         ! CALL VecZeroEntries(this%xvect1, ierr)
+         ! CALL VecSetValues(this%xvect1, np, this%LA%loc_to_glob(1, :) - 1, xx_out(:,k), ADD_VALUES, ierr)
+         ! CALL VecAssemblyBegin(this%xvect1, ierr)
+         ! CALL VecAssemblyEnd(this%xvect1, ierr)
+
+         ! CALL periodic_add_vector_petsc(this%per%list, this%per%perlist, this%xvect1, this%LA)
+         ! CALL extract_through_ghost(this%xvect1, 1, 1, this%LA, xx_out(:,k), opt_assemble=.TRUE.)
+         ! xx_out(:,k) = xx_out(:,k)/this%lumped_mass
       END DO    
       
    END SUBROUTINE iterative_cell_limiting_procedure

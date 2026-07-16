@@ -1,20 +1,24 @@
-MODULE construct_mesh
 #include "petsc/finclude/petsc.h"
+MODULE construct_mesh
    USE def_type_mesh
    USE st_matrix
    USE petsc
    USE mesh_data_module
    USE mesh_tools
+   USE space_dim
+   USE mesh_distribution_1d
+   USE mesh_refinement_1D
+   USE refine_mesh
+   USE gauss_points_1d
+   USE gauss_points_2d
    PUBLIC :: get_mesh, prep_periodic_scal, generate_boundary_structure, &
              refine_mesh_1D_2D, create_iso_grid_1D_2D, create_gauss_points_1D_2D, refine_mesh_1D2D_Pk2P1
    PRIVATE
 CONTAINS
    SUBROUTINE get_mesh(communicator, mesh, opt_fe, opt_edge_stab, opt_name)
       USE mesh_1d
-      USE mesh_distribution_1d
       USE load_mesh_2d
       USE two_dim_metis_distribution
-      USE space_dim
       USE mesh_parameters
       USE my_util, ONLY : error_petsc, to_str
 
@@ -133,8 +137,6 @@ CONTAINS
 !=====================================================!
 
    SUBROUTINE generate_boundary_structure(mesh)
-      USE space_dim
-      USE def_type_mesh
       USE Dir_nodes, ONLY: dirichlet_nodes, surf_nodes_i
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
@@ -153,11 +155,9 @@ CONTAINS
       mesh%per%nb_bords = mesh%info%nb_bords
       ALLOCATE(mesh%per%list_periodic(SIZE(mesh%info%list_periodic,1),SIZE(mesh%info%list_periodic,2)))
       ALLOCATE(mesh%per%vect_e(SIZE(mesh%info%vect_e,1),SIZE(mesh%info%vect_e,2)))
-      IF (mesh%per%nb_bords/=0) THEN 
-         mesh%per%list_periodic = mesh%info%list_periodic
-         mesh%per%vect_e = mesh%info%vect_e
-         CALL prep_periodic_scal(mesh%per,mesh)
-      END IF
+      mesh%per%list_periodic = mesh%info%list_periodic
+      mesh%per%vect_e = mesh%info%vect_e
+      CALL prep_periodic_scal(mesh%per,mesh)
    END SUBROUTINE generate_boundary_structure
 
 !=====================================================!
@@ -165,11 +165,6 @@ CONTAINS
 !=====================================================!
 
    SUBROUTINE refine_mesh_1D_2D(mesh, mesh_r, refine_factor)
-      USE space_dim
-      USE def_type_mesh
-      USE mesh_refinement_1D, ONLY: refinement_P1_mesh_1D
-      USE refine_mesh,        ONLY: refinement_iso_grid_distributed
-
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh, mesh_r
       INTEGER         :: refine_factor
@@ -183,10 +178,6 @@ CONTAINS
    END SUBROUTINE refine_mesh_1D_2D
 
    SUBROUTINE refine_mesh_1D2D_Pk2P1(mesh, mesh_r)
-      USE space_dim
-      USE def_type_mesh
-      USE mesh_refinement_1D, ONLY: refinement_P1_mesh_1D_arbitrary_factor
-      USE refine_mesh,        ONLY: general_refinement_iso_grid_distributed
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh, mesh_r
                
@@ -205,10 +196,6 @@ CONTAINS
 !=====================================================!
 
    SUBROUTINE create_iso_grid_1D_2D(mesh, mesh_r, type_fe)
-      USE space_dim
-      USE def_type_mesh
-      USE mesh_distribution_1d, ONLY: create_Pk_mesh_1D
-      USE refine_mesh,          ONLY: create_iso_grid_distributed
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh, mesh_r
       INTEGER, INTENT(IN) :: type_fe
@@ -226,12 +213,6 @@ CONTAINS
 !=====================================================!
 
    SUBROUTINE create_gauss_points_1D_2D(mesh, type_fe)
-#include "petsc/finclude/petsc.h"
-      USE petsc
-      USE space_dim
-      USE def_type_mesh
-      USE gauss_points_1d, ONLY: create_gauss_points_1d
-      USE gauss_points_2d, ONLY: create_gauss_points_2d
 
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
@@ -254,7 +235,6 @@ CONTAINS
 !====================!
 
    SUBROUTINE copy_free_mesh(mesh_r, mesh)
-      USE def_type_mesh
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh, mesh_r
       CALL free_mesh(mesh)
@@ -265,7 +245,6 @@ CONTAINS
 
    SUBROUTINE prep_periodic_scal(periodic, mesh)
       !=========================================
-      USE character_strings
       IMPLICIT NONE
       TYPE(periodic_type) :: periodic
       TYPE(mesh_type) :: mesh
@@ -279,10 +258,6 @@ CONTAINS
       END IF
       ALLOCATE(e(SIZE(periodic%vect_e, 1)))
 
-      IF (periodic%nb_bords .GT. 20) THEN
-         WRITE(*, *) 'PREP_MESH_PERIODIC: too many periodic pieces'
-         STOP
-      END IF
 
       ALLOCATE(periodic%list(periodic%nb_bords), periodic%perlist(periodic%nb_bords))
 
@@ -329,7 +304,6 @@ CONTAINS
    SUBROUTINE prep_periodic_bloc(periodic, mesh, nb_bloc)
       !=========================================
       USE character_strings
-      USE def_type_mesh
       IMPLICIT NONE
       TYPE(mesh_type) :: mesh
       TYPE(periodic_type) :: periodic
