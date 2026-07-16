@@ -1,7 +1,6 @@
 PROGRAM test_matrix
 
   USE petscmpi
-  ! USE my_laplace_module, ONLY: laplace, ex_sol, source
   USE fem_tn, ONLY: ns_l1_par
   USE start_setup_MODULE
 
@@ -17,7 +16,6 @@ PROGRAM test_matrix
   CHARACTER(5) :: char
 
   INTEGER :: ierr
-
 
 !========================!
 !==== INITIALIZATION ====!

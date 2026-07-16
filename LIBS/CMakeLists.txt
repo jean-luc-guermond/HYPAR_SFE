@@ -82,6 +82,10 @@ message(STATUS "FFTW version: ${FFTW_VERSION}")
 #=============== HYPAR_SFE sources pre-generation (using python and fypp)
 #==========================================================================
 
+#====================================
+#======= python generation of .fpp
+#====================================
+
 include(CMake_get_python)
 
 execute_process(
@@ -94,14 +98,25 @@ if(NOT result EQUAL 0)
     message(FATAL_ERROR "BUG in HYPAR_SFE/LIBS/CMakeLists.txt: python_precompile.py failed")
 endif()
 
-file(GLOB_RECURSE commonFppFiles 
-CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" 
-"${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp"
-"${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc")
-MESSAGE(STATUS ${commonFppFiles})
+#========================================================================================
+#======= Manual handling of dependencies on files generated through "execute_process"
+#========================================================================================
+
+if(is_ctest)
+    file(GLOB_RECURSE commonFppFiles 
+    CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc"
+    "${HYPAR_SFE_DIR}/CASES_DEVELOPPER/*F90" "${HYPAR_SFE_DIR}/CASES_DEVELOPPER/*fpp")
+else()
+    file(GLOB_RECURSE commonFppFiles 
+    CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc")
+endif()
 set_property(DIRECTORY APPEND PROPERTY
     CMAKE_CONFIGURE_DEPENDS ${commonFppFiles})
      
+
+#===============================
+#======= .fpp => .F90
+#===============================
 
 file(GLOB_RECURSE fppFiles CONFIGURE_DEPENDS ${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*.fpp)
 

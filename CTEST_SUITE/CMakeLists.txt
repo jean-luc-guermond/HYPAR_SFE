@@ -69,6 +69,7 @@ ADD_CUSTOM_TARGET(native
 #==========================================================================
 
 # Lib hypar_sfe_F
+set(is_ctest True)
 set(BUILD_ALL_DIMS ON) 
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
 

@@ -17,7 +17,6 @@ PROGRAM prog
 !========================!
 !==== INITIALIZATION ====!
 !========================!
-
   CALL start_setup
   time_backup   = navier_stokes%time + setup_data%checkpointing_freq
   time_snapshot = navier_stokes%time + setup_data%snapshot_freq

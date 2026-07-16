@@ -102,6 +102,7 @@ set(exe "a.exe")
 
 
 # Building HYPAR_SFE library
+set(is_ctest False)
 add_subdirectory(${HYPAR_SFE_DIR}/LIBS ${HYPAR_SFE_DIR}/LIBS/BUILD)
 
 if(NOT DEFINED static_library)

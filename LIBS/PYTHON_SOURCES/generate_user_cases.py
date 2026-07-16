@@ -82,5 +82,5 @@ def generate_user_case(path_hypar, name_developper_case, fe_dim, exist_ok=True):
         
         except FileExistsError:
             list_already_exists.append(spe_case)
-    print("Already existing, therefore not overwritten: "+ ", ".join(list_already_exists))
+    # print("Already existing, therefore not overwritten: "+ ", ".join(list_already_exists))
 generate_user_case(path_hypar, name_developper_case, fe_dim)
