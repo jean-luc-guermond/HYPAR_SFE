@@ -9,97 +9,87 @@ MODULE compute_periodic
 
 CONTAINS
 
-  SUBROUTINE periodic_matrix_petsc(periodic, LA, matrix)
-    USE dyn_line_type
-    USE def_type_mesh
-    USE petsc_csr_LA_module
-    USE my_util
-    USE petscmat
-    IMPLICIT NONE
-    TYPE(periodic_type), INTENT(IN) :: periodic
-    INTEGER :: nb_per_edges
-    TYPE(petsc_csr_la), INTENT(IN) :: LA
-    INTEGER, PARAMETER :: nmaxcols = 300
-    INTEGER :: ncols
+   SUBROUTINE periodic_matrix_petsc(periodic, LA, matrix)
+      USE dyn_line_type
+      USE def_type_mesh
+      USE petsc_csr_LA_module
+      USE my_util
+      USE petscmat
+      IMPLICIT NONE
+      TYPE(periodic_type), INTENT(IN) :: periodic
+      TYPE(petsc_csr_la),  INTENT(IN) :: LA
+      INTEGER            :: nb_per_edges
+      INTEGER, PARAMETER :: nmaxcols = 300
+      INTEGER            :: ncols
 #if (PETSC_VERSION_MINOR < 23)
-    INTEGER, DIMENSION(nmaxcols) :: cols
-    REAL(KIND = 8), DIMENSION(nmaxcols) :: vals
+      INTEGER,        DIMENSION(nmaxcols) :: cols
+      REAL(KIND = 8), DIMENSION(nmaxcols) :: vals
 #else
-    INTEGER,        DIMENSION(:), POINTER :: cols
-    REAL(KIND = 8), DIMENSION(:), POINTER :: vals
+      INTEGER,        DIMENSION(:), POINTER :: cols
+      REAL(KIND = 8), DIMENSION(:), POINTER :: vals
 #endif
-    INTEGER, DIMENSION(:), ALLOCATABLE :: n_cols_i
-    INTEGER, DIMENSION(1) :: idxn
-    INTEGER, DIMENSION(:, :), ALLOCATABLE :: jdxn
-    REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: vals_pi
-    INTEGER :: n, l, i, pi, n_D, k
-    TYPE(tMat)                                          :: matrix
-    INTEGER                               :: ierr
+      INTEGER, DIMENSION(:), ALLOCATABLE :: n_cols_i
+      INTEGER, DIMENSION(1) :: idxn
+      INTEGER, DIMENSION(:, :), ALLOCATABLE :: jdxn
+      REAL(KIND = 8), DIMENSION(:, :), ALLOCATABLE :: vals_pi
+      INTEGER     :: n, l, i, pi, n_D, k, ierr
+      TYPE(tMat)  :: matrix
 
-   !  CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_TRUE, ierr)
-    CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
-    CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
+      CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
+      CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
 
-    nb_per_edges = periodic%nb_bords
+      nb_per_edges = periodic%nb_bords
 
-    DO k = 1, SIZE(LA%loc_to_glob, 1)
-   !  DO k = 1, SIZE(LA%loc_to_glob, 1)
-       DO n = 1, nb_per_edges
-         !  CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
-         !  CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
-          n_D = SIZE(periodic%list(n)%DIL)
-         !  IF (n_D /=0) THEN
-             ALLOCATE(jdxn(n_D, nmaxcols))
-             ALLOCATE(vals_pi(n_D, nmaxcols), SOURCE=0.d0)
-             ALLOCATE(n_cols_i(n_D), SOURCE=0)
-            !  vals_pi = 0.d0
-            !  n_cols_i = 0
+      DO k = 1, SIZE(LA%loc_to_glob, 1)
+         DO n = 1, nb_per_edges
+            n_D = SIZE(periodic%list(n)%DIL)
+               ALLOCATE(jdxn(n_D, nmaxcols))
+               ALLOCATE(vals_pi(n_D, nmaxcols), SOURCE=0.d0)
+               ALLOCATE(n_cols_i(n_D), SOURCE=0)
 
-             DO l = 1, n_D!SIZE(periodic%list(n)%DIL)
-                idxn(1) = LA%loc_to_glob(k, periodic%list(n)%DIL(l)) - 1
-                CALL MatGetRow(matrix, idxn(1), ncols, cols, vals, ierr)
-                n_cols_i(l) = ncols
-                jdxn(l, 1:ncols) = cols(1:ncols)
-                vals_pi(l, 1:ncols) = vals(1:ncols)
-                CALL MatRestoreRow(matrix, idxn(1), ncols, cols, vals, ierr)
-             END DO
+               DO l = 1, n_D
+                  idxn(1) = LA%loc_to_glob(k, periodic%list(n)%DIL(l)) - 1
+                  CALL MatGetRow(matrix, idxn(1), ncols, cols, vals, ierr)
+                  n_cols_i(l) = ncols
+                  jdxn(l, 1:ncols) = cols(1:ncols)
+                  vals_pi(l, 1:ncols) = vals(1:ncols)
+                  CALL MatRestoreRow(matrix, idxn(1), ncols, cols, vals, ierr)
+               END DO
 
-             DO l = 1, n_D
-                idxn(1) = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l)) - 1
+               DO l = 1, n_D
+                  idxn(1) = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l)) - 1
 #if (23 <= PETSC_VERSION_MINOR) && (PETSC_VERSION_MINOR < 25)
-                CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
-                     vals_pi(l, 1:n_cols_i(l)), ADD_VALUES, ierr)
+                  CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
+                        vals_pi(l, 1:n_cols_i(l)), ADD_VALUES, ierr)
 #else
-                CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
-                     vals_pi(l:l, 1:n_cols_i(l)), ADD_VALUES, ierr)
+                  CALL MatSetValues(matrix, 1, idxn, n_cols_i(l), jdxn(l, 1:n_cols_i(l)), &
+                        vals_pi(l:l, 1:n_cols_i(l)), ADD_VALUES, ierr)
 #endif
-             END DO
-             DEALLOCATE(jdxn, vals_pi, n_cols_i)
-! if (k==2) stop
+               END DO
+               DEALLOCATE(jdxn, vals_pi, n_cols_i)
 
-         !  END IF
-          CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
-          CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
-       END DO
+            CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
+            CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
+         END DO
 
-       DO n = 1, nb_per_edges
-          n_D = SIZE(periodic%list(n)%DIL)
-          CALL MatZeroRows(matrix, n_D, LA%loc_to_glob(k, periodic%list(n)%DIL(:)) - 1, 1.d0, &
-               PETSC_NULL_VEC, PETSC_NULL_VEC, ierr) !(JLG) Feb 20, 2019, petsc.3.8.4
-       END DO
+         DO n = 1, nb_per_edges
+            n_D = SIZE(periodic%list(n)%DIL)
+            CALL MatZeroRows(matrix, n_D, LA%loc_to_glob(k, periodic%list(n)%DIL(:)) - 1, 1.d0, &
+                  PETSC_NULL_VEC, PETSC_NULL_VEC, ierr) !(JLG) Feb 20, 2019, petsc.3.8.4
+         END DO
 
-       DO n = 1, nb_per_edges
-          DO l = 1, SIZE(periodic%list(n)%DIL)
-             i = LA%loc_to_glob(k, periodic%list(n)%DIL(l))
-             pi = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l))
-             CALL MatSetValue(matrix, i - 1, pi - 1, -1.d0, INSERT_VALUES, ierr)
-          END DO
-       END DO
-       CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
-       CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
+         DO n = 1, nb_per_edges
+            DO l = 1, SIZE(periodic%list(n)%DIL)
+               i = LA%loc_to_glob(k, periodic%list(n)%DIL(l))
+               pi = LA%loc_to_glob(k, periodic%perlist(n)%DIL(l))
+               CALL MatSetValue(matrix, i - 1, pi - 1, -1.d0, INSERT_VALUES, ierr)
+            END DO
+         END DO
+         CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
+         CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
 
-    END DO
-  END SUBROUTINE periodic_matrix_petsc
+      END DO
+   END SUBROUTINE periodic_matrix_petsc
 
    SUBROUTINE periodic_rhs_petsc(list, perlist, v_rhs, LA)
       USE dyn_line_type
