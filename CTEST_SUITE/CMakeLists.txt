@@ -7,6 +7,12 @@ MESSAGE(STATUS "")
 list(APPEND CMAKE_MODULE_PATH
      "${CMAKE_SOURCE_DIR}"
 )
+set(VAR_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/variables_template.cmake")
+set(VAR "${CMAKE_CURRENT_SOURCE_DIR}/variables.cmake")
+if(NOT EXISTS "${VAR}")
+    file(COPY_FILE "${VAR_TEMPLATE}" "${VAR}")
+endif()
+
 include(variables.cmake)
 get_filename_component(
     HYPAR_SFE_DIR

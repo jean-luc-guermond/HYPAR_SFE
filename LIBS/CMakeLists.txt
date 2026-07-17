@@ -31,7 +31,7 @@ message(STATUS "MPI_Fortran_LIBRARIES=${MPI_Fortran_LIBRARIES}")
 #======================================#
 
 #=== Get Petsc
-pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc)
+pkg_check_modules(PETSC REQUIRED IMPORTED_TARGET PETSc>=${PETSC_MIN_VERSION})
 
 #=== Verbose version and paths
 get_target_property(PETSC_INC PkgConfig::PETSC INTERFACE_INCLUDE_DIRECTORIES)
@@ -39,12 +39,10 @@ message(STATUS "PETSC includes: ${PETSC_INC}")
 message(STATUS "PETSC version: ${PETSC_VERSION}")
 
 #=== Version checks
-if(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION})
-    MESSAGE(FATAL_ERROR "PETSC version: must be at least ${PETSC_MIN_VERSION}")
-elseif(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION_WARNING})
-    MESSAGE(WARNING "It is strongly encouraged to used at least PETSC version ${PETSC_MIN_VERSION_WARNING}")
+if(${PETSC_VERSION} VERSION_LESS ${PETSC_MIN_VERSION_WARNING})
+    MESSAGE(WARNING "PETSC version: better to use at least ${PETSC_MIN_VERSION_WARNING}")
 elseif((${PETSC_VERSION} VERSION_GREATER ${PETSC_MAX_VERSION}) OR (${PETSC_VERSION} VERSION_EQUAL ${PETSC_MAX_VERSION}))
-    MESSAGE(FATAL_ERROR "PETSC version: must be at most ${PETSC_MAX_VERSION}")
+    MESSAGE(WARNING "PETSC version: should be at most ${PETSC_MAX_VERSION}")
 endif()
 
 #=== Prepare macros for compilation
@@ -129,7 +127,7 @@ foreach(infile IN LISTS fppFiles)
     # Custom command to do the processing
     add_custom_command(
         OUTPUT "${outfile}"
-        COMMAND ${Python3_EXECUTABLE} -m fypp "${infile}" "${outfile}"
+        COMMAND ${FYPP_EXECUTABLE} "${infile}" "${outfile}"
         MAIN_DEPENDENCY "${infile}"
         VERBATIM)
 

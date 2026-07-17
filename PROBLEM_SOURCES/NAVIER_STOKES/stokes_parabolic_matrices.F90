@@ -100,7 +100,7 @@ CONTAINS
       !===vel_mat
       CALL MatDuplicate(this%vel_diff_mat, MAT_SHARE_NONZERO_PATTERN, this%vel_mat, ierr)
       !CALL MatSetOption (this%vel_mat, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
-      CALL MatSetOption (this%vel_mat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
+      ! CALL MatSetOption (this%vel_mat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
 
       !===precond_vel_mat
       CALL MatDuplicate(this%vel_diff_mat, MAT_SHARE_NONZERO_PATTERN, this%precond_vel_mat, ierr)

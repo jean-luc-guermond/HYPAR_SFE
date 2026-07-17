@@ -11,8 +11,8 @@ path_pb = os.getcwd()
 # syst_dim = 1
 # n_lim = 2
 # list_lim = ['scalar_rho_min', 'scalar_rho_max']
-# path_lim = os.path.join(dir_top, "relative_path_to_limiting_functionals") #this path must contain .inc files
-# path_pb = os.path.join(dir_top, "relative_path_to_pb") #a TEMPLATED folder containing the generated sources will be created here
+# path_lim = Path(dir_top) /  "relative_path_to_limiting_functionals" #this path must contain .inc files
+# path_pb = Path(dir_top) / "relative_path_to_pb" #a folder named TEMPLATED containing the generated sources will be created here. It can be LOCAL_SOURCES
 # name = 'name_of_object'
 
 # precompile_hyperbolic(syst_dim, n_lim, list_lim, path_lim, path_pb, name)

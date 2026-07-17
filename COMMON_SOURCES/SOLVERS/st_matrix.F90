@@ -328,25 +328,59 @@ CONTAINS
             END DO
          END DO
       END DO
+!=== FIX VB 17/07/2026 ===!
+
+!!$         DO k = 1, nb_bloc
+!!$            k_deb = (k - 1) * n_b + 1
+!!$            k_fin = k * n_b
+!!$            periodic%list(n)%DIL(k_deb:k_fin) = list_dom(1:n_b) + (k - 1) * mesh%dom_np ! First bloc
+!!$            periodic%perlist(n)%DIL(k_deb:k_fin) = perlist_dom(1:n_b) + (k - 1) * mesh%dom_np ! First bloc
+!!$         END DO
       IF (mesh%per%nb_bords /= 0) THEN
-         DO k = 1, mesh%per%nb_bords
-            DO i = 1, SIZE(mesh%per%list(k)%DIL)
-               per_loc = 0
-               i1 = mesh%per%list(k)%DIL(i)
-               i2 = mesh%per%perlist(k)%DIL(i)
-               njt = nja(i1) + nja(i2)
-               IF (njt > kmax * nparm) THEN
-                  CALL local_error_petsc('BUG in st_aij_glob_block, SIZE(ja) not large enough')
-               END IF
-               per_loc(1:nja(i1)) = ja_work(i1, 1:nja(i1))
-               per_loc(nja(i1) + 1:nja(i1) + nja(i2)) = ja_work(i2, 1:nja(i2))
-               nja(i1) = njt
-               nja(i2) = njt
-               ja_work(i1, 1:njt) = per_loc(1:njt)
-               ja_work(i2, 1:njt) = per_loc(1:njt)
+         DO p = 1, mesh%per%nb_bords
+            DO k=1, kmax
+               DO i = 1, SIZE(mesh%per%list(p)%DIL)
+                  per_loc = 0
+                  i1 = mesh%per%list(p)%DIL(i) + (k - 1) * np
+                  i2 = mesh%per%perlist(p)%DIL(i) + (k - 1) * np
+                  ! i1 = mesh%per%list(p)%DIL(i)
+                  ! i2 = mesh%per%perlist(p)%DIL(i)
+                  njt = nja(i1) + nja(i2)
+                  IF (njt > kmax * nparm) THEN
+                     CALL local_error_petsc('BUG in st_aij_glob_block, SIZE(ja) not large enough')
+                  END IF
+                  per_loc(1:nja(i1)) = ja_work(i1, 1:nja(i1))
+                  per_loc(nja(i1) + 1:nja(i1) + nja(i2)) = ja_work(i2, 1:nja(i2))
+                  nja(i1) = njt
+                  nja(i2) = njt
+                  ja_work(i1, 1:njt) = per_loc(1:njt)
+                  ja_work(i2, 1:njt) = per_loc(1:njt)
+               END DO
             END DO
          END DO
       END IF
+      ! IF (mesh%per%nb_bords /= 0) THEN
+      !    DO k = 1, mesh%per%nb_bords
+      !       DO i = 1, SIZE(mesh%per%list(k)%DIL)
+      !          per_loc = 0
+      !          i1 = mesh%per%list(k)%DIL(i)
+      !          i2 = mesh%per%perlist(k)%DIL(i)
+      !          njt = nja(i1) + nja(i2)
+      !          IF (njt > kmax * nparm) THEN
+      !             CALL local_error_petsc('BUG in st_aij_glob_block, SIZE(ja) not large enough')
+      !          END IF
+      !          per_loc(1:nja(i1)) = ja_work(i1, 1:nja(i1))
+      !          per_loc(nja(i1) + 1:nja(i1) + nja(i2)) = ja_work(i2, 1:nja(i2))
+      !          nja(i1) = njt
+      !          nja(i2) = njt
+      !          ja_work(i1, 1:njt) = per_loc(1:njt)
+      !          ja_work(i2, 1:njt) = per_loc(1:njt)
+      !       END DO
+      !    END DO
+      ! END IF
+
+!=== END FIX VB 17/07/2026 ===!
+
 
       IF (MAXVAL(nja)>nparm) THEN
          WRITE(*, *) 'ST_SPARSEKIT: dimension de ja doit etre >= ', nparm

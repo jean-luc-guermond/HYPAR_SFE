@@ -361,9 +361,9 @@ character(len=10), dimension(:), allocatable :: list_profiler
         END IF
         !=== Forcing ===!
 
-        !========================================================!
-        !======== VELOCITY VISCOUS DISSIPATION at stage-1========!
-        !========================================================!
+        !==================================================================!
+        !======== VELOCITY VISCOUS DISSIPATION & FORCING at stage-1========!
+        !==================================================================!
 
         !===Define velocity at stage-1
         DO k = 1, k_dim
@@ -412,6 +412,7 @@ character(len=10), dimension(:), allocatable :: list_profiler
         IF (stage < this%IRK%s + 1) THEN
             !=== VB 14/07/2026: rhs BC at time_stage
             time_stage = this%time+this%IRK%C(stage)*this%dt
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%vel1_vec, this%LA_vel)
             DO k = 1, k_dim
                 CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
                                 this%bc%vit_anal(k, time_stage, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%vel1_vec)
@@ -421,7 +422,7 @@ character(len=10), dimension(:), allocatable :: list_profiler
             CALL MatCopy(this%matrices%vel_diff_mat, this%matrices%vel_mat, SAME_NONZERO_PATTERN, ierr)
             CALL MatScale(this%matrices%vel_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
             CALL MatDiagonalSet(this%matrices%vel_mat, this%vel2_vec, ADD_VALUES, ierr)
-            !CALL periodic_matrix_petsc(mesh%per, this%matrices%LA_vel, this%matrices%vel_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
+            CALL periodic_matrix_petsc(this%mesh%per, this%matrices%LA_vel, this%matrices%vel_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
             DO k = 1, k_dim
                 CALL Dirichlet_M_parallel(this%matrices%vel_mat, this%LA_vel%loc_to_glob(k,this%bc%vel(k)%jsd))
             END DO
@@ -433,6 +434,8 @@ character(len=10), dimension(:), allocatable :: list_profiler
                                 this%vel1_vec, this%sol_vel_vec)
         ELSE
             !===Divide by rho*ML stored in this%vel2_vec
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%vel1_vec, this%LA_vel)
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%vel2_vec, this%LA_vel)
             CALL VecPointWiseDivide(this%sol_vel_vec, this%vel1_vec, this%vel2_vec, ierr)
 
             !=== VB 14/07/2026: explicit impose BC
@@ -441,6 +444,7 @@ character(len=10), dimension(:), allocatable :: list_profiler
                 CALL dirichlet_rhs(this%matrices%LA_vel%loc_to_glob(k, this%bc%vel(k)%jsd)-1, &
                                 this%bc%vit_anal(k, time_stage, this%mesh%rr(:,this%bc%vel(k)%jsd)), this%sol_vel_vec)
             END DO
+            CALL periodic_vector_petsc(this%mesh%per%list, this%mesh%per%perlist, this%sol_vel_vec, this%LA_vel)
             !=== explicit impose BC
         END IF
         !====extract velocity and update momentum
@@ -490,15 +494,17 @@ character(len=10), dimension(:), allocatable :: list_profiler
         !===NOTICE: rho*cv*ML is stored in this%vel2_vec
         IF (stage < this%IRK%s + 1) THEN
             !=== rhs BC
+            time_stage = this%time+this%IRK%C(stage)*this%dt
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%temp1_vec, this%LA_temp)
             CALL dirichlet_rhs(this%matrices%LA_temp%loc_to_glob(1, this%bc%temp%jsd)-1, &
-                            this%bc%temp_anal(this%time, this%mesh%rr(:,this%bc%temp%jsd)), this%temp1_vec)
+                            this%bc%temp_anal(time_stage, this%mesh%rr(:,this%bc%temp%jsd)), this%temp1_vec)
             !=== rhs BC
 
             !=== LHS matrix construction + BC
             CALL MatCopy(this%matrices%temp_diff_mat, this%matrices%temp_mat, SAME_NONZERO_PATTERN, ierr)
             CALL MatScale(this%matrices%temp_mat, this%dt*this%IRK%MatRK(stage, stage), ierr)
             CALL MatDiagonalSet(this%matrices%temp_mat, this%temp2_vec, ADD_VALUES, ierr)
-            !CALL periodic_matrix_petsc(mesh%per, this%matrices%LA_temp, this%matrices%temp_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
+            CALL periodic_matrix_petsc(this%mesh%per, this%matrices%LA_temp, this%matrices%temp_mat) !<===FIXME: PERIODIC BCs NOT DONE YET
             CALL Dirichlet_M_parallel(this%matrices%temp_mat, this%LA_temp%loc_to_glob(1,this%bc%temp%jsd))
             !=== LHS matrix construction + BC
 
@@ -506,7 +512,16 @@ character(len=10), dimension(:), allocatable :: list_profiler
                                 this%matrices%temp_mat, this%matrices%temp_ksp, this%matrices%precond_temp_mat,&
                                 this%temp1_vec, this%sol_temp_vec)
         ELSE
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%temp1_vec, this%LA_temp)
+            CALL periodic_rhs_petsc(this%mesh%per%list, this%mesh%per%perlist, this%temp2_vec, this%LA_temp)
             CALL VecPointWiseDivide(this%sol_temp_vec, this%temp1_vec, this%temp2_vec, ierr)
+
+            !=== VB 14/07/2026: explicit impose BC
+            time_stage = this%time+this%IRK%C(stage)*this%dt
+            CALL dirichlet_rhs(this%matrices%LA_temp%loc_to_glob(1, this%bc%temp%jsd)-1, &
+                            this%bc%temp_anal(time_stage, this%mesh%rr(:,this%bc%temp%jsd)), this%sol_temp_vec)
+            CALL periodic_vector_petsc(this%mesh%per%list, this%mesh%per%perlist, this%sol_temp_vec, this%LA_temp)
+            !=== explicit impose BC
         END IF
         !====extract velocity and update momentum
         CALL extract_through_ghost(this%sol_temp_vec, 1, 1, this%LA_temp, temp_out, opt_assemble=.FALSE.)

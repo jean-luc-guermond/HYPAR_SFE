@@ -99,7 +99,13 @@ It needs to have this precise structure:
 
 5. The user might want to add the same line *argument_data%some_parameter* several times but with some tiny variants. The optional *opt_name* exists for that purpose: the line *CALL read_data(=== some_argument ===, some_val, opt_name="with some additional string")* will actually read the line *=== some_argument with some additional string ===*. An example of usage is for Dirichlet boundary conditions, which may be specified for different fields.
 
-6. **FIXME** currently this subroutine is designed to read the file "data" (exception made when running ctest)
+6. The data files that are read/wrote can be through srun -n1 ./a.exe data_in=some_file data_out=another_file data_save=a_third_file
+
+> data_in: the file read by the program. data_in=data by default
+
+> data_out: the modified file wrote by the program. data_out=data by default, meaning data is overwritten by default.
+
+> data_save: a copy of data_in. data_save=previous_data by default. It is relevant if data_in=data_out and in case the code runs into a bug while reading the data file.
 
 Non-exhaustive list of warnings
 ===============================

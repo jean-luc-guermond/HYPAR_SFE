@@ -8,13 +8,13 @@ List of mandatory dependencies
 
 1. **PETSc**: version must be at least 3.21 (3.25 strongly encouraged), and installation made by the user
 
->wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.25.3.tar.gz & tar -xvf petsc-3.25.3.tar.gz & cd petsc-3.25.3
+> wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.25.3.tar.gz & tar -xvf petsc-3.25.3.tar.gz & cd petsc-3.25.3
 
->export PETSC_DIR=$PWD
+> export PETSC_DIR=$PWD
 
->export PETSC_ARCH=linux-gnu-c (or whatever other name)
+> export PETSC_ARCH=linux-gnu-c (or whatever other name)
 
->./configure --configModules=PETSc.Configure --optionsModule=config.compilerOptions --download-fblaslapack=1 --with-shared-libraries=1 --download-hypre=1 --download-mumps=1 --download-scalapack=1 --download-metis=1 --download-parmetis=1 --download-blas=1 --with-debugging=0 --with-x=0
+> ./configure --configModules=PETSc.Configure --optionsModule=config.compilerOptions --download-fblaslapack=1 --with-shared-libraries=1 --download-hypre=1 --download-mumps=1 --download-scalapack=1 --download-metis=1 --download-parmetis=1 --download-blas=1 --with-debugging=0 --with-x=0
 
 > make all
 
@@ -107,8 +107,17 @@ A whole cmake environment is provided for coding ctests. More information can be
 
 
 
-TODO LIST
-===========
+TODO LIST & General info
+========================
+
+Clusters & compilation information
+----------------------------------
+
+1. JeanZay & TGCC => GCC: internal compiler error, submit a full report
+
+2. JeanZay => intel environment available with petsc/3.24
+
+3. TGCC => intel environment possible with petsc/3.15 or petsc/3.17, ask to install petsc/3.25
 
 CTEST currently failing
 -----------------------
@@ -119,9 +128,9 @@ CTEST currently failing
 
 3. Vanderwalls test cases > 1
 
-4. Ctest with MINMOD with debug bound -finit-real=snan -finit-integer=-999999 -ffpe-trap=invalid,zero,overflow
+4. GNU Ctest with MINMOD with debug bound -finit-real=snan -finit-integer=-999999 -ffpe-trap=invalid,zero,overflow
 
-5. On JeanZay: compilation -O3, ctest -L stokes
+5. Intel On JeanZay: compilation -O3, ctest -L stokes
 
 CTEST to add
 ------------
@@ -162,7 +171,6 @@ CTEST to add
 
 - Against MPI procs
 
-
 8. Benchmarks
 
 - Wind Tunnel
@@ -177,33 +185,29 @@ CTEST to add
 Dependencies
 -------------
 
-1. Compile and validate ctests with intel compiler
+- modify MESH_GENERATOR user API
 
-2. Provide release and debug bounds for intel compiler
-
-3. complete doc for MESH_GENERATOR
-
-4. modify MESH_GENERATOR user API
-
-5. complete doc for fftw
-
-6. Scan for fypp command
+- complete doc for fftw
 
 HYPAR_SFE functionalities
 -------------------------
 
-1. Entropy limiting
+1. Entropy/Energy? limiting
 
-2. Limiting method for u_L
+2. Limiting method using u_L
 
 3. Bernstein polynomials
 
 4. Euler Fourier with padding
 
-5. Stokes optimization
+5. Abstract class for parabolic problems?
 
-9. Factorize data in ctest
+6. Factorize data in ctest
 
-10. change commutator so that the code runs even though eta_commute might be zero at some points
+7. change commutator so that the code runs even though eta_commute might be zero at some points
 
-11. By default, associate the uijbar and limiting calculations outside of the start_setup.F90?
+8. By default, associate the uijbar and limiting calculations outside of the start_setup.F90?
+
+9. Subroutines to Factorize? iterative_LA, st_aij_csr_glob_block_with_extra_layer, reorganize SOLVERS, MESH ?
+
+10. Delete prep_periodic_bloc?

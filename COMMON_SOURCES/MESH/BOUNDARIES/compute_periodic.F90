@@ -36,26 +36,32 @@ CONTAINS
     TYPE(tMat)                                          :: matrix
     INTEGER                               :: ierr
 
+   !  CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_TRUE, ierr)
     CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
     CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
 
     nb_per_edges = periodic%nb_bords
 
     DO k = 1, SIZE(LA%loc_to_glob, 1)
+   !  DO k = 1, SIZE(LA%loc_to_glob, 1)
        DO n = 1, nb_per_edges
+         !  CALL MatSetOption (matrix, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
+         !  CALL MatSetOption (matrix, MAT_KEEP_NONZERO_PATTERN, PETSC_TRUE, ierr)
           n_D = SIZE(periodic%list(n)%DIL)
-          IF (n_D /=0) THEN
-             ALLOCATE(jdxn(n_D, nmaxcols), vals_pi(n_D, nmaxcols), n_cols_i(n_D))
-             vals_pi = 0.d0
-             n_cols_i = 0
+         !  IF (n_D /=0) THEN
+             ALLOCATE(jdxn(n_D, nmaxcols))
+             ALLOCATE(vals_pi(n_D, nmaxcols), SOURCE=0.d0)
+             ALLOCATE(n_cols_i(n_D), SOURCE=0)
+            !  vals_pi = 0.d0
+            !  n_cols_i = 0
 
-             DO l = 1, SIZE(periodic%list(n)%DIL)
-                idxn(1) = LA%loc_to_glob(k, periodic%list(n)%DIL(l))
-                CALL MatGetRow(matrix, idxn(1) - 1, ncols, cols, vals, ierr)
+             DO l = 1, n_D!SIZE(periodic%list(n)%DIL)
+                idxn(1) = LA%loc_to_glob(k, periodic%list(n)%DIL(l)) - 1
+                CALL MatGetRow(matrix, idxn(1), ncols, cols, vals, ierr)
                 n_cols_i(l) = ncols
                 jdxn(l, 1:ncols) = cols(1:ncols)
                 vals_pi(l, 1:ncols) = vals(1:ncols)
-                CALL MatRestoreRow(matrix, idxn(1) - 1, ncols, cols, vals, ierr)
+                CALL MatRestoreRow(matrix, idxn(1), ncols, cols, vals, ierr)
              END DO
 
              DO l = 1, n_D
@@ -69,8 +75,9 @@ CONTAINS
 #endif
              END DO
              DEALLOCATE(jdxn, vals_pi, n_cols_i)
+! if (k==2) stop
 
-          END IF
+         !  END IF
           CALL MatAssemblyBegin(matrix, MAT_FINAL_ASSEMBLY, ierr)
           CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
        END DO
@@ -92,7 +99,6 @@ CONTAINS
        CALL MatAssemblyEnd(matrix, MAT_FINAL_ASSEMBLY, ierr)
 
     END DO
-
   END SUBROUTINE periodic_matrix_petsc
 
    SUBROUTINE periodic_rhs_petsc(list, perlist, v_rhs, LA)

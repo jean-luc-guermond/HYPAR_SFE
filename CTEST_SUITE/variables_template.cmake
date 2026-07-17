@@ -1,9 +1,13 @@
 #==== Mandatory for any application ====
 # set(HYPAR_SFE_DIR "my_path_to_hypar/HYPAR_SFE")
+
 #===compile bounds for GNU compiler
 set(debug_bounds "-Wall -fbounds-check -fimplicit-none -O0 -ffree-line-length-none")
 set(release_bounds "-O3 -ffree-line-length-none")
+
 #===compile bounds for Intel compiler (incoming)
+# set(debug_bounds "-O0 -g -traceback -heap-arrays -check bounds -warn all")
+# set(release_bounds "-O2") <== FIXME (-O3 fails on Stokes)
 
 #==== Specific to CTEST ====
 #set(RUN_PRE_PROC "mpirun")
@@ -19,7 +23,8 @@ set(NB_PARALLEL_TEST 5)
 set(MAX_PROC_MPI_TEST 16)
 # Do we use static library? (STRONGLY UNRECOMMENDED FOR CTEST AS THERE CAN BE HUNDREDS OF HEAVY EXECUTABLES)
 set(static_library OFF)
-# non-exhaustive list of debug bounds
+
+# GNU compiler debug bounds:
 # set(debug_bounds "-Wall \
 # -fbounds-check \
 # -fimplicit-none \
