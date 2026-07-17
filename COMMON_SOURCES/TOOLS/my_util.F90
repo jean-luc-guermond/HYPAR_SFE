@@ -2,7 +2,7 @@ MODULE my_util
   IMPLICIT NONE
 
   INTERFACE to_str
-      MODULE PROCEDURE to_str_int, to_str_real, to_str_int_array_1D, to_str_char_array_1D
+      MODULE PROCEDURE to_str_int, to_str_real, to_str_logical, to_str_int_array_1D, to_str_char_array_1D, to_str_char
   END INTERFACE to_str
 
   INTERFACE pack_opt
@@ -137,6 +137,13 @@ CONTAINS
    !=========== to_str interfaces ==========================================
    !========================================================================
    
+    FUNCTION to_str_char(i) RESULT (str)
+        CHARACTER(LEN=*), INTENT(IN) :: i
+        CHARACTER(LEN=:), ALLOCATABLE :: str
+
+        str = TRIM(ADJUSTL(i))
+    END FUNCTION to_str_char
+
     FUNCTION to_str_int(i) RESULT (str)
         INTEGER, INTENT(IN) :: i
         CHARACTER(LEN=:), ALLOCATABLE :: str
@@ -164,6 +171,17 @@ CONTAINS
         ! WRITE(tmp, '(F0.6)') i
         str = trim(tmp)
     END FUNCTION to_str_real
+
+    FUNCTION to_str_logical(i) RESULT (str)
+        LOGICAL, INTENT(IN) :: i
+        CHARACTER(LEN=:), ALLOCATABLE :: str
+
+        IF (i) THEN
+          str = trim(".True.")
+        ELSE
+          str = trim(".False.")
+        END IF
+    END FUNCTION to_str_logical
 
     FUNCTION to_str_int_array_1D(i) RESULT (str)
         INTEGER, DIMENSION(:), INTENT(IN) :: i

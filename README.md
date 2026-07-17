@@ -8,13 +8,17 @@ List of mandatory dependencies
 
 1. **PETSc**: version must be at least 3.21 (3.25 strongly encouraged), and installation made by the user
 
->wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.22.5.tar.gz
-
->./configure --configModules=PETSc.Configure --optionsModule=config.compilerOptions --download-fblaslapack=1 --with-shared-libraries=1 --download-hypre=1 --download-mumps=1 --download-scalapack=1 --download-metis=1 --download-parmetis=1 --download-blas=1 --with-debugging=0 --with-x=0
+>wget https://web.cels.anl.gov/projects/petsc/download/release-snapshots/petsc-3.25.3.tar.gz & tar -xvf petsc-3.25.3.tar.gz & cd petsc-3.25.3
 
 >export PETSC_DIR=$PWD
 
->export PETSC_ARCH=linux-gnu-c
+>export PETSC_ARCH=linux-gnu-c (or whatever other name)
+
+>./configure --configModules=PETSc.Configure --optionsModule=config.compilerOptions --download-fblaslapack=1 --with-shared-libraries=1 --download-hypre=1 --download-mumps=1 --download-scalapack=1 --download-metis=1 --download-parmetis=1 --download-blas=1 --with-debugging=0 --with-x=0
+
+> make all
+
+> make check
 
 2. **fftw3**: see https://www.fftw.org/download.html, installation made by the user
 
@@ -117,6 +121,8 @@ CTEST currently failing
 
 4. Ctest with MINMOD with debug bound -finit-real=snan -finit-integer=-999999 -ffpe-trap=invalid,zero,overflow
 
+5. On JeanZay: compilation -O3, ctest -L stokes
+
 CTEST to add
 ------------
 
@@ -168,7 +174,6 @@ CTEST to add
 - Kelvin-Helmholtz
 
 
-
 Dependencies
 -------------
 
@@ -182,7 +187,7 @@ Dependencies
 
 5. complete doc for fftw
 
-6. complete $PETSC_ARCH installation instruction.
+6. Scan for fypp command
 
 HYPAR_SFE functionalities
 -------------------------

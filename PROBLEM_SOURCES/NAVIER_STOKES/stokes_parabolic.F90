@@ -334,47 +334,29 @@ character(len=10), dimension(:), allocatable :: list_profiler
         np = this%mesh%np
         ! stage_prime = this%IRK%lp_of_l(stage) 
 
+        IF (stage==2) THEN
+            DO l=1, this%IRK%s
+                CALL VecZeroEntries(this%vel_flux_rk_at_dof(l), ierr)
+            END DO
+        END IF
+
         !=== Init rhs vector for velocity problem
         CALL VecZeroEntries(this%vel1_vec, ierr)
-        !============================================================!
-        !======== FORCING CONTRIBUTION AT STAGES stage-1 & stage ====!
-        !============================================================!
+
+        !=============================================!
+        !======== FORCING CONTRIBUTION AT STAGE 2 ====!
+        !=============================================!
 
         !=== Forcing ===!
         IF (ASSOCIATED(this%forcing)) THEN
             IF (stage == 2) THEN
                 time_stage = this%time+this%IRK%C(stage-1)*this%dt
 
-                ! !=== Consistent version
-                ! DO k=1, k_dim
-                !     ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
-                ! END DO
-                ! CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage-1))
-
                 !=== Lumped version
                 DO k=1, k_dim
                     rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
                 END DO
-                CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage-1), this%LA_vel, 'insert')
-            END IF
-            IF (stage < this%IRK%s + 1) THEN
-                time_stage = this%time+this%IRK%C(stage)*this%dt
-
-                ! !=== Consistent version
-                ! DO k=1, k_dim
-                !     ff_vel(:, k) = this%forcing(k, this%mesh%rr, time_stage)
-                ! END DO
-                ! CALL qs_00_block (this%mesh, this%LA_vel, -ff_vel, this%forcing_rk_at_dof(stage))
-                
-                !=== Lumped version
-                DO k=1, k_dim
-                    rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
-                END DO
-                CALL array_to_petsc_vec(-rhs, this%forcing_rk_at_dof(stage), this%LA_vel, 'insert')
-
-                CALL VecMAXPY(this%vel1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), this%forcing_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of ERK forcing
-            ELSE
-                CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%forcing_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of ERK forcing
+                CALL array_to_petsc_vec(-rhs, this%vel_flux_rk_at_dof(stage-1), this%LA_vel, 'add', opt_include_ghost=.FALSE.)
             END IF
         END IF
         !=== Forcing ===!
@@ -390,14 +372,25 @@ character(len=10), dimension(:), allocatable :: list_profiler
         END DO
         CALL array_to_petsc_vec(rhs, this%vel2_vec, this%LA_vel, 'insert')
         !=== (-1)Div(sigma(vel))
-        CALL MatMult(this%matrices%vel_diff_mat, this%vel2_vec, this%vel_flux_rk_at_dof(stage-1), ierr) 
+        CALL MatMultAdd(this%matrices%vel_diff_mat, this%vel2_vec, this%vel_flux_rk_at_dof(stage-1), this%vel_flux_rk_at_dof(stage-1), ierr) 
 
         !================================!
         !======== VELOCITY UPDATE========!
         !================================!
         !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
+        IF (stage < this%IRK%s + 1 .AND. ASSOCIATED(this%forcing)) THEN
+            time_stage = this%time+this%IRK%C(stage)*this%dt
+            !=== Lumped version
+            DO k=1, k_dim
+                rhs((k-1)*np+1:k*np) = this%matrices%scal_lumped_mass*this%forcing(k, this%mesh%rr, time_stage)
+            END DO
+            CALL array_to_petsc_vec(-rhs, this%vel_flux_rk_at_dof(stage), this%LA_vel, 'add', opt_include_ghost=.FALSE.)
 
-        CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%vel_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
+            CALL VecMAXPY(this%vel1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), this%vel_flux_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of IRK fluxes
+        ELSE
+            CALL VecMAXPY(this%vel1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), this%vel_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
+        END IF
+
 
         DO k = 1, k_dim
             !=== WARNING HERE: stage_prime involved in explicit step or must be set manually if no prior explicit step 
@@ -460,26 +453,26 @@ character(len=10), dimension(:), allocatable :: list_profiler
         !======== TEMPERATURE UPDATE========!
         !===================================!
 
+        CALL VecZeroEntries(this%temp1_vec, ierr)
+        
         !=== (-1)Div(sigma(vel).vel)
         IF (stage==2) THEN
             CALL viscous_production (this, velocity_lm1, this%temp_flux_rk_at_dof(stage-1))
         END IF
+
         !===Define temperature at stage-1
         scal_temp = ((urk(:,k_dim+2,stage-1)/rho_lm1 - 0.5d0*SUM(velocity_lm1**2,DIM=2)))/this%cv !<===Temp= (E/rho - 1/2 * vel**2)/cv
-        CALL array_to_petsc_vec(scal_temp, this%temp1_vec, this%LA_temp, 'insert')
-        CALL MatMult(this%matrices%temp_diff_mat, this%temp1_vec, this%temp2_vec, ierr)
-        CALL VecAXPY(this%temp_flux_rk_at_dof(stage-1), 1.d0, this%temp2_vec, ierr)
+        CALL array_to_petsc_vec(scal_temp, this%temp2_vec, this%LA_temp, 'insert')
+        CALL MatMultAdd(this%matrices%temp_diff_mat, this%temp2_vec, this%temp_flux_rk_at_dof(stage-1), this%temp_flux_rk_at_dof(stage-1), ierr)
 
         IF (stage < this%IRK%s + 1) THEN
             CALL viscous_production (this, vel_out, this%temp_flux_rk_at_dof(stage))
 
             !===Combine parabolic fluxes with IRK coefficients (notice (-1)*dt*IRK%MatRK)
             !=== Notice: sum goes from 1 to stage, not stage - 1!! (first solve for vel, then for temp)
-            CALL VecZeroEntries(this%temp1_vec, ierr)
             CALL VecMAXPY(this%temp1_vec, stage, -this%dt*this%IRK%MatRK(stage,1:stage), & 
                                                 this%temp_flux_rk_at_dof(1:stage), ierr) !<=== x1 receives sum of IRK fluxes
         ELSE
-            CALL VecZeroEntries(this%temp1_vec, ierr)
             CALL VecMAXPY(this%temp1_vec, stage-1, -this%dt*this%IRK%MatRK(stage,1:stage-1), & 
                                                 this%temp_flux_rk_at_dof(1:stage-1), ierr) !<=== x1 receives sum of IRK fluxes
         END IF

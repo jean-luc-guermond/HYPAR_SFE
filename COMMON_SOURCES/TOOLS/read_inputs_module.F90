@@ -16,7 +16,7 @@ MODULE read_inputs_module
 CONTAINS
    
    SUBROUTINE compare_string_to_record(argument, string_default, okay, end_idx_record, opt_add)
-      use my_util, ONLY: pack_opt
+      use my_util, ONLY: pack_opt, write_rank_0
       IMPLICIT NONE
       CHARACTER(LEN=*), INTENT(IN)   :: argument
       CHARACTER(LEN=*), INTENT(IN)   :: string_default
@@ -45,8 +45,7 @@ CONTAINS
       CALL pack_opt(to_add, .TRUE., opt_add)
 !=== warning message if to_add = true
       IF (to_add) THEN
-         WRITE(*,*) ' File reading error for list(index_list_info_data) =   '&
-               , argument
+         CALL write_rank_0(' File reading error for list(index_list_info_data) =   '// argument)
          index_list_info_data = index_list_info_data+1
          list_info_for_new_data(index_list_info_data) = argument
          index_list_info_data = index_list_info_data+1

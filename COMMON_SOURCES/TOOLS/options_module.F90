@@ -30,6 +30,7 @@ CONTAINS
    !==============================
 
     SUBROUTINE read_all_arguments
+        USE my_util, ONLY: write_rank_0, to_str
         IMPLICIT NONE
         TYPE(options_name_type) :: options_name
         INTEGER :: i
@@ -38,31 +39,31 @@ CONTAINS
         CALL read_given_argument(options_name%data_in, val_read)
         IF (val_read /= "NONE") THEN 
             READ(val_read,*) options%data_in
-            WRITE(*,*) "Reading... ", options_name%data_in, options%data_in
+            CALL write_rank_0("Reading... " // options_name%data_in // to_str(options%data_in))
         END IF
 
         CALL read_given_argument(options_name%data_out, val_read)
         IF (val_read /= "NONE") THEN
             READ(val_read,*) options%data_out
-            WRITE(*,*) "Reading... ", options_name%data_out, options%data_out
+            CALL write_rank_0("Reading... " // options_name%data_out // to_str(options%data_out))
         END IF
 
         CALL read_given_argument(options_name%data_save, val_read)
         IF (val_read /= "NONE") THEN
             READ(val_read,*) options%data_save
-            WRITE(*,*) "Reading... ", options_name%data_save, options%data_save
+            CALL write_rank_0("Reading... " // options_name%data_save // to_str(options%data_save))
         END IF
 
         CALL read_given_argument(options_name%if_regression, val_read)
         IF (val_read /= "NONE") THEN
             READ(val_read,*) options%if_regression
-            WRITE(*,*) "Reading... ", options_name%if_regression, options%if_regression
+            CALL write_rank_0("Reading... " // options_name%if_regression // to_str(options%if_regression))
         END IF
 
         CALL read_given_argument(options_name%num_regex, val_read)
         IF (val_read /= "NONE") THEN
             READ(val_read,*) options%num_regex
-            WRITE(*,*) "Reading... ", options_name%num_regex, options%num_regex
+            CALL write_rank_0("Reading... " // options_name%num_regex // to_str(options%num_regex))
         END IF
 
     END SUBROUTINE read_all_arguments
