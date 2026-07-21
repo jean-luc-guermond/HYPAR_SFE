@@ -89,7 +89,7 @@ The ctest will compile all sources found within CASES_DEVELOPPER/loc_layer_III/L
 
 - the corresponding folders must be found inside CASES_USER, i.e created within layer II
 
-**INCLUDE_TEST_SOURCES**: It is possible also to compile the sources within given local_sources through this option. If set to ON, the test will compile both whatever .F90 sources found within 
+**INCLUDE_TEST_SOURCES**: It is possible also to compile the sources within given local_sources through this option. If set to ON, the test will compile both whatever .F90 sources found within
 
 - CASES_USER/EULER_FE/2D/IDP_ISENTROPIC_VORTEX/LOCAL_SOURCES
 
@@ -118,19 +118,17 @@ A new test is explicitly added at Layer III. The creation of layers I and/or II 
 
 For test number k in [1, n], ctest will look for the corresponding chain of characters within the input [see here](../LIBS/CMAKE_SOURCES/function_regression_test.cmake). This is automatically handled by HYPAR with:
 
-    INTEGER :: num_test
     REAL(KIND=8), DIMENSION(syst_dim) :: tab_norm
 
 
     ...
     ...
 
-    CALL get_num_test(num_test)
-    CALL regression(tab_norm, opt_num_test=num_test, opt_tol=1d-5)
+    CALL regression(tab_norm, opt_tol=1d-5)
 
 Where tab_norm contains the values to be tested and can be of whatever dimension.
 
-When running the test for the first time, several files will be generated: 
+When running the test for the first time, several files will be generated:
 current_regression_reference_1, regression_reference_1, current_regression_reference_2, regression_reference_2, ..., current_regression_reference_n, regression_reference_n. CTEST tests the value within current_regression_reference_k against regression_reference_k within some relative tolerance (1.d-7 by default if opt_tol not specified). Therefore it is only left to cp current_regression_reference_k regression_reference_k, and the ctest should be successful!
 
 
@@ -141,7 +139,7 @@ The folder REGRESSION_SUITE/TOOLS is particular in that it is not based on a sim
 
 ### CTEST features
 
-All tests can serve a whole a lot of different purposes which can be split into two categories: test/physical test. The user can decide which tests he wants to run according to the label he gives in. 
+All tests can serve a whole a lot of different purposes which can be split into two categories: test/physical test. The user can decide which tests he wants to run according to the label he gives in.
 ctest -L "type_1|type_2":  will only run tests which include labels either type_1 or type_2
 ctest -LE "type_3":        will run all runs not labeled type_3
 ctest -N:                  gives the list of all available tests (one can for instance for check ctest -N -L "type_1|quick" -LE "type_3" to know how many tests will be run before effectively starting)
@@ -168,17 +166,17 @@ The label mpi should not be added manually but instead is taken care of by cmake
 - Boundary conditions:      dirichlet, periodic, udotn
 
 - Matrix inversion methods:  lumped, consistent, quasi_consistent, lumped_stokes
-  
+
 - Method for conservation eq: high, viscous, galerkin
 
 - Problem solved:  hyperbolic, euler, stokes, navier-stokes, poisson, burgers, non_convex, linear_transport
-  
+
 - Solver post-processing: limiting, relax_minmod, relax_avg
-  
-- HYPAR_SFE tools:       petsc, fftw, refinement  
-  
-  
-A given test often has several labels for its physics, and one or two for its speed. 
+
+- HYPAR_SFE tools:       petsc, fftw, refinement
+
+
+A given test often has several labels for its physics, and one or two for its speed.
 
 The mpi label is only given to tests with parameters:
 

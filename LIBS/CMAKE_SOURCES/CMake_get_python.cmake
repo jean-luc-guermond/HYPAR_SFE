@@ -2,12 +2,12 @@
 #=============== generating python environment using pip HYPAR_SFE for sources pre-generation
 #====================================================================================================
 
-find_package(Python3 
+find_package(Python3
     ${PYTHON_MIN_VERSION}
     REQUIRED
     COMPONENTS Interpreter)
 
-execute_process( 
+execute_process(
     COMMAND fypp --version
     RESULT_VARIABLE HAVE_FYPP
     OUTPUT_QUIET
@@ -28,7 +28,7 @@ else()
     )
 
     if(HAVE_PYTHON_FYPP EQUAL 0)
-        set(FYPP_EXECUTABLE "${Python3_EXECUTABLE} -m fypp")
+        set(FYPP_EXECUTABLE ${Python3_EXECUTABLE} -m fypp)
         message(STATUS "Using system Python with FYPP.")
     else()
         set(VENV_DIR ${HYPAR_SFE_DIR}/LIBS/DEPENDENCIES/.venv)
@@ -42,6 +42,7 @@ else()
                 COMMAND ${Python3_EXECUTABLE} -m venv ${VENV_DIR}
                 RESULT_VARIABLE VENV_RESULT
             )
+            MESSAGE(STATUS "venv inside ${VENV_DIR}")
             if(NOT VENV_RESULT EQUAL 0)
                 message(FATAL_ERROR "Failed to create Python virtual environment")
             endif()
@@ -57,6 +58,6 @@ else()
             endif()
         endif()
         set(Python3_EXECUTABLE ${VENV_PYTHON})
-        set(FYPP_EXECUTABLE "${Python3_EXECUTABLE} -m fypp")
+        set(FYPP_EXECUTABLE ${Python3_EXECUTABLE} -m fypp)
     endif()
 endif()

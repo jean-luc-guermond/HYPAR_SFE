@@ -101,16 +101,16 @@ endif()
 #========================================================================================
 
 if(is_ctest)
-    file(GLOB_RECURSE commonFppFiles 
+    file(GLOB_RECURSE commonFppFiles
     CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc"
     "${HYPAR_SFE_DIR}/CASES_DEVELOPPER/*F90" "${HYPAR_SFE_DIR}/CASES_DEVELOPPER/*fpp")
 else()
-    file(GLOB_RECURSE commonFppFiles 
+    file(GLOB_RECURSE commonFppFiles
     CONFIGURE_DEPENDS "${HYPAR_SFE_DIR}/COMMON_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PDE_ABSTRACT_SOURCES/*fpp" "${HYPAR_SFE_DIR}/PROBLEM_SOURCES/*inc")
 endif()
 set_property(DIRECTORY APPEND PROPERTY
     CMAKE_CONFIGURE_DEPENDS ${commonFppFiles})
-     
+
 
 #===============================
 #======= .fpp => .F90
@@ -177,7 +177,7 @@ foreach(dim IN LISTS DIMS)
         set_target_properties(${CUR_HYPAR_SFE_LIB} PROPERTIES
             Fortran_MODULE_DIRECTORY ${MY_HYPAR_SFE_MODULE_SOURCES}
             POSITION_INDEPENDENT_CODE ON)
-        
+
         target_link_libraries(${CUR_HYPAR_SFE_LIB} PUBLIC
             PkgConfig::PETSC PkgConfig::FFTW
             ${MPI_Fortran_LIBRARIES}
@@ -186,7 +186,7 @@ foreach(dim IN LISTS DIMS)
 
         target_include_directories(${CUR_HYPAR_SFE_LIB} PUBLIC ${PETSC_INC} ${CMAKE_CURRENT_BINARY_DIR})
 
-        target_compile_definitions(${CUR_HYPAR_SFE_LIB} PUBLIC 
+        target_compile_definitions(${CUR_HYPAR_SFE_LIB} PUBLIC
         K_DIM_FE=${dim}
         PETSC_VERSION_MINOR=${PETSC_VERSION_MINOR}
         )
